@@ -7,12 +7,19 @@ import threading
 
 from sshkeyboard import listen_keyboard, stop_listening
 
+import yaml
+import inspect
+import threading
+
+from sshkeyboard import listen_keyboard, stop_listening
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -98,10 +105,46 @@ class service_vars:
         self.dld = dld
         self.yml = yml
 
+# Web Element Object
+class webElementObj:
+    class selectorObj:
+        def __init__(self, locator, element):
+            self.locator = locator
+            self.element = element
+    def __init__(self, timeout=10, variable=None, graceful=False, var=None):
+        self.timeout = timeout
+        self.graceful = graceful
+        self.variable = variable
+        self.var = var
+
+# Map yaml recipe locator types to Selenium locator types
+LOCATOR_MAP = {
+    "XPATH": By.XPATH,
+    "ID": By.ID,
+    "CSS_SELECTOR": By.CSS_SELECTOR,
+    "LINK_TEXT": By.LINK_TEXT
+}
+
+# Map yaml recipe action types to perform functions
+ACTION_MAP = {
+    "Click": "perform__click",
+    "ClickShadow": "perform__click_shadow",
+    "SendKeys": "perform__send_keys",
+    "Download": "perform__download"
+}
+
+# Map yaml variables to function variables
+VARIABLE_MAP = {
+    "{USERNAME}": "usr",
+    "{PASSWORD}": "pwd",
+    "{OTP}": "otp",
+    "Keys.ENTER": Keys.ENTER
+}
+
 # Retrieve file from service - main function
-def RetrieveFromService(service, url, user, pwd, otp, test):
+def retrieve_from_service(service, url, user, pwd, otp, debug):
     
-    bcs = service_vars(user, pwd, otp, test, f"{os.path.dirname(os.path.realpath(__file__))}/Downloads")
+    bcs = service_vars(usr=user, pwd=pwd, otp=otp, dbg=debug, dld=f"{os.path.dirname(os.path.realpath(__file__))}/Downloads")
     if not os.path.exists(bcs.dld):
         os.makedirs(bcs.dld)
     bcs.drv = InitBrowser(bcs)
@@ -113,7 +156,7 @@ def RetrieveFromService(service, url, user, pwd, otp, test):
         sname = service.lower().replace(" ", "_")
         bcs.yml = CheckRecipe(f"{os.path.dirname(os.path.realpath(__file__))}/bc-recipes/bc-recipe__{sname}.yaml")
         if bcs.yml == None: raise Exception(f"Recipe {sname} not found.")
-        file_downloaded = bc_retrieve(bcs)
+        file_downloaded = perform_actions(bcs)
         if file_downloaded != None: print(f"Service {service} finished with file {file_downloaded} for {bcs.usr} downloaded.")
         else: print(f"Service {service} for {bcs.usr} finished without a file downloaded.")
     except Exception as e:
@@ -126,27 +169,8 @@ def RetrieveFromService(service, url, user, pwd, otp, test):
         on_debug_stop_keyboard_listener(bcs)
         return True
 
-# Web Element Object
-locatorMapping = {
-    "XPATH": By.XPATH,
-    "ID": By.ID,
-    "CSS_SELECTOR": By.CSS_SELECTOR,
-    "LINK_TEXT": By.LINK_TEXT
-}
-
-class webElementObj:
-    class selectorObj:
-        def __init__(self, locator, element):
-            self.locator = locator
-            self.element = element
-    def __init__(self, timeout=10, variable=None, graceful=False, key=None):
-        self.timeout = timeout
-        self.graceful = graceful
-        self.variable = variable
-        self.key = key
-
-# Retrieve service actions from YAML recipe - helper function
-def bc_retrieve(bcs):
+# Perform actions from YAML recipe on web elements - helper function for dispatching actions
+def perform_actions(bcs):
     try:
         # Parse the YAML structure
         services = bcs.yml.get('services', [])
@@ -162,31 +186,27 @@ def bc_retrieve(bcs):
                     parameters = action['parameters']
                     
                     print(f"  Executing Step {step}: {action_type}")
-                    
-                    # Process action based on its type
-                    if action_type == "Click":
-                        perform_click(bcs, parameters)
-                    elif action_type == "ClickShadow":
-                        perform_click_shadow(bcs, parameters)
-                    elif action_type == "SendKeys":
-                        perform_send_keys(bcs, parameters)
-                    elif action_type == "Download":
-                        file_downloaded = perform_download(bcs, parameters)
-                        return file_downloaded
-                    else:
-                        raise Exception(f"  Unknown action type: {action_type}")
+                    perform_action_name = ACTION_MAP.get(action_type)
+                    if perform_action_name is None:
+                        raise Exception(f"Unsupported action type: {action_type}")
+                    perform_action = globals().get(perform_action_name) # Get function by name
+                    if not callable(perform_action):
+                        raise Exception(f"Function {perform_action_name} is not callable or not found")
+                    file_downloaded = perform_action(bcs, parameters)
+                    if file_downloaded != None: return file_downloaded 
+
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
 
 # Get Selenium locator
-def getSeleniumLocator(locator_type):
-    sLocator = locatorMapping.get(locator_type)
+def get_selenium_locator(locator_type):
+    sLocator = LOCATOR_MAP.get(locator_type)
     if sLocator is None:
         raise ValueError(f"Unsupported locator type: {locator_type}")
     return sLocator
 
 # Initialize web element object
-def initWebElementObj(parameters, expected_locators=1):
+def init_webelement_obj(parameters, expected_locators=1):
     try:
         webElement = webElementObj(timeout = parameters.get('timeout', 10), variable = parameters.get('variable', None), graceful = parameters.get('graceful', False))
         webElement.selectors = []
@@ -194,7 +214,7 @@ def initWebElementObj(parameters, expected_locators=1):
         if len(locators) != expected_locators:
             raise Exception(f"Expected {expected_locators} locators, but got {len(locators)}")
         for locator in locators:
-            seleniumLocator = getSeleniumLocator(locator.get('locatorType'))
+            seleniumLocator = get_selenium_locator(locator.get('locatorType'))
             element = locator.get('element')
             if seleniumLocator and element:
                 selector = webElementObj.selectorObj(seleniumLocator, element)
@@ -207,71 +227,79 @@ def initWebElementObj(parameters, expected_locators=1):
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
         return None
 
-def perform_click(bcs, parameters):
+# Action functions
+#
+# perform single action
+def perform__click(bcs, parameters):
     try:
         print(f"    Clicking on DOM element with the following selectors:")
-        webElement = initWebElementObj(parameters, 1)
-        tryClick(bcs, webElement)
+        webElement = init_webelement_obj(parameters, 1)
+        click_webelement(bcs, webElement)
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
 
-def perform_click_shadow(bcs, parameters):
+def perform__click_shadow(bcs, parameters):
     try:
         print(f"    Clicking on shadow DOM elements with the following selectors:")
-        webElement = initWebElementObj(parameters, 3)
-        tryClickShadow(bcs, webElement)
+        webElement = init_webelement_obj(parameters, 3)
+        clickshadow_webelement(bcs, webElement)
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
 
 
-def perform_send_keys(bcs, parameters):
+def perform__send_keys(bcs, parameters):
     try:
         print(f"    Sending keys to elements with the following selectors:")
-        webElement = initWebElementObj(parameters)
-        if webElement.variable == "{USERNAME}":
-            webElement.key = bcs.usr
-        elif webElement.variable == "{PASSWORD}":
-            webElement.key = bcs.pwd
-        elif webElement.variable == "{OTP}":
-            webElement.key = bcs.otp
-        elif webElement.variable == "Keys.ENTER":
-            webElement.key = Keys.ENTER
+        webElement = init_webelement_obj(parameters)
+
+        variable_name = "bcs." + VARIABLE_MAP.get(webElement.variable)
+        if variable_name is None:
+            raise Exception(f"Unsupported variable: {webElement.variable}")
+        variable = globals().get(variable_name) # Get variable by name
+        if isinstance(variable_name, str) and variable_name.startswith("bcs."):
+            webElement.var = eval(variable_name)  
         else:
-            raise Exception(f"    Unbekannte Variable: {webElement.variable}")
-        trySendKeys(bcs, webElement)
+            webElement.var = variable_name
+        sendkeys_webelement(bcs, webElement)
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}: {e}")
 
-def perform_download(bcs, parameters):
+def perform__download(bcs, parameters):
     try:
         print(f"    Performing download action with the following selectors:")
-        webElement = initWebElementObj(parameters, 1)
-        file_downloaded = tryDownload(bcs, webElement)
+        webElement = init_webelement_obj(parameters, 1)
+        file_downloaded = download_webelement(bcs, webElement)
         return file_downloaded
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
 
 # Try to click element which needs time to be ready
-def tryClick(bcs, we):
+def click_webelement(bcs, we):
     Timeout = we.timeout
     on_debug_save_web_page(bcs)
     on_debug_pause_check(bcs)
     while Timeout > 0:
         try:
             bcs.drv.find_element(we.selectors[0].locator, we.selectors[0].element).click()
+            bcs.drv.find_element(we.selectors[0].locator, we.selectors[0].element).click()
         except: 
             time.sleep(1)
             Timeout -= 1
         else:
+            time.sleep(5)
             return True
+    if we.graceful == False: raise RuntimeError(f"Element loading timeout") 
     if we.graceful == False: raise RuntimeError(f"Element loading timeout") 
     else: return False
 
 # Try to click shadow element which needs time to be ready
-def tryClickShadow(bcs, we):
+def clickshadow_webelement(bcs, we):
     try:
         shadow_host = WebDriverWait(bcs.drv, we.timeout).until(EC.presence_of_element_located((we.selectors[0].locator, we.selectors[0].element)))
+        shadow_host = WebDriverWait(bcs.drv, we.timeout).until(EC.presence_of_element_located((we.selectors[0].locator, we.selectors[0].element)))
         shadow_root = bcs.drv.execute_script('return arguments[0].shadowRoot', shadow_host)
+        WebDriverWait(shadow_root, we.timeout).until(EC.presence_of_element_located((we.selectors[1].locator, we.selectors[1].element)))
+        cookie_button = shadow_root.find_element(we.selectors[2].locator, we.selectors[2].element)
         WebDriverWait(shadow_root, we.timeout).until(EC.presence_of_element_located((we.selectors[1].locator, we.selectors[1].element)))
         cookie_button = shadow_root.find_element(we.selectors[2].locator, we.selectors[2].element)
         bcs.drv.execute_script("arguments[0].click();", cookie_button)
@@ -284,30 +312,42 @@ def tryClickShadow(bcs, we):
     except Exception as e:
         on_debug_save_web_page(bcs)
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
+    except TimeoutException as e:
+        on_debug_save_web_page(bcs)
+        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): Timeout: Element konnte nicht gefunden werden.")
+    except NoSuchElementException as e:
+        on_debug_save_web_page(bcs)
+        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): Element nicht vorhanden.")
+    except Exception as e:
+        on_debug_save_web_page(bcs)
+        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
     else:
+        time.sleep(5)
         on_debug_save_web_page(bcs)
         return True
 
 # Try to send keys to element which needs time to be ready
-def trySendKeys(bcs, we):
+def sendkeys_webelement(bcs, we):
     Timeout = we.timeout
     on_debug_save_web_page(bcs)
     while Timeout > 0:
         try:
-             bcs.drv.find_element(we.selectors[0].locator, we.selectors[0].element).send_keys(we.key)
+             bcs.drv.find_element(we.selectors[0].locator, we.selectors[0].element).send_keys(we.var)
         except: 
             time.sleep(1)
             Timeout -= 1
         else:
+            time.sleep(5)
             return True
+    if we.graceful == False: raise RuntimeError(f"Sending Key to Element timeout")
     if we.graceful == False: raise RuntimeError(f"Sending Key to Element timeout")
     else: return False
 
 # Try to download file from element which needs time to be ready
 # Checks download folder for new downloaded file and returns the name of the downloaded file
-def tryDownload(bcs, we):
+def download_webelement(bcs, we):
     prev_file = latest_download_file(bcs.dld)
-    tryClick(bcs,we)
+    click_webelement(bcs,we)
     time.sleep(5)
     return is_download_finished(bcs.dld, prev_file)
     

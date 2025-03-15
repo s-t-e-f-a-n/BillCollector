@@ -13,7 +13,7 @@ import requests
 import json
 from flatten_json import flatten
 
-from BillCollectorServices import RetrieveFromService
+from BillCollectorServices import retrieve_from_service
 
 # Function to extract strings before and within brackets
 def extract_strings(line):
@@ -68,13 +68,17 @@ def is_domain_local_ip(domain):
     ip = extract_ip(' '.join(ips_record.answer))
     if ip:
         print(f"IP address found: {ip}")
+        print(f"IP address found: {ip}")
         if is_local_ip(ip):
+            print("Local IP address.")
             print("Local IP address.")
             return ip
         else:
             print("No local IP address.")
+            print("No local IP address.")
             return False
     else:
+        print("No IP address received.")
         print("No IP address received.")
         return False
 
@@ -83,8 +87,10 @@ def get_json(url):
     try:
         response = requests.get(url)
         response.raise_for_status()  # Checks for Statuscode 200
+        response.raise_for_status()  # Checks for Statuscode 200
         return response.text
     except requests.exceptions.RequestException as e:
+        print(f"Error with requst: {e}")
         print(f"Error with requst: {e}")
         return None
 
@@ -108,8 +114,10 @@ def post_json(url, payload):
     response = requests.post(url, json=payload)
     if response.status_code == 201 or response.status_code == 200:
         print("Successfully posted!")
+        print("Successfully posted!")
         return json.dumps(response.json())
     else:
+        print(f"Error: {response.status_code}")
         print(f"Error: {response.status_code}")
         print(response.text)
         return False
@@ -120,6 +128,7 @@ def get_json_property_value(content, prop):
     return result
 
 class defs:
+    def __init__(self, vault, api, fname="bc_default.ini", debug=False):
     def __init__(self, vault, api, fname="bc_default.ini", debug=False):
         self.vault = vault
         self.api = api
@@ -161,6 +170,8 @@ def WebRetriDoc(self):
             # Retrieve credentials
             ####TODO Intercept no data returned
             ####TODO Intercept doublettes in Bitwarden -> ID-Handling
+            ####TODO Intercept no data returned
+            ####TODO Intercept doublettes in Bitwarden -> ID-Handling
             item = get_json(f"{self.api}/object/item/{service_user}")
             username = get_json_property_value(item, "data_login_username")
             passsword = get_json_property_value(item, "data_login_password")
@@ -170,7 +181,7 @@ def WebRetriDoc(self):
             else: totp = None 
 
             # Download Documents
-            RetrieveFromService(servicename, uri, username, passsword, totp, self.debug)
+            retrieve_from_service(servicename, uri, username, passsword, totp, self.debug)
     #
     #################
 
@@ -186,8 +197,12 @@ if __name__ == "__main__":
         # Debugging
         print("Executed in debugger. Debug mode enabled.")
         bc.fname = "./bc_test.ini"
+        # Debugging
+        print("Executed in debugger. Debug mode enabled.")
+        bc.fname = "./bc_test.ini"
         bc.debug = True
     else:
+        # Command line handling
         # Command line handling
         if len(sys.argv) < 2 or len(sys.argv) > 3:
             print(" Usage: python3 BillCollector.py <ini-filename> [\"debug\"]")
@@ -199,6 +214,7 @@ if __name__ == "__main__":
             bc.debug = False
         else:
             bc.debug = True
+            print("Debug mode enabled.")
             print("Debug mode enabled.")
         bc.fname = sys.argv[1]
 

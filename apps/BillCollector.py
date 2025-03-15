@@ -13,6 +13,7 @@ import requests
 import json
 from flatten_json import flatten
 
+from BillCollectorServices import RetrieveFromService
 
 # Function to extract strings before and within brackets
 def extract_strings(line):
@@ -66,25 +67,25 @@ def is_domain_local_ip(domain):
     print(ips_record.answer)
     ip = extract_ip(' '.join(ips_record.answer))
     if ip:
-        print(f"Gefundene IP-Adresse: {ip}")
+        print(f"IP address found: {ip}")
         if is_local_ip(ip):
-            print("Es handelt sich um eine lokale IP-Adresse.")
+            print("Local IP address.")
             return ip
         else:
-            print("Es handelt sich nicht um eine lokale IP-Adresse.")
+            print("No local IP address.")
             return False
     else:
-        print("Keine IP-Adresse erhalten.")
+        print("No IP address received.")
         return False
 
 # Get web content
 def get_json(url):
     try:
         response = requests.get(url)
-        response.raise_for_status()  # Überprüft, ob die Anfrage erfolgreich war (Statuscode 200)
+        response.raise_for_status()  # Checks for Statuscode 200
         return response.text
     except requests.exceptions.RequestException as e:
-        print(f"Fehler bei der Anfrage: {e}")
+        print(f"Error with requst: {e}")
         return None
 
 # Check Bitwarden API status
@@ -106,10 +107,10 @@ def is_json_property_value(content, prop, val):
 def post_json(url, payload):
     response = requests.post(url, json=payload)
     if response.status_code == 201 or response.status_code == 200:
-        print("Erfolgreich gepostet!")
+        print("Successfully posted!")
         return json.dumps(response.json())
     else:
-        print(f"Fehler: {response.status_code}")
+        print(f"Error: {response.status_code}")
         print(response.text)
         return False
 
@@ -119,12 +120,11 @@ def get_json_property_value(content, prop):
     return result
 
 class defs:
-    def __init__(self, vault, api, fname="bc_test.ini", debug=False):
+    def __init__(self, vault, api, fname="bc_default.ini", debug=False):
         self.vault = vault
         self.api = api
         self.fname = fname
         self.debug = debug
-
 
 def WebRetriDoc(self):
 
@@ -159,6 +159,8 @@ def WebRetriDoc(self):
             print(f"Service {service_user} started.")
 
             # Retrieve credentials
+            ####TODO Intercept no data returned
+            ####TODO Intercept doublettes in Bitwarden -> ID-Handling
             item = get_json(f"{self.api}/object/item/{service_user}")
             username = get_json_property_value(item, "data_login_username")
             passsword = get_json_property_value(item, "data_login_password")
@@ -168,7 +170,6 @@ def WebRetriDoc(self):
             else: totp = None 
 
             # Download Documents
-            from BillCollectorServices import RetrieveFromService
             RetrieveFromService(servicename, uri, username, passsword, totp, self.debug)
     #
     #################
@@ -182,11 +183,12 @@ if __name__ == "__main__":
         os.getenv("BW_API_URL")) #, 
 
     if sys.gettrace():
-        print("Executed in debugger.")
+        # Debugging
+        print("Executed in debugger. Debug mode enabled.")
+        bc.fname = "./bc_test.ini"
         bc.debug = True
-        print("Debugging enabled.")
     else:
-        # Von der Konsole ausgeführt
+        # Command line handling
         if len(sys.argv) < 2 or len(sys.argv) > 3:
             print(" Usage: python3 BillCollector.py <ini-filename> [\"debug\"]")
             sys.exit(1)
@@ -197,7 +199,7 @@ if __name__ == "__main__":
             bc.debug = False
         else:
             bc.debug = True
-            print("Debugging enabled.")
+            print("Debug mode enabled.")
         bc.fname = sys.argv[1]
 
     logfile = "./BillCollector.log"
@@ -208,5 +210,4 @@ if __name__ == "__main__":
     WebRetriDoc(bc)
 
 else:
-    # Als Modul importiert
     print(f"{__name__} imported as module.")

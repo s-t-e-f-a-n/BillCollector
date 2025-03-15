@@ -1,0 +1,52 @@
+---
+services:
+  - serviceName: "lichtblick"
+    actions:
+      - step: 1
+        actionType: "ClickShadow"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: "#usercentrics-cmp-ui"
+            - locatorType: "CSS_SELECTOR"
+              element: "#uc-main-dialog"
+            - locatorType: "CSS_SELECTOR"
+              element: "#accept"
+      - step: 2
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "XPATH"
+              element: "//a[@href='/konto/']"
+      - step: 3
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "email"
+          variable: "{USERNAME}"
+      - step: 4
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "password"
+          variable: "{PASSWORD}"
+      - step: 5
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "next"
+      - step: 6
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "LINK_TEXT"
+              element: "Posteingang"
+      - step: 7
+        actionType: "Download"
+        parameters:
+          locators:
+            - locatorType: "XPATH"
+              element: "//button[span[text()='Download']]"

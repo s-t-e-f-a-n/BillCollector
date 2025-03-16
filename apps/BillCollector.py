@@ -129,7 +129,6 @@ def get_json_property_value(content, prop):
 
 class defs:
     def __init__(self, vault, api, fname="bc_default.ini", debug=False):
-    def __init__(self, vault, api, fname="bc_default.ini", debug=False):
         self.vault = vault
         self.api = api
         self.fname = fname

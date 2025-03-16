@@ -68,17 +68,13 @@ def is_domain_local_ip(domain):
     ip = extract_ip(' '.join(ips_record.answer))
     if ip:
         print(f"IP address found: {ip}")
-        print(f"IP address found: {ip}")
         if is_local_ip(ip):
-            print("Local IP address.")
             print("Local IP address.")
             return ip
         else:
             print("No local IP address.")
-            print("No local IP address.")
             return False
     else:
-        print("No IP address received.")
         print("No IP address received.")
         return False
 
@@ -87,10 +83,8 @@ def get_json(url):
     try:
         response = requests.get(url)
         response.raise_for_status()  # Checks for Statuscode 200
-        response.raise_for_status()  # Checks for Statuscode 200
         return response.text
     except requests.exceptions.RequestException as e:
-        print(f"Error with requst: {e}")
         print(f"Error with requst: {e}")
         return None
 
@@ -114,10 +108,8 @@ def post_json(url, payload):
     response = requests.post(url, json=payload)
     if response.status_code == 201 or response.status_code == 200:
         print("Successfully posted!")
-        print("Successfully posted!")
         return json.dumps(response.json())
     else:
-        print(f"Error: {response.status_code}")
         print(f"Error: {response.status_code}")
         print(response.text)
         return False
@@ -169,8 +161,6 @@ def WebRetriDoc(self):
             # Retrieve credentials
             ####TODO Intercept no data returned
             ####TODO Intercept doublettes in Bitwarden -> ID-Handling
-            ####TODO Intercept no data returned
-            ####TODO Intercept doublettes in Bitwarden -> ID-Handling
             item = get_json(f"{self.api}/object/item/{service_user}")
             username = get_json_property_value(item, "data_login_username")
             passsword = get_json_property_value(item, "data_login_password")
@@ -196,12 +186,8 @@ if __name__ == "__main__":
         # Debugging
         print("Executed in debugger. Debug mode enabled.")
         bc.fname = "./bc_test.ini"
-        # Debugging
-        print("Executed in debugger. Debug mode enabled.")
-        bc.fname = "./bc_test.ini"
         bc.debug = True
     else:
-        # Command line handling
         # Command line handling
         if len(sys.argv) < 2 or len(sys.argv) > 3:
             print(" Usage: python3 BillCollector.py <ini-filename> [\"debug\"]")
@@ -213,7 +199,6 @@ if __name__ == "__main__":
             bc.debug = False
         else:
             bc.debug = True
-            print("Debug mode enabled.")
             print("Debug mode enabled.")
         bc.fname = sys.argv[1]
 

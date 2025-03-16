@@ -7,19 +7,12 @@ import threading
 
 from sshkeyboard import listen_keyboard, stop_listening
 
-import yaml
-import inspect
-import threading
-
-from sshkeyboard import listen_keyboard, stop_listening
-
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -281,7 +274,6 @@ def click_webelement(bcs, we):
     while Timeout > 0:
         try:
             bcs.drv.find_element(we.selectors[0].locator, we.selectors[0].element).click()
-            bcs.drv.find_element(we.selectors[0].locator, we.selectors[0].element).click()
         except: 
             time.sleep(1)
             Timeout -= 1
@@ -289,29 +281,16 @@ def click_webelement(bcs, we):
             time.sleep(5)
             return True
     if we.graceful == False: raise RuntimeError(f"Element loading timeout") 
-    if we.graceful == False: raise RuntimeError(f"Element loading timeout") 
     else: return False
 
 # Try to click shadow element which needs time to be ready
 def clickshadow_webelement(bcs, we):
     try:
         shadow_host = WebDriverWait(bcs.drv, we.timeout).until(EC.presence_of_element_located((we.selectors[0].locator, we.selectors[0].element)))
-        shadow_host = WebDriverWait(bcs.drv, we.timeout).until(EC.presence_of_element_located((we.selectors[0].locator, we.selectors[0].element)))
         shadow_root = bcs.drv.execute_script('return arguments[0].shadowRoot', shadow_host)
         WebDriverWait(shadow_root, we.timeout).until(EC.presence_of_element_located((we.selectors[1].locator, we.selectors[1].element)))
         cookie_button = shadow_root.find_element(we.selectors[2].locator, we.selectors[2].element)
-        WebDriverWait(shadow_root, we.timeout).until(EC.presence_of_element_located((we.selectors[1].locator, we.selectors[1].element)))
-        cookie_button = shadow_root.find_element(we.selectors[2].locator, we.selectors[2].element)
         bcs.drv.execute_script("arguments[0].click();", cookie_button)
-    except TimeoutException as e:
-        on_debug_save_web_page(bcs)
-        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): Timeout: Element konnte nicht gefunden werden.")
-    except NoSuchElementException as e:
-        on_debug_save_web_page(bcs)
-        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): Element nicht vorhanden.")
-    except Exception as e:
-        on_debug_save_web_page(bcs)
-        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
     except TimeoutException as e:
         on_debug_save_web_page(bcs)
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): Timeout: Element konnte nicht gefunden werden.")
@@ -339,7 +318,6 @@ def sendkeys_webelement(bcs, we):
         else:
             time.sleep(5)
             return True
-    if we.graceful == False: raise RuntimeError(f"Sending Key to Element timeout")
     if we.graceful == False: raise RuntimeError(f"Sending Key to Element timeout")
     else: return False
 

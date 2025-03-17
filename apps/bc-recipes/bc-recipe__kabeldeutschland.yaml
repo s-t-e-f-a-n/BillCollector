@@ -34,11 +34,11 @@ services:
           locators:
             - locatorType: "CSS_SELECTOR"
               element: ".fm-field-container > #txtPassword"
-          variable: "Keys.ENTER"
+          variable: "ENTER"
       - step: 6
         actionType: "Download"
         parameters:
           locators:
             - locatorType: "CSS_SELECTOR"
               element: ".btn:nth-child(1) > .title"
-          timeout: 300
+          timeout: 10

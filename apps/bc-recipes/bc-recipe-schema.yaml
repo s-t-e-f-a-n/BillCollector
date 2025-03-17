@@ -50,8 +50,8 @@
                     },
                     "variable": {
                       "type": "string",
-                      "enum": ["{USERNAME}", "{PASSWORD}", "{OTP}", "Keys.ENTER"],
-                      "description": "Defines the allowed variables. Allowed values are: {USERNAME}, {PASSWORD}, {OTP}, Keys.ENTER."
+                      "enum": ["{USERNAME}", "{PASSWORD}", "{OTP}", "ENTER"],
+                      "description": "Defines the allowed variables. Allowed values are: {USERNAME}, {PASSWORD}, {OTP}, ENTER."
                     },
                     "timeout": {
                       "type": "integer"

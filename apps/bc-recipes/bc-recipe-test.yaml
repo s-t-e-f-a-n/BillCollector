@@ -61,7 +61,7 @@ services:
           locators:
             - locatorType: "ID"
               element: "enterverificationcode"
-          variable: "Keys.ENTER"
+          variable: "ENTER"
       - step: 9
         description: "Click the button to load the documents in the dashboard."
         actionType: "Click"

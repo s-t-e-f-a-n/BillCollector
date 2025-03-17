@@ -104,11 +104,11 @@ class webElementObj:
         def __init__(self, locator, element):
             self.locator = locator
             self.element = element
-    def __init__(self, timeout=10, variable=None, graceful=False, var=None):
+    def __init__(self, timeout=10, variable=None, graceful=False, keys=None):
         self.timeout = timeout
         self.graceful = graceful
         self.variable = variable
-        self.var = var
+        self.keys = keys
 
 # Map yaml recipe locator types to Selenium locator types
 LOCATOR_MAP = {
@@ -128,10 +128,10 @@ ACTION_MAP = {
 
 # Map yaml variables to function variables
 VARIABLE_MAP = {
-    "{USERNAME}": "usr",
-    "{PASSWORD}": "pwd",
-    "{OTP}": "otp",
-    "Keys.ENTER": Keys.ENTER
+    "{USERNAME}": lambda bcs: bcs.usr,
+    "{PASSWORD}": lambda bcs: bcs.pwd,
+    "{OTP}": lambda bcs: bcs.otp,
+    "ENTER": lambda bcs: Keys.ENTER
 }
 
 # Retrieve file from service - main function
@@ -220,9 +220,8 @@ def init_webelement_obj(parameters, expected_locators=1):
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
         return None
 
-# Action functions
+# Perform single action (wrappers)
 #
-# perform single action
 def perform__click(bcs, parameters):
     try:
         print(f"    Clicking on DOM element with the following selectors:")
@@ -244,15 +243,10 @@ def perform__send_keys(bcs, parameters):
     try:
         print(f"    Sending keys to elements with the following selectors:")
         webElement = init_webelement_obj(parameters)
-
-        variable_name = "bcs." + VARIABLE_MAP.get(webElement.variable)
-        if variable_name is None:
-            raise Exception(f"Unsupported variable: {webElement.variable}")
-        variable = globals().get(variable_name) # Get variable by name
-        if isinstance(variable_name, str) and variable_name.startswith("bcs."):
-            webElement.var = eval(variable_name)  
+        if webElement.variable in VARIABLE_MAP:
+            webElement.keys = VARIABLE_MAP[webElement.variable](bcs)
         else:
-            webElement.var = variable_name
+            raise Exception(f"Unknown variable: {webElement.variable}")
         sendkeys_webelement(bcs, webElement)
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}: {e}")
@@ -266,7 +260,9 @@ def perform__download(bcs, parameters):
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
 
-# Try to click element which needs time to be ready
+# Apply action to web element
+#
+# Click on web element
 def click_webelement(bcs, we):
     Timeout = we.timeout
     on_debug_save_web_page(bcs)
@@ -283,7 +279,7 @@ def click_webelement(bcs, we):
     if we.graceful == False: raise RuntimeError(f"Element loading timeout") 
     else: return False
 
-# Try to click shadow element which needs time to be ready
+# Click shadow web element
 def clickshadow_webelement(bcs, we):
     try:
         shadow_host = WebDriverWait(bcs.drv, we.timeout).until(EC.presence_of_element_located((we.selectors[0].locator, we.selectors[0].element)))
@@ -305,13 +301,13 @@ def clickshadow_webelement(bcs, we):
         on_debug_save_web_page(bcs)
         return True
 
-# Try to send keys to element which needs time to be ready
+# Send keys to web element
 def sendkeys_webelement(bcs, we):
     Timeout = we.timeout
     on_debug_save_web_page(bcs)
     while Timeout > 0:
         try:
-             bcs.drv.find_element(we.selectors[0].locator, we.selectors[0].element).send_keys(we.var)
+             bcs.drv.find_element(we.selectors[0].locator, we.selectors[0].element).send_keys(we.keys)
         except: 
             time.sleep(1)
             Timeout -= 1
@@ -321,7 +317,7 @@ def sendkeys_webelement(bcs, we):
     if we.graceful == False: raise RuntimeError(f"Sending Key to Element timeout")
     else: return False
 
-# Try to download file from element which needs time to be ready
+# Download file from web element
 # Checks download folder for new downloaded file and returns the name of the downloaded file
 def download_webelement(bcs, we):
     prev_file = latest_download_file(bcs.dld)

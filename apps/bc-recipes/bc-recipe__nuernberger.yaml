@@ -14,15 +14,15 @@ services:
         actionType: "SendKeys"
         parameters:
           locators:
-            - locatorType: "ID"
-              element: "form_initialLogin_step2:j_idt156:username"
+            - locatorType: "XPATH"
+              element: "//input[contains(@id, ':username')]"
           variable: "{USERNAME}"
       - step: 3
         actionType: "SendKeys"
         parameters:
           locators:
-            - locatorType: "ID"
-              element: "form_initialLogin_step2:j_idt171:pwd"
+            - locatorType: "XPATH"
+              element: "//input[contains(@id, ':pwd')]"
           variable: "{PASSWORD}"
       - step: 4
         actionType: "Click"

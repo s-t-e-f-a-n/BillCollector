@@ -49,7 +49,7 @@ BillCollector uses the selfhosted [Vaultwarden](https://github.com/dani-garcia/v
 
 Why Vaultwarden? The simple reason is that it is a resource-light-weight alternative to Bitwarden and compatible with the Bitwarden Vault Mangement API integrated in the [Bitwarden CLI](https://github.com/tangowithfoxtrot/bw-docker) allowing to retrieve secret login data programmatically.
 
-On [Vaultwarden Docker](\<URL\>/Vaultwarden.git) you'll get the Vaultwarden and the Bitwarden CLI as a `Dockerfile` and a `docker-compose.yml`. Follow the installation guide over there.
+On [Vaultwarden Docker](https://github.com/s-t-e-f-a-n/Vaultwarden) you'll get the Vaultwarden and the Bitwarden CLI as a `Dockerfile` and a `docker-compose.yml`. Follow the installation guide over there.
 
 ### Enabling DNS and HTTPS with Let's Encrypt certs
 

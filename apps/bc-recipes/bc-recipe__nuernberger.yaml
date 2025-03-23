@@ -1,0 +1,62 @@
+---
+services:
+  - serviceName: "nuernberger"
+    actions:
+      - step: 1
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "consent_prompt_submit"
+          timeout: 5
+          graceful: true
+      - step: 2
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "XPATH"
+              element: "//input[contains(@id, ':username')]"
+          variable: "{USERNAME}"
+      - step: 3
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "XPATH"
+              element: "//input[contains(@id, ':pwd')]"
+          variable: "{PASSWORD}"
+      - step: 4
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "form_initialLogin_step2:loginSubmit"
+      - step: 5
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: ".hidden-xs > .fake-btn"
+      - step: 6
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "XPATH"
+              element: "(//tr[@data-cy='brief'])[2]"
+      - step: 7
+        actionType: "Download"
+        parameters:
+          locators:
+            - locatorType: "XPATH"
+              element: "(//div[@data-cy='download'])[2]"
+      - step: 8
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "XPATH"
+              element: "(//tr[@data-cy='brief'])[1]"
+      - step: 9
+        actionType: "Download"
+        parameters:
+          locators:
+            - locatorType: "XPATH"
+              element: "(//div[@data-cy='download'])[1]"

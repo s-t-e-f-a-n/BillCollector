@@ -1,0 +1,85 @@
+---
+services:
+  - serviceName: "datev"
+    actions:
+      - step: 1
+        description: "Click the login button to start the authentication process."
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: "[data-test-id=\"login-button\"]"
+      - step: 2
+        description: "Click the TOTP login button to proceed with two-factor authentication."
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: "[data-test-id=\"totp-login-button\"]"
+      - step: 3
+        description: "Focus on the username field for entering credentials."
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "username"
+      - step: 4
+        description: "Enter the username into the username input field."
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "username"
+          variable: "{USERNAME}"
+      - step: 5
+        description: "Enter the password into the password input field."
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "password"
+          variable: "{PASSWORD}"
+      - step: 6
+        description: "Click the login button to submit the entered credentials."
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "login"
+      - step: 7
+        description: "Enter the one-time password (OTP) into the verification field."
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "enterverificationcode"
+          variable: "{OTP}"
+      - step: 8
+        description: "Press the Enter key to confirm the verification code."
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "enterverificationcode"
+          variable: "ENTER"
+      - step: 9
+        description: "Click the button to load the documents in the dashboard."
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: "[data-test-id=\"load-documents-button\"]"
+      - step: 10
+        description: "Select a specific checkbox to choose a document."
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "mat-mdc-checkbox-2-input"
+      - step: 11
+        description: "Download the selected document."
+        actionType: "Download"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: "[data-test-id=\"download-button\"]"

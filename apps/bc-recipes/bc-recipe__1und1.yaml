@@ -1,0 +1,70 @@
+services:
+  - serviceName: "1und1"
+    actions:
+      - step: 1
+        description: "Cookie Consent"
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: "#consent_wall_optin > span"
+      - step: 2
+        description: "Account Icon"
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: ".navigation__account-icon"
+      - step: 3
+        description: "Dritter Schritt der Aktion"
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: ".login-body__button > .btn-secondary > .btn__span"
+      - step: 4
+        description: "Username Entry"
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "username"
+          variable: "{USERNAME}"
+      - step: 5
+        description: "Password Entry"
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "password"
+          variable: "{PASSWORD}"
+      - step: 6 
+        description: "Press Enter"
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "password"
+          variable: "ENTER"
+      - step: 7
+        description: "Go to Invoice"
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "XPATH"
+              element: "//a[@data-testid='Rechnung']"
+      - step: 8
+        description: "Open Invoice area"
+        actionType: "Click" 
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: "li:nth-child(1) > .\\_invoicesOverview-cm__invoicesListItem___sTOSl .\\_icon-cm__icon___qIhOe" 
+      - step: 9
+        description: "Download Invoice"
+        actionType: "Download"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: ".\\_icon-cm__download___RM3VO"
+

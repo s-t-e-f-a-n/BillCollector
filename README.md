@@ -3,6 +3,7 @@
 ![BillCollector EyeCatcher](/doc/BillCollector_EyeCatcher.jpg)
 
 ## Table of Contents
+
 - [What is BillCollector?](#what-is-billcollector)
 - [How does it work?](#how-does-it-work)
 - [Contributing](#contributing)
@@ -11,22 +12,23 @@
   - [Vault of Secrets](#vault-of-secrets)
   - [Enabling DNS and HTTPS with Let's Encrypt certs](#enabling-dns-and-https-with-lets-encrypt-certs)
   - [The BillCollector Installation](#the-billcollector-installation)
-- [Configure BillCollector](#configure-billcollector)
+- [Configure BillCollector](#configuration)
 
 ## What is BillCollector?
 
-Let BillCollector collect your bills from different personalized web portals.
-
-Invoices and documents that are regularly stored by service providers in the respective online account are automatically retrieved by BillCollector and stored locally in a download folder.
+> BillCollector is the automated front end for processing important documents in personal web portals that previously had to be tediously downloaded by hand.
+>
+> Invoices and documents that are regularly stored by service providers in the respective online account are automatically retrieved by BillCollector and stored locally in a download folder from where it may be consumed by a document management system like Paperless-ngx.
 
 BillCollector uses:
-- Vaultwarden as a vault for the access data for the online accounts
-- Selenium (for Python) to automate the browser control
+
+- Vaultwarden as a safe vault of the login data for the online accounts
 - Chrome for testing and Chromedriver as the browser front end of the service provider's online portal
+- Selenium (for Python) to automate the browser control
 
-Chrome is operated headless, so that BillCollector can do its job on a Raspberry PI or a NAS headless integrated into the cron-scheduler on a regular basis, e.g., retrieving the newest document twice a month.
+Chrome is operated headless by default, so that BillCollector can do its job on a Raspberry PI or a NAS, headless integrated into the cron-scheduler on a regular basis.
 
-Following diagram summarizes the complete BillCollector Ecosystem:
+Following diagram depicts the complete BillCollector Ecosystem:
 
 ![BillCollector Ecosystem](/doc/BillCollector.svg)
 
@@ -34,9 +36,9 @@ Following diagram summarizes the complete BillCollector Ecosystem:
 
 Scheduled, for instance, bi-monthly, your server's cron daemon runs the BillCollector docker container which exposes a download folder to the server's file system. The docker container integrates Chrome and Chromedriver to interact with the service provider's online portal.
 
-For each container run, BillCollector walks through a configuration file with the `List of Services`, gets the secret login data from Vaultwarden via the Bitwarden API, accesses the web service via the configured Selenium scripts, and downloads the documents.
+For each container run, BillCollector scripts the `List of Services`, gets the secret login data from Vaultwarden via the Bitwarden API, accesses the web service via the configured Selenium recipes, and downloads the documents.
 
-With a document-processing document management system (DMS) such as Paperless ngx in place, the downloaded file is forwarded directly to the DMS, where it is automatically analyzed, tagged, and sorted.
+With a document-processing document management system (DMS) such as Paperless ngx in place, the downloaded file is consumed, automatically analyzed, tagged, and sorted.
 
 ## Contributing
 
@@ -44,10 +46,11 @@ With a document-processing document management system (DMS) such as Paperless ng
 
 - **Star this project** on GitHub.
 - **Share** it with your network.
-- **Contribute** recipes for more web services - see how to [Configure BillCollector](#configure-billcollector) and get familiar with the YAML recipes.
+- **Contribute** recipes for more web services - see how to [Configure BillCollector](#configuration) and get familiar with the YAML recipes.
+- **Discuss** your ideas for improvements, more use cases and any comments by leaving notes in the Discussion area.
 
-> [!NOTE]
-> Make yourself familiar with the concept of finding web elements. BillCollector takes advantage of Selenium and its methods for retrieving and controlling web elements.
+> 💡 **Tip**  
+> Make yourself familiar with the concept of finding web elements. BillCollector takes advantage of Selenium and its methods for retrieving and controlling web elements.  
 > [Selenium WebDriver Elements Documentation](https://www.selenium.dev/documentation/webdriver/elements/) is a good starting point.
 
 ## Quick Start
@@ -70,13 +73,20 @@ I have it running on my self-built Mini-ITX Intel Pentium J5040 NAS hardware equ
 
 BillCollector uses the self-hosted [Vaultwarden](https://github.com/dani-garcia/vaultwarden) password manager.
 
-Why Vaultwarden? The simple reason is that it is a resource-light-weight alternative to Bitwarden and compatible with the Bitwarden Vault Management API integrated in the [Bitwarden CLI](https://github.com/bitwarden/cli).
+Why Vaultwarden?
 
-On [Vaultwarden Docker](https://github.com/s-t-e-f-a-n/Vaultwarden), you'll get the Vaultwarden and the Bitwarden CLI as a `Dockerfile` and a `docker-compose.yml`. Follow the installation guide over there.
+1. It is a resource-light-weight alternative to Bitwarden.
+2. It is compatible with the Bitwarden Vault Management API integrated in the [Bitwarden CLI](https://github.com/bitwarden/cli) which BillCollector uses for login data retrieval.
+3. It stores your login data safely.
+4. It is feature-rich, including the management of Time-Based One-Time (TOTP) passwords.
+
+> 💡 **Tip**  
+> On [Vaultwarden Docker](https://github.com/s-t-e-f-a-n/Vaultwarden), you'll get the Vaultwarden and the Bitwarden CLI as a `Dockerfile` and a `docker-compose.yml`. Follow the installation guide over there.
 
 ### Enabling DNS and HTTPS with Let's Encrypt certs
 
-**This configuration will not only support your BillCollector setup but also improves the user experience when accessing all your other locally running dockerized web services:**
+> 💡 **Tip**  
+> This configuration will not only support your BillCollector setup but also improves the user experience when accessing all your other locally running dockerized web services:**
 
 Vaultwarden only allows secure HTTPS access by default. Suppose you want to run an instance of Vaultwarden that can only be accessed from your local network by name instead of IP address and you want to use Let's Encrypt certificates.
 
@@ -124,11 +134,11 @@ Steps to follow:
 
 ### The BillCollector Installation
 
-Now that you have done a good job installing the prerequisites, we are focusing on installing the BillCollector docker which is as simple as follows:
+Now that we have done a good job installing all the prerequisites, we are focusing on installing the BillCollector docker which is as simple as follows:
 
 1. Download this git repository to a folder in your local docker environment assuming a Linux bash terminal, e.g., `git clone <URL>/stefan/BillCollector.git`.
 
-2. [Configure BillCollector](#configure-billcollector) needs to be done. After each change in configuration proceed again with step 3.
+2. [Configure BillCollector](#configuration) needs to be done. After each change in configuration proceed again with step 3.
 
 3. Open the installation script in your editor, e.g., `nano ./install_docker-image.sh`, adapt the link to your `Paperless ngx` instance's consumption folder (`ln -s </path/to/your/paperless/inbox>`).
 
@@ -136,7 +146,7 @@ Now that you have done a good job installing the prerequisites, we are focusing 
 
 5. Let your server's cron call your BillCollector periodically (e.g., bi-monthly) by calling `</path/to/your/billcollector-git-clone-folder/BillCollector.sh bc_default.ini`.
 
-## Configure BillCollector
+## Configuration
 
 First and once, for the basic configuration you need to adapt the `.env` file located in the `/apps` folder:
   
@@ -157,7 +167,8 @@ The BillCollector configuration for each web service from which you want to retr
    - For web services where you have more than one login data for (e.g., family members having different accounts at the same mobile phone provider) you can enter the line in the following format: `<Name of web service> [<your name>, <additional name>]`.
 
      *Example ini script:*
-     ```
+
+     ```text
      winSIM [Dieter, Auto, Will, Anna]
      KabelDeutschland
      Lichtblick [Strom, Gas]
@@ -176,21 +187,20 @@ The BillCollector configuration for each web service from which you want to retr
          - Specific controls are `timeout` and `graceful`.
       - There is a YAML schema named `bc-recipe-schema.yml` which includes the rules to be followed by the YAML recipes.
 
-> [!NOTE]
+> 💡 **Tip**  
 > When creating new recipes, make use of AI, e.g., let yourself be helped by Copilot - that speeds up creating the YAML recipe 🚀.
 > `BillCollectorRecipes.py` is used by `BillCollector` but also can be used as a separate command line tool for checking new YAML recipes:
 > `Usage: python3 BillCollectorRecipes.py <recipes.yaml> [<schema.yaml>]`.
-
-> [!NOTE]
+>
 > Make use of the [Selenium IDE browser plugin](https://www.seleniumhq.org/selenium-ide). It lets you walk through your web portal to create a draft recipe.
 > Don’t forget to delete the cookies of that web portal to start with a clean session when training the web portal procedure for downloading your bills.
-
-> [!NOTE]
+>
 > When `BillCollector.py` is run in debug mode, by default, it pauses at each step of the recipe, downloads the HTML into `page_source.html` and waits for a SPACE keystroke to proceed.
 > This lets you analyze the HTML for the web elements to be clicked or sent text (e.g., username) to.
 
-   *Full example of a YAML recipe:*
-   ```
+   *Full example of a YAML recipe, which also includes an One-Time-Password step (OTP):*
+
+   ```yaml
    ---
    services:
    - serviceName: "datev"

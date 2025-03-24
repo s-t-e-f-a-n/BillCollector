@@ -11,8 +11,11 @@
   - [Docker Environment](#docker-environment)
   - [Vault of Secrets](#vault-of-secrets)
   - [Enabling DNS and HTTPS with Let's Encrypt certs](#enabling-dns-and-https-with-lets-encrypt-certs)
-  - [The BillCollector Installation](#the-billcollector-installation)
+  - [The BillCollector Installation](#the-billcollector-installation-and-docker-deployment)
 - [Configure BillCollector](#configuration)
+  - [Vaultwarden and Bitwarden](#vaultwarden-and-bitwarden)
+  - [Optional: Vscode and Debuggin](#optional-vscode-and-debugging)
+  - [Web Service Config](#web-service-config)
 
 ## What is BillCollector?
 
@@ -46,7 +49,7 @@ With a document-processing document management system (DMS) such as Paperless ng
 
 - **Star this project** on GitHub.
 - **Share** it with your network.
-- **Contribute** recipes for more web services - see how to [Configure BillCollector](#configuration) and get familiar with the YAML recipes.
+- **Contribute** recipes for more web services - see how to [Configure BillCollector](#configuration) and get familiar with the YAML recipes. Share your recipes 🙂🙂🙂
 - **Discuss** your ideas for improvements, more use cases and any comments by leaving notes in the Discussion area.
 
 > 💡 **Tip**  
@@ -132,7 +135,7 @@ Steps to follow:
 
    d. Test the accessibility of your Vaultwarden Web UI in your browser by entering [https://vault.my-domain.duckdns.org](https://vault.my-domain.duckdns.org) or [https://my-vw.duckdns.org](https://my-vw.duckdns.org).
 
-### The BillCollector Installation
+### The BillCollector Installation and Docker Deployment
 
 Now that we have done a good job installing all the prerequisites, we are focusing on installing the BillCollector docker which is as simple as follows:
 
@@ -148,10 +151,31 @@ Now that we have done a good job installing all the prerequisites, we are focusi
 
 ## Configuration
 
-First and once, for the basic configuration you need to adapt the `.env` file located in the `/apps` folder:
-  
-- `VAULT_HOST=<hostname of your vault e.g., vault.my-domain.duckdns.org>`
-- `BW_API_URL=<http/https-URL of the bitwarden API e.g., http://<local-ip>:8087>`
+### Vaultwarden and Bitwarden
+
+First and once, for the basic configuration you need to adapt the `.env` file located in the `/apps` folder. Use the  `.env.example` as a template:
+
+- `cp .env.example .env`
+- define the .env-variables:
+  - `VAULT_HOST=<hostname of your vault e.g., vault.my-domain.duckdns.org>`
+  - `BW_API_URL=<http/https-URL of the bitwarden API e.g., http://<local-ip>:8087>`
+
+### Optional: Vscode and Debugging
+
+Use vscode when extending BillCollector - either the coded or, more likely, the collection of recipes.
+
+There is a installation script for local installation of the local environment. This will install Chrome for Testing, ChromeDriver, Python3, a Python virtual environment, and all required Python modules into the venv. It is tested under WSL2 and Ubuntu 20.04 LTS. Run the following command on your Linux command line:
+
+- `source install_local.sh`
+
+For debugging (in vscode) run `BillCollector.py` in debug mode (F5). The default debug settings are:
+
+- Use `bc_test.ini` as the default script of web services.
+- Before the action of the recipe is executed
+  - BillCollector saves the currently loaded web page into the file `page_source.html`
+  - BillCollector pauses and waits for SPACE to proceed. By this you are able to analyze the web page step by step to extract the required web elements.
+
+### Web Service Config
 
 The BillCollector configuration for each web service from which you want to retrieve documents consists of three parts:
 

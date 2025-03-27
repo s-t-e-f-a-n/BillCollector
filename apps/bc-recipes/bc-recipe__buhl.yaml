@@ -3,15 +3,15 @@ services:
   - serviceName: "buhl"
     actions:
       - step: 1
-        actionType: "ClickShadow"
+        actionType: "ClickShadow" # Copy JSPath from the browser console
         parameters:
           locators:
             - locatorType: "CSS_SELECTOR"
-              element: "#usercentrics-root"
+              element: "#usercentrics-cmp-ui"
             - locatorType: "CSS_SELECTOR"
-              element: "#uc-center-container"
+              element: "#accept"
             - locatorType: "CSS_SELECTOR"
-              element: "button[data-testid='uc-accept-all-button']"
+              element: "button[id='accept']"
       - step: 2
         actionType: "SendKeys"
         parameters:

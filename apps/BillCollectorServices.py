@@ -120,6 +120,9 @@ LOCATOR_MAP = {
 
 # Map yaml recipe action types to perform functions
 ACTION_MAP = {
+    "SwitchToparentFrame": "perform__switch_to_parent_frame",
+    "SwitchToDefaultFrame": "perform__switch_to_default_frame",
+    "SwitchToFrame": "perform__switch_to_frame",
     "Click": "perform__click",
     "ClickShadow": "perform__click_shadow",
     "SendKeys": "perform__send_keys",
@@ -178,8 +181,11 @@ def perform_actions(bcs):
                     step = action['step']
                     description = action.get('description', "No description provided.") # optional
                     action_type = action['actionType']
-                    parameters = action['parameters']
-                    
+                    if action_type == "SwitchToDefaultFrame" or action_type == "SwitchToparentFrame":
+                        parameters = None
+                    else:
+                        parameters = action['parameters']
+                   
                     print(f"  Executing Step {step}: {action_type}")
                     print(f"   {description}")
                     perform_action_name = ACTION_MAP.get(action_type)
@@ -196,12 +202,11 @@ def perform_actions(bcs):
     else:
         return file_downloaded
 
-# Get Selenium locator
+# Get Selenium locator or None (for Actions with no locator)
 def get_selenium_locator(locator_type):
-    sLocator = LOCATOR_MAP.get(locator_type)
-    if sLocator is None:
+    if locator_type not in LOCATOR_MAP:
         raise ValueError(f"Unsupported locator type: {locator_type}")
-    return sLocator
+    return LOCATOR_MAP.get(locator_type)
 
 # Initialize web element object
 def init_webelement_obj(parameters, expected_locators=1):
@@ -211,18 +216,19 @@ def init_webelement_obj(parameters, expected_locators=1):
             variable = parameters.get('variable', None), 
             graceful = parameters.get('graceful', False))
         webElement.selectors = []
-        locators = parameters.get('locators', [])
-        if len(locators) != expected_locators:
-            raise Exception(f"Expected {expected_locators} locators, but got {len(locators)}")
-        for locator in locators:
-            seleniumLocator = get_selenium_locator(locator.get('locatorType'))
-            element = locator.get('element')
-            if seleniumLocator and element:
-                selector = webElementObj.selectorObj(seleniumLocator, element)
-                webElement.selectors.append(selector)
-            else:
-                raise Exception(f"Missing locatorType or element in {locator}")
-            print(f"      Locator: {seleniumLocator}, Element: {element}")    
+        if expected_locators > 0:
+            locators = parameters.get('locators', [])
+            if len(locators) != expected_locators:
+                raise Exception(f"Expected {expected_locators} locators, but got {len(locators)}")
+            for locator in locators:
+                seleniumLocator = get_selenium_locator(locator.get('locatorType'))
+                element = locator.get('element')
+                if seleniumLocator and element:
+                    selector = webElementObj.selectorObj(seleniumLocator, element)
+                    webElement.selectors.append(selector)
+                else:
+                    raise Exception(f"Missing locatorType or element in {locator}")
+                print(f"      Locator: {seleniumLocator}, Element: {element}")    
         return webElement
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
@@ -230,9 +236,31 @@ def init_webelement_obj(parameters, expected_locators=1):
 
 # Perform single action (wrappers)
 #
+def perform__switch_to_parent_frame(bcs, parameters):
+    try:
+        webElement = init_webelement_obj(parameters, 0)
+        switch_to_parent_frame_webelement(bcs, webElement)
+    except Exception as e:
+        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
+
+def perform__switch_to_default_frame(bcs, parameters):
+    try:
+        webElement = init_webelement_obj(parameters, 0)
+        switch_to_default_frame_webelement(bcs, webElement)
+    except Exception as e:
+        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
+
+def perform__switch_to_frame(bcs, parameters):
+    try:
+        webElement = init_webelement_obj(parameters)
+        switch_to_frame_webelement(bcs, webElement)
+    except Exception as e:
+        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
+
+
 def perform__click(bcs, parameters):
     try:
-        webElement = init_webelement_obj(parameters, 1)
+        webElement = init_webelement_obj(parameters)
         click_webelement(bcs, webElement)
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
@@ -266,6 +294,58 @@ def perform__download(bcs, parameters):
 
 # Apply action to web element
 #
+# Switch to Parent iFrame web element
+def switch_to_parent_frame_webelement(bcs, we):
+    Timeout = we.timeout
+    on_debug_save_web_page(bcs)
+    on_debug_pause_check(bcs)
+    while Timeout > 0:
+        try:
+            bcs.drv.switch_to.parent_frame()
+        except: 
+            time.sleep(1)
+            Timeout -= 1
+        else:
+            time.sleep(5)
+            return True
+    if we.graceful == False: raise RuntimeError(f"Element loading timeout") 
+    else: return False
+
+# Switch to Default iFrame web element
+def switch_to_default_frame_webelement(bcs, we):
+    Timeout = we.timeout
+    on_debug_save_web_page(bcs)
+    on_debug_pause_check(bcs)
+    while Timeout > 0:
+        try:
+            bcs.drv.switch_to.default_content()
+        except: 
+            time.sleep(1)
+            Timeout -= 1
+        else:
+            time.sleep(5)
+            return True
+    if we.graceful == False: raise RuntimeError(f"Element loading timeout") 
+    else: return False
+
+# Switch to iFrame web element
+def switch_to_frame_webelement(bcs, we):
+    Timeout = we.timeout
+    on_debug_save_web_page(bcs)
+    on_debug_pause_check(bcs)
+    while Timeout > 0:
+        try:
+            iframe = bcs.drv.find_element(we.selectors[0].locator, we.selectors[0].element)
+            bcs.drv.switch_to.frame(iframe)
+        except: 
+            time.sleep(1)
+            Timeout -= 1
+        else:
+            time.sleep(5)
+            return True
+    if we.graceful == False: raise RuntimeError(f"Element loading timeout") 
+    else: return False
+
 # Click on web element
 def click_webelement(bcs, we):
     Timeout = we.timeout

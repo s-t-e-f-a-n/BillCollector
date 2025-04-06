@@ -204,9 +204,10 @@ The BillCollector configuration for each web service from which you want to retr
       - YAML format
       - One recipe per web portal identified by the yaml element `serviceName` and its filename `bc-recipe__<serviceName>`.
       - Each recipe is structured in steps of actions.
-      - Each action step is led by an actionType defining a specific (selenium) web element action from Click, ClickShadow, SendKeys, and Download.
+      - Each action step is led by an actionType defining a specific (selenium) web element action from `Click`, `ClickShadow`, `SendKeys`, `SwitchToFrame`, `SwitchToDefaultFrame`, `SwitchToParentFrame` and `Download`.
       - Each action step is followed by parameters, namely (selenium) web element locators, variables, and specific controls.
          - Locators are a single or multiple pairs of (selenium) selectors (`ID`, `CSS_SELECTOR`, `XPATH`, `LINK_TEXT`) and web elements to be located.
+           - 💡 SwitchToDefaultFrame and SwichtToParentFrame must not be followed by parameters.
          - Variables are `{USERNAME}`, `{PASSWORD}` or `{OTP}` (all three from vaultwarden linked to the web service) or the key `ENTER`.
          - Specific controls are `timeout` and `graceful`.
       - There is a YAML schema named `bc-recipe-schema.yml` which includes the rules to be followed by the YAML recipes.

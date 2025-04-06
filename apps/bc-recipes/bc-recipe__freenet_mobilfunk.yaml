@@ -1,0 +1,77 @@
+---
+services:
+  - serviceName: "freenet_mobilfunk"
+    actions:
+      - step: 1
+        description: "Switch to iFrame"
+        actionType: "SwitchToFrame"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "sp_message_iframe_1080214"
+      - step: 2
+        description: "Cookie"
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: ".start-focus"
+      - step: 3
+        description: "Leave iFrame and go to default content"
+        actionType: "SwitchToDefaultFrame"
+      - step: 4
+        description: "Einloggen"
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "LINK_TEXT"
+              element: "Jetzt einloggen"
+      - step: 5
+        description: "Username"
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "username"
+          variable: "{USERNAME}"
+      - step: 6
+        description: "Password"
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "password"
+          variable: "{PASSWORD}"
+      - step: 7
+        description: "Enter"
+        actionType: "SendKeys"
+        parameters:
+          locators:
+            - locatorType: "ID"
+              element: "password"
+          variable: "ENTER"
+      - step: 8
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: ".fa-xmark"
+          graceful: true
+      - step: 9
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: ".card-group:nth-child(3) > .card-with-buttons:nth-child(1) .svg-inline--fa"
+      - step: 10
+        actionType: "Click"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: ".ng-star-inserted:nth-child(1) > .title-bar .svg-inline--fa"
+      - step: 11
+        actionType: "Download"
+        parameters:
+          locators:
+            - locatorType: "CSS_SELECTOR"
+              element: ".ng-star-inserted:nth-child(1) > .content .fileIcon:nth-child(2)"

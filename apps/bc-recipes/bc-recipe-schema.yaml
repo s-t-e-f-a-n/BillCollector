@@ -7,26 +7,25 @@
       "items": {
         "type": "object",
         "properties": {
-          "serviceName": {
-            "type": "string"
-          },
+          "serviceName": { "type": "string" },
           "actions": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "step": {
-                  "type": "integer",
-                  "description": "The step number to ensure the order of execution."
-                },
-                "description": {
-                  "type": "string",
-                  "description": "Optional description of what the step does."
-                },
+                "step": { "type": "integer" },
+                "description": { "type": "string" },
                 "actionType": {
                   "type": "string",
-                  "enum": ["Click", "ClickShadow", "SendKeys", "Download"],
-                  "description": "Defines the type of action. Allowed values are: Click, ClickShadow, SendKeys, Download."
+                  "enum": [
+                    "SwitchToParentFrame",
+                    "SwitchToDefaultFrame",
+                    "SwitchToFrame",
+                    "Click",
+                    "ClickShadow",
+                    "SendKeys",
+                    "Download"
+                  ]
                 },
                 "parameters": {
                   "type": "object",
@@ -38,32 +37,31 @@
                         "properties": {
                           "locatorType": {
                             "type": "string",
-                            "enum": ["ID", "CSS_SELECTOR", "XPATH", "LINK_TEXT"],
-                            "description": "Defines the allowed locator types. Allowed values are: ID, CSS_SELECTOR, XPATH, LINK_TEXT."
+                            "enum": ["ID", "CSS_SELECTOR", "XPATH", "LINK_TEXT"]
                           },
-                          "element": {
-                            "type": "string"
-                          }
+                          "element": { "type": "string" }
                         },
                         "required": ["locatorType", "element"]
                       }
                     },
                     "variable": {
                       "type": "string",
-                      "enum": ["{USERNAME}", "{PASSWORD}", "{OTP}", "ENTER"],
-                      "description": "Defines the allowed variables. Allowed values are: {USERNAME}, {PASSWORD}, {OTP}, ENTER."
+                      "enum": ["{USERNAME}", "{PASSWORD}", "{OTP}", "ENTER"]
                     },
-                    "timeout": {
-                      "type": "integer"
-                    },
-                    "graceful": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": ["locators"]
+                    "timeout": { "type": "integer" },
+                    "graceful": { "type": "boolean" }
+                  }
                 }
               },
-              "required": ["step", "actionType", "parameters"]
+              "if": {
+                "properties": { "actionType": { "enum": ["SwitchToParentFrame", "SwitchToDefaultFrame"] } }
+              },
+              "then": {
+                "required": ["step", "actionType"]
+              },
+              "else": {
+                "required": ["step", "actionType", "parameters"]
+              }
             }
           }
         },

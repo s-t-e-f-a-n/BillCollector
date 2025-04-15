@@ -11,7 +11,7 @@ if [[ -f .commit_id ]]; then
     echo "Commit-ID: $COMMIT_ID"
 else
     echo "Error: .commit_id not found. Check .git/hooks/post-commit exists with following content:
-    echo '  git rev parse HEAD > $(git rev-parse --show-toplevel)/.commit_id'
+    echo '  git rev parse HEAD > $(git rev-parse --show-toplevel)/.commit_id'"
 fi
 
 docker run -v $SCRIPT_DIR/apps/Downloads:/apps/Downloads --rm billcollector:latest \

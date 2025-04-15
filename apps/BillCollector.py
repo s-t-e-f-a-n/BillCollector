@@ -96,14 +96,32 @@ def bitwarden_api_check_status(url):
     else: 
         if not is_json_property_value(content, "data_template_status", "unlocked"): return True, "locked"
         return True, "unlocked"
-    
 
 def is_json_property_value(content, prop, val):
+    if not is_json_valid(content): return False
+    if not is_string_valid(prop): return False
     data = flatten(json.loads(content))
     result=data.get(prop)
     if (result) == val: return True
     else: return False
 
+def is_json_valid(content):
+    try:
+        json.loads(content)
+        return True
+    except ValueError as e:
+        print(f"Error: Invalid JSON {e}")
+        return False
+
+def is_string_valid(string):
+    try:
+        if not isinstance(string, str) or not string or string.isspace():
+            raise ValueError("Invalid string")
+        return True
+    except ValueError as e:
+        print(f"Error: {e}")
+        return False
+    
 def post_json(url, payload):
     response = requests.post(url, json=payload)
     if response.status_code == 201 or response.status_code == 200:

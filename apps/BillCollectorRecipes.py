@@ -2,6 +2,7 @@ import os
 import sys
 import yaml
 from jsonschema import validate, ValidationError
+from BillCollectorHelpers import *
 
 def is_yaml_file(stream):
     try:
@@ -14,7 +15,7 @@ def is_yaml_file(stream):
         print(f"File not found.")
         return False, None
 
-def CheckRecipe(recipe_file, schema_file=os.path.join(os.path.dirname(__file__), "bc-recipes", "bc-recipe-schema.yaml")):
+def CheckRecipe(recipe_file, schema_file=os.path.join(os.path.dirname(__file__), "recipes_selenium", "recipe-se-schema.yaml")):
     try:
         with open(schema_file, "r") as stream:
             ret, schema = is_yaml_file(stream)
@@ -47,7 +48,7 @@ if __name__ == "__main__":
     schema_file = None
     if sys.gettrace():
         print("Executed in debugger.")
-        recipe_file=os.path.join(os.path.dirname(__file__), "bc-recipes", "bc-recipe-test.yaml")
+        recipe_file=os.path.join(os.path.dirname(__file__), "recipes_selenium", "recipe-se-test.yaml")
     else:
         print("Executed from command line.")
         if len(sys.argv) < 2 or len(sys.argv) > 3:

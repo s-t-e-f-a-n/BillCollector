@@ -11,9 +11,11 @@ import logging
 import logging.handlers
 import requests
 import json
+import configparser
 from flatten_json import flatten
 
-from BillCollectorServices import retrieve_from_service
+from BillCollectorServices import retrieve_from_service_with_selenium
+from BillCollectorHelpers import *
 
 # Function to extract strings before and within brackets
 def extract_strings(line):
@@ -138,13 +140,13 @@ def get_json_property_value(content, prop):
     return result
 
 class defs:
-    def __init__(self, vault, api, fname="bc_default.ini", debug=False):
+    def __init__(self, vault, api, fname=INI_DEFAULT_FILE, debug=False):
         self.vault = vault
         self.api = api
         self.fname = fname
         self.debug = debug
 
-def WebRetriDoc(self):
+def WebRetriDoc(self, type=None):
 
     # Check if <domain> is resolvable and directs to a local IP address
     ip = is_domain_local_ip(self.vault) 
@@ -164,31 +166,46 @@ def WebRetriDoc(self):
 
     #################
     # Loop over Web Services
-    file = open(self.fname, "r")
+    script = configparser.ConfigParser()
+    try:
+        script.read(self.fname, encoding="utf-8")
+    except configparser.Error as e:
+        print(f"Error: Reading ini-script: {e}")
+        sys.exit(1)
+    
+    for automation_library in script.sections():
+        if automation_library == None: break
+        if type != None and automation_library.lower() != type.lower(): continue
 
-    while True:
-        servicename = file.readline().strip()
-        if not servicename: break
-        # handle service variant with list of users in array
-        servicename, users = extract_strings(servicename)
-        if len(users) == 0: users.insert(0, "")
-        for user in users:
-            service_user = f"{servicename} {user}".strip()
-            print(f"Service {service_user} started.")
+        for servicename, users_list in script[automation_library].items():
+            users = []
+            if not servicename: break    
+            if users_list:
+                users = [user.strip() for user in users_list.split(",")]
+            else:
+                users.insert(0, "")
 
-            # Retrieve credentials
-            ####TODO Intercept no data returned
-            ####TODO Intercept doublettes in Bitwarden -> ID-Handling
-            item = get_json(f"{self.api}/object/item/{service_user}")
-            username = get_json_property_value(item, "data_login_username")
-            passsword = get_json_property_value(item, "data_login_password")
-            uri = get_json_property_value(item, "data_login_uris_0_uri")
-            item = get_json(f"{self.api}/object/totp/{service_user}")
-            if item is not None: totp = get_json_property_value(item, "data_data") 
-            else: totp = None 
+            # handle service variant with list of users in array
+            for user in users:
+                service_user = f"{servicename} {user}".strip()
+                print(f"Service {service_user} started.")
 
-            # Download Documents
-            retrieve_from_service(servicename, uri, username, passsword, totp, self.debug)
+                # Retrieve credentials
+                ####TODO Intercept no data returned
+                ####TODO Intercept doublettes in Bitwarden -> ID-Handling
+                item = get_json(f"{self.api}/object/item/{service_user}")
+                username = get_json_property_value(item, "data_login_username")
+                passsword = get_json_property_value(item, "data_login_password")
+                uri = get_json_property_value(item, "data_login_uris_0_uri")
+                item = get_json(f"{self.api}/object/totp/{service_user}")
+                if item is not None: totp = get_json_property_value(item, "data_data") 
+                else: totp = None 
+
+                # Download Documents with the help of the appropriate automation library
+                if automation_library.lower() == "selenium":
+                    retrieve_from_service_with_selenium(servicename, uri, username, passsword, totp, self.debug)
+                elif automation_library.lower() == "playwright":
+                    print("Playwright not implemented yet.")
     #
     #################
 
@@ -203,7 +220,7 @@ if __name__ == "__main__":
     if sys.gettrace():
         # Debugging
         print("Executed in debugger. Debug mode enabled.")
-        bc.fname = "./bc_test.ini"
+        bc.fname = INI_DEFAULT_TEST_FILE
         bc.debug = True
     else:
         # Command line handling
@@ -220,12 +237,12 @@ if __name__ == "__main__":
             print("Debug mode enabled.")
         bc.fname = sys.argv[1]
 
-    logfile = "./BillCollector.log"
+    logfile = LOG_DEFAULT_FILE
     log_setup(logfile)
     if bc.debug == False: 
         print = logging.debug   # looging into file or stdout
    
-    WebRetriDoc(bc)
+    WebRetriDoc(bc, "playwright")
 
 else:
     print(f"{__name__} imported as module.")

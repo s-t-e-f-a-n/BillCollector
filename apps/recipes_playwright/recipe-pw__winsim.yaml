@@ -1,0 +1,97 @@
+services:
+- serviceName: winSIM
+  description: ''
+  steps:
+  - step: 1
+    description: ''
+    actionType: goto
+    arguments:
+    - url: "https://service.winsim.de/"
+  - step: 2
+    description: ''
+    actionType: "click"
+    locators:
+    - locatorType: get_by_label
+      arguments:
+      - text: "Benutzername:oder Rufnummer,"
+  - step: 3
+    description: ''
+    actionType: "fill"
+    arguments:
+      value: "{{USERNAME}}"
+    locators:
+    - locatorType: get_by_label
+      arguments:
+      - text: "Benutzername:oder Rufnummer,"
+  - step: 4
+    description: ''
+    actionType: "click"
+    locators:
+    - locatorType: get_by_label
+      arguments:
+      - text: "Online-Passwort:"
+  - step: 5
+    description: ''
+    actionType: "click"
+    arguments:
+    - button: "right"
+    locators:
+    - locatorType: get_by_label
+      arguments:
+      - text: "Online-Passwort:"
+  - step: 6
+    description: ''
+    actionType: "fill"
+    arguments:
+      value: "{{PASSWORD}}"
+    locators:
+    - locatorType: get_by_label
+      arguments:
+      - text: "Online-Passwort:"
+  - step: 7
+    description: ''
+    actionType: "click"
+    locators:
+    - locatorType: get_by_title
+      arguments:
+      - text: "Login"
+      - exact: true
+  - step: 8
+    description: ''
+    actionType: "click"
+    arguments:
+    - button: "right"
+    - click_count: 2
+    locators:
+    - locatorType: get_by_role
+      arguments:
+      - role: "button"
+      - name: "Bestätigen"
+  - step: 9
+    description: ''
+    actionType: "click"
+    locators:
+    - locatorType: get_by_role
+      arguments:
+      - role: "link"
+      - name: "Meine Rechnung"
+  - step: 10
+    description: ''
+    actionType: "click"
+    locators:
+    - locatorType: get_by_text
+      arguments:
+      - text: "Rechnung vom 31.03.2025"
+  - step: 11
+    description: ''
+    actionType: expect_popup
+    steps:
+    - step: 12
+      description: ''
+      actionType: "click"
+      locators:
+      - locatorType: get_by_role
+        arguments:
+        - role: "link"
+        - name: "Rechnung"
+        - exact: true

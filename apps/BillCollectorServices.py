@@ -18,6 +18,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from BillCollectorRecipes import CheckRecipe
+from BillCollectorHelpers import *
 
 # Initialize browser and return driver object
 # parameterize browser: in debug mode = headless, default download folder, force download by always open pdf externally, ...
@@ -29,10 +30,10 @@ def InitBrowser(bcs):
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--disable_dev-shm-usage")
-    chrome_options.binary_location = f"{homedir}/chrome-linux64/chrome"
+    chrome_options.binary_location = f"{homedir}/{CHROMIUM_SELENIUM_DIR}"
     prefs = {'download.default_directory' : bcs.dld, "download.prompt_for_download": False, "download.directory_upgrade": True, "plugins.always_open_pdf_externally": True}
     chrome_options.add_experimental_option('prefs', prefs)
-    webdriver_service = Service(f"{homedir}/chromedriver-linux64/chromedriver")
+    webdriver_service = Service(f"{homedir}/{CHROMEDRIVER_SELENIUM_DIR}")
     driver = webdriver.Chrome(service=webdriver_service, options=chrome_options)
     return driver
 
@@ -85,31 +86,8 @@ def pause_check():
     print ("Resume.")
     pause = True # Pause again after resuming
 
-# Service processing controlled by YAML recipe
+# Service processing controlled by YAML recipes for Selenium
 #
-# Service variables
-class service_vars:
-    def __init__(self, usr, pwd, otp, dbg, dld, yml=None, drv=None):
-        self.drv = drv
-        self.usr = usr
-        self.pwd = pwd
-        self.otp = otp
-        self.dbg = dbg
-        self.dld = dld
-        self.yml = yml
-
-# Web Element Object
-class webElementObj:
-    class selectorObj:
-        def __init__(self, locator, element):
-            self.locator = locator
-            self.element = element
-    def __init__(self, timeout=10, variable=None, graceful=False, keys=None):
-        self.timeout = timeout
-        self.graceful = graceful
-        self.variable = variable
-        self.keys = keys
-
 # Map yaml recipe locator types to Selenium locator types
 LOCATOR_MAP = {
     "XPATH": By.XPATH,
@@ -138,7 +116,7 @@ VARIABLE_MAP = {
 }
 
 # Retrieve file from service - main function
-def retrieve_from_service(service, url, user, pwd, otp, debug):
+def retrieve_from_service_with_selenium(service, url, user, pwd, otp, debug):
     
     bcs = service_vars(usr=user, pwd=pwd, otp=otp, dbg=debug, dld=f"{os.path.dirname(os.path.realpath(__file__))}/Downloads")
     if not os.path.exists(bcs.dld):
@@ -150,7 +128,7 @@ def retrieve_from_service(service, url, user, pwd, otp, debug):
     on_debug_start_keyboard_listener(bcs)
     try:
         sname = service.lower().replace(" ", "_")
-        bcs.yml = CheckRecipe(f"{os.path.dirname(os.path.realpath(__file__))}/bc-recipes/bc-recipe__{sname}.yaml")
+        bcs.yml = CheckRecipe(f"{os.path.dirname(os.path.realpath(__file__))}/{RECIPES_SELENIUM_DIR}/{RECIPES_SELENIUM_PREFIX}{sname}.yaml")
         if bcs.yml == None: raise Exception(f"Recipe {sname} not found.")
         file_downloaded = perform_actions(bcs)
         if file_downloaded != None: print(f"Service {service} for {bcs.usr} finished with downloaded file(s) {file_downloaded}.")

@@ -1,8 +1,21 @@
 import os
 import sys
 import yaml
+import jsonschema
 from jsonschema import validate, ValidationError
 from BillCollectorHelpers import *
+
+def get_schema_for_yaml(yaml_file):
+    try:
+        with open(yaml_file, "r") as yf:
+            yml = yaml.safe_load(yf)
+            return yml.get("$schema", None)
+    except yml.YAMLError:
+        print(f"File {yaml_file} not valid YAML.")
+        return None
+    except FileNotFoundError or OSError:
+        print(f"File {yaml_file} not found.")
+        return None
 
 def is_yaml_file(stream):
     try:
@@ -15,16 +28,33 @@ def is_yaml_file(stream):
         print(f"File not found.")
         return False, None
 
-def CheckRecipe(recipe_file, schema_file=os.path.join(os.path.dirname(__file__), "recipes_selenium", "recipe-se-schema.yaml")):
-    try:
-        with open(schema_file, "r") as stream:
-            ret, schema = is_yaml_file(stream)
-            if ret == False: 
-                print(f"Schema {schema_file} is not a valid BillCollector yaml. Exit(1)")
-                exit(1)
-    except OSError:
-        print(f"Cannot open {schema_file}.")
-        return None
+# Check if the recipe file is valid
+# and if the schema file is valid
+# and if the recipe file is valid against the schema
+# if no schem_file is given, the schema file is expected by $schema-URI in the recipe file
+# if no schema file is found, the recipe file is not valid
+def CheckRecipe(recipe_file, schema_file=None):
+    if recipe_file == None:
+        print("No recipe file given. Exit(1)")
+        exit(1)
+    if schema_file != None:
+        try:
+            with open(schema_file, "r") as stream:
+                ret, schema = is_yaml_file(stream)
+                if ret == False: 
+                    print(f"Schema {schema_file} is not a valid BillCollector yaml. Exit(1)")
+                    exit(1)
+        except FileNotFoundError or OSError:
+            print(f"Cannot open {schema_file}. Exit(1)")
+            exit(1)
+    else:
+        schema_file = get_schema_for_yaml(recipe_file)
+        if schema_file == None: 
+            print(f"No schema file found. Exit(1)")
+            exit(1)
+        else:
+            schema_file=os.path.join(os.path.dirname(recipe_file), os.path.basename(schema_file))
+            return (CheckRecipe(recipe_file, schema_file))
     try:
         with open(recipe_file, "r") as stream:
             ret, recipe = is_yaml_file(stream)
@@ -48,11 +78,11 @@ if __name__ == "__main__":
     schema_file = None
     if sys.gettrace():
         print("Executed in debugger.")
-        recipe_file=os.path.join(os.path.dirname(__file__), "recipes_selenium", "recipe-se-test.yaml")
+        recipe_file=os.path.join(os.path.dirname(__file__), RECIPES_SELENIUM_DIR, "recipe-se-test.yaml")
     else:
         print("Executed from command line.")
         if len(sys.argv) < 2 or len(sys.argv) > 3:
-            print(" Usage: python3 BillCollectorRecipes.py <recipes.yaml> [<schema.yaml>]")
+            print(" Usage: python3 BillCollectorRecipes.py <recipes.yaml> <schema.yaml>")
             sys.exit(1)
         recipe_file = sys.argv[1]
         if len(sys.argv) == 3:

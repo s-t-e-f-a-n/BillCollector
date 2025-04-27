@@ -7,3 +7,5 @@ __pycache__
 *.log
 *.html
 Downloads
+browser/
+db/

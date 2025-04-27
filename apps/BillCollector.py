@@ -15,6 +15,7 @@ import configparser
 from flatten_json import flatten
 
 from BillCollectorServices import retrieve_from_service_with_selenium
+from BillCollectorServices_pw import retrieve_from_service_with_playwright
 from BillCollectorHelpers import *
 
 # Function to extract strings before and within brackets
@@ -84,11 +85,24 @@ def is_domain_local_ip(domain):
 def get_json(url):
     try:
         response = requests.get(url)
-        response.raise_for_status()  # Checks for Statuscode 200
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if 400 <= response.status_code < 500:
+            if "No TOTP" in response.text: 
+                pass
+            else: 
+                print(f"Client error: {response.status_code} - {response.text}")
+                sys.exit(1)
+        else: 
+            print(f"Error with request: {e}")
+            sys.exit(1)
+    except (requests.exceptions.ConnectionError, 
+            requests.exceptions.Timeout, 
+            requests.exceptions.RequestException) as e:
+        print(f"Error with request: {e}")
+        sys.exit(1)
+    else:
         return response.text
-    except requests.exceptions.RequestException as e:
-        print(f"Error with requst: {e}")
-        return None
 
 # Check Bitwarden API status
 def bitwarden_api_check_status(url):
@@ -191,8 +205,6 @@ def WebRetriDoc(self, type=None):
                 print(f"Service {service_user} started.")
 
                 # Retrieve credentials
-                ####TODO Intercept no data returned
-                ####TODO Intercept doublettes in Bitwarden -> ID-Handling
                 item = get_json(f"{self.api}/object/item/{service_user}")
                 username = get_json_property_value(item, "data_login_username")
                 passsword = get_json_property_value(item, "data_login_password")
@@ -205,7 +217,7 @@ def WebRetriDoc(self, type=None):
                 if automation_library.lower() == "selenium":
                     retrieve_from_service_with_selenium(servicename, uri, username, passsword, totp, self.debug)
                 elif automation_library.lower() == "playwright":
-                    print("Playwright not implemented yet.")
+                    retrieve_from_service_with_playwright(servicename, uri, username, passsword, totp, self.debug)
     #
     #################
 

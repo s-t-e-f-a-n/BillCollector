@@ -1,0 +1,92 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+title: "Recipe PW Schema"
+type: object
+properties:
+  # Allow the YAML instance to include its own $schema property—even if it’s a relative URI.
+  $schema:
+    type: string
+    description: "Reference to the schema file"
+  services:
+    type: array
+    items:
+      type: object
+      required:
+        - serviceName
+        - steps
+      properties:
+        serviceName:
+          type: string
+          description: "Name of the service (e.g., winSIM)"
+        description:
+          type: string
+          description: "Optional service description"
+        steps:
+          type: array
+          items:
+            $ref: "#/definitions/step"
+required:
+  - services
+additionalProperties: true
+
+definitions:
+  step:
+    type: object
+    required:
+      - step
+      - actionType
+    properties:
+      step:
+        type: integer
+        description: "Sequential step number"
+      description:
+        type: string
+        description: "Optional description of the step"
+      actionType:
+        type: string
+        enum:
+          - goto
+          - click
+          - fill
+          - expect_download
+        description: "Type of action performed"
+      arguments:
+        anyOf:
+          - type: array
+            items:
+              type: object
+              additionalProperties: true
+          - type: object
+            additionalProperties: true
+        description: "Arguments relevant to the action (can be an object or a list of objects)"
+      locators:
+        type: array
+        items:
+          type: object
+          required:
+            - locatorType
+            - arguments
+          properties:
+            locatorType:
+              type: string
+              enum:
+                - get_by_label
+                - get_by_title
+                - get_by_role
+                - get_by_text
+              description: "Type of locator used to identify page elements"
+            arguments:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+              description: "List of arguments for locator identification"
+        description: "Locators for elements affected by the action"
+      await:
+        type: boolean
+        description: "Whether the action should wait for completion"
+      steps:
+        type: array
+        items:
+          $ref: "#/definitions/step"
+        description: "Nested steps (e.g., for 'expect_popup' actions)"
+    additionalProperties: true

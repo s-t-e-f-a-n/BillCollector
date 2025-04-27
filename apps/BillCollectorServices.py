@@ -3,9 +3,6 @@ import time
 import os.path
 import yaml
 import inspect
-import threading
-
-from sshkeyboard import listen_keyboard, stop_listening
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -24,16 +21,15 @@ from BillCollectorHelpers import *
 # parameterize browser: in debug mode = headless, default download folder, force download by always open pdf externally, ...
 def InitBrowser(bcs):
     # browser and webdriver configuration
-    homedir = os.path.dirname(os.path.realpath(__file__))
     chrome_options = Options()
     if bcs.dbg == False: chrome_options.add_argument("--headless") # Ensure GUI is off in production
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--disable_dev-shm-usage")
-    chrome_options.binary_location = f"{homedir}/{CHROMIUM_SELENIUM_DIR}"
+    chrome_options.binary_location = CHROMIUM_SELENIUM_DIR
     prefs = {'download.default_directory' : bcs.dld, "download.prompt_for_download": False, "download.directory_upgrade": True, "plugins.always_open_pdf_externally": True}
     chrome_options.add_experimental_option('prefs', prefs)
-    webdriver_service = Service(f"{homedir}/{CHROMEDRIVER_SELENIUM_DIR}")
+    webdriver_service = Service(CHROMEDRIVER_SELENIUM_DIR)
     driver = webdriver.Chrome(service=webdriver_service, options=chrome_options)
     return driver
 
@@ -49,42 +45,6 @@ def save_web_page(driver):
     with open('page_source.html', 'w', encoding='utf-8') as f:
         f.write(page_source)
     print("Saved HTML source for debugging.")
-
-# Start keyboard listener if debugging is enabled
-def on_debug_start_keyboard_listener(bcs):
-    global listener_thread
-    if bcs.dbg == True: 
-        global pause
-        pause = True
-        listener_thread = threading.Thread(target=thread_keyboard_listener, daemon=True)
-        listener_thread.start()
-
-# Stop keyboard listener if debugging is enabled
-def on_debug_stop_keyboard_listener(bcs):
-    global listener_thread
-    if bcs.dbg == True:
-       pause = True
-       stop_listening()
-       listener_thread.join()
-
-# THREAD - Keyboard listener (space key to pause/resume)
-def thread_keyboard_listener():
-    def handle_key_press(key):
-        global pause
-        if key == "space": pause = not pause
-    listen_keyboard(on_press=handle_key_press)
-
-# Check for pause for debugging if debugging is enabled
-def on_debug_pause_check(bcs):
-    if bcs.dbg: pause_check()
-
-# Pause check
-def pause_check():
-    global pause
-    if pause: print ("Paused. Press <SPACE> to resume.")
-    while pause: time.sleep(0.1)
-    print ("Resume.")
-    pause = True # Pause again after resuming
 
 # Service processing controlled by YAML recipes for Selenium
 #
@@ -115,10 +75,10 @@ VARIABLE_MAP = {
     "ENTER": lambda bcs: Keys.ENTER
 }
 
-# Retrieve file from service - main function
+# Retrieve file from service - main function - Selenium variant
 def retrieve_from_service_with_selenium(service, url, user, pwd, otp, debug):
     
-    bcs = service_vars(usr=user, pwd=pwd, otp=otp, dbg=debug, dld=f"{os.path.dirname(os.path.realpath(__file__))}/Downloads")
+    bcs = ServiceObj(service=service, usr=user, pwd=pwd, otp=otp, dbg=debug, dld=DOWNLOAD_DIR)
     if not os.path.exists(bcs.dld):
         os.makedirs(bcs.dld)
     bcs.drv = InitBrowser(bcs)
@@ -128,20 +88,23 @@ def retrieve_from_service_with_selenium(service, url, user, pwd, otp, debug):
     on_debug_start_keyboard_listener(bcs)
     try:
         sname = service.lower().replace(" ", "_")
-        bcs.yml = CheckRecipe(f"{os.path.dirname(os.path.realpath(__file__))}/{RECIPES_SELENIUM_DIR}/{RECIPES_SELENIUM_PREFIX}{sname}.yaml")
+        bcs.yml = CheckRecipe(
+            f"{APP_DIR}/{RECIPES_SELENIUM_DIR}/{RECIPES_SELENIUM_PREFIX}{sname}.yaml", 
+            RECIPES_SELENIUM_SCHEMA_FILE)
+        
         if bcs.yml == None: raise Exception(f"Recipe {sname} not found.")
         file_downloaded = perform_actions(bcs)
         if file_downloaded != None: print(f"Service {service} for {bcs.usr} finished with downloaded file(s) {file_downloaded}.")
         else: print(f"Service {service} for {bcs.usr} finished without a file downloaded.")
-    except Exception as e:
-        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
-        print(f"Service {service} for {bcs.usr} not successfully finished.")
-        on_debug_stop_keyboard_listener(bcs)
-        return False
-    else:
         bcs.drv.quit()
         on_debug_stop_keyboard_listener(bcs)
         return True
+    except Exception as e:
+        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
+        print(f"Service {service} for {bcs.usr} not successfully finished.")
+        bcs.drv.quit()
+        on_debug_stop_keyboard_listener(bcs)
+        return False
 
 # Perform actions from YAML recipe on web elements - helper function for dispatching actions
 def perform_actions(bcs):
@@ -189,7 +152,7 @@ def get_selenium_locator(locator_type):
 # Initialize web element object
 def init_webelement_obj(parameters, expected_locators=1):
     try:
-        webElement = webElementObj(
+        webElement = WebElementObj(
             timeout = parameters.get('timeout', 10), 
             variable = parameters.get('variable', None), 
             graceful = parameters.get('graceful', False))
@@ -202,7 +165,7 @@ def init_webelement_obj(parameters, expected_locators=1):
                 seleniumLocator = get_selenium_locator(locator.get('locatorType'))
                 element = locator.get('element')
                 if seleniumLocator and element:
-                    selector = webElementObj.selectorObj(seleniumLocator, element)
+                    selector = WebElementObj.SelectorObj(seleniumLocator, element)
                     webElement.selectors.append(selector)
                 else:
                     raise Exception(f"Missing locatorType or element in {locator}")

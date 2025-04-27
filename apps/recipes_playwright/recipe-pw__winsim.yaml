@@ -1,3 +1,4 @@
+$schema: "recipe-pw-schema.yaml"
 services:
 - serviceName: winSIM
   description: ''
@@ -7,6 +8,7 @@ services:
     actionType: goto
     arguments:
     - url: "https://service.winsim.de/"
+    - test: "whatever"
   - step: 2
     description: ''
     actionType: "click"
@@ -18,7 +20,7 @@ services:
     description: ''
     actionType: "fill"
     arguments:
-      value: "{{USERNAME}}"
+    - value: "{{USERNAME}}"
     locators:
     - locatorType: get_by_label
       arguments:
@@ -33,8 +35,6 @@ services:
   - step: 5
     description: ''
     actionType: "click"
-    arguments:
-    - button: "right"
     locators:
     - locatorType: get_by_label
       arguments:
@@ -43,7 +43,7 @@ services:
     description: ''
     actionType: "fill"
     arguments:
-      value: "{{PASSWORD}}"
+    - value: "{{PASSWORD}}"
     locators:
     - locatorType: get_by_label
       arguments:
@@ -59,9 +59,6 @@ services:
   - step: 8
     description: ''
     actionType: "click"
-    arguments:
-    - button: "right"
-    - click_count: 2
     locators:
     - locatorType: get_by_role
       arguments:
@@ -84,7 +81,7 @@ services:
       - text: "Rechnung vom 31.03.2025"
   - step: 11
     description: ''
-    actionType: expect_popup
+    actionType: expect_download
     steps:
     - step: 12
       description: ''

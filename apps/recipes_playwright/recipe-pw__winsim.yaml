@@ -78,7 +78,7 @@ services:
     locators:
     - locatorType: get_by_text
       arguments:
-      - text: "Rechnung vom 31.03.2025"
+      - text: "echnung vom"
   - step: 11
     description: ''
     actionType: expect_download

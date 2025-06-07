@@ -16,7 +16,7 @@ from flatten_json import flatten
 
 from BillCollectorServices import retrieve_from_service_with_selenium
 from BillCollectorServices_pw import retrieve_from_service_with_playwright
-from BillCollectorHelpers import *
+from helpers import *
 
 # Function to extract strings before and within brackets
 def extract_strings(line):

@@ -1,0 +1,127 @@
+$schema: recipe-pw-schema.yaml
+services:
+- serviceName: freenet_mobilfunk
+  description: ''
+  steps:
+  - step: 1
+    description: ''
+    methods:
+    - method: goto
+      arguments:
+      - url: "https://www.freenet-mobilfunk.de/anmeldung/"
+  - step: 2
+    description: ''
+    methods:
+    - method: locator
+      arguments:
+      - selector: "iframe[title=\\\"SP Consent Message\\\"]"
+    - method: content_frame
+    - method: get_by_label
+      arguments:
+      - text: "Alle akzeptieren"
+    - method: click
+  - step: 3
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "link"
+      - name: "Jetzt einloggen"
+    - method: click
+  - step: 4
+    description: ''
+    methods:
+    - method: goto
+      arguments:
+      - url: "https://id.freenet-mobilfunk.de/u/login?state=hKFo2SB5a0NlXzNCVmhPN1ZFdE5pdGNyNnd4c3VrNmF6XzZqbqFur3VuaXZlcnNhbC1sb2dpbqN0aWTZIDhraVZUSG9xRnpJVHpiUVAtNW5rb2Z3VG56VlRZdS0xo2NpZNkgY0tOTno3T3dROVdHZldVVjdqMlloSXhaRHdDazdPVlE"
+  - step: 5
+    description: ''
+    methods:
+    - method: get_by_label
+      arguments:
+      - text: "E-Mail-Adresse"
+    - method: click
+  - step: 6
+    description: ''
+    methods:
+    - method: get_by_label
+      arguments:
+      - text: "E-Mail-Adresse"
+    - method: fill
+      arguments:
+      - value: "{{USERNAME}}"
+  - step: 7
+    description: ''
+    methods:
+    - method: get_by_text
+      arguments:
+      - text: "Passwort"
+      - exact: true
+    - method: click
+  - step: 8
+    description: ''
+    methods:
+    - method: get_by_label
+      arguments:
+      - text: "Passwort"
+      - exact: true
+    - method: fill
+      arguments:
+      - value: "{{PASSWORD}}"
+  - step: 9
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "button"
+      - name: "Anmelden"
+    - method: click
+  - step: 10
+    description: ''
+    methods:
+    - method: get_by_label
+      arguments:
+      - text: "Popup schließen"
+    - method: click
+  - step: 11
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "link"
+      - name: "Mein Konto"
+    - method: click
+  - step: 12
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "link"
+      - name: "Rechnungen"
+      - exact: true
+    - method: click
+  - step: 13
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "button"
+      - name: "Mai 2025 35,55 € Rechnungsnr"
+    - method: click
+  - step: 14
+    description: ''
+    methods:
+    - method: expect_download
+    steps:
+    - step: 15
+      description: ''
+      methods:
+      - method: locator
+        arguments:
+        - selector: "div > span:nth-child(2)"
+      - method: first
+      - method: click
+  - step: 16
+    description: ''
+    methods:
+    - method: close

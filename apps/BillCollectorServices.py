@@ -15,7 +15,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from BillCollectorRecipes import CheckRecipe
-from BillCollectorHelpers import *
+from helpers import *
 
 # Initialize browser and return driver object
 # parameterize browser: in debug mode = headless, default download folder, force download by always open pdf externally, ...
@@ -68,12 +68,7 @@ ACTION_MAP = {
 }
 
 # Map yaml variables to function variables
-VARIABLE_MAP = {
-    "{USERNAME}": lambda bcs: bcs.usr,
-    "{PASSWORD}": lambda bcs: bcs.pwd,
-    "{OTP}": lambda bcs: bcs.otp,
-    "ENTER": lambda bcs: Keys.ENTER
-}
+VARIABLE_MAP["ENTER"] = lambda bcs: Keys.ENTER
 
 # Retrieve file from service - main function - Selenium variant
 def retrieve_from_service_with_selenium(service, url, user, pwd, otp, debug):
@@ -88,8 +83,7 @@ def retrieve_from_service_with_selenium(service, url, user, pwd, otp, debug):
     on_debug_start_keyboard_listener(bcs)
     try:
         sname = service.lower().replace(" ", "_")
-        bcs.yml = CheckRecipe(
-            f"{APP_DIR}/{RECIPES_SELENIUM_DIR}/{RECIPES_SELENIUM_PREFIX}{sname}.yaml", 
+        bcs.yml = CheckRecipe(os.path.join(APP_DIR, RECIPES_SELENIUM_DIR,f"{RECIPES_SELENIUM_PREFIX}{sname}.yaml"),
             RECIPES_SELENIUM_SCHEMA_FILE)
         
         if bcs.yml == None: raise Exception(f"Recipe {sname} not found.")

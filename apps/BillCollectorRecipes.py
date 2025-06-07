@@ -3,7 +3,7 @@ import sys
 import yaml
 import jsonschema
 from jsonschema import validate, ValidationError
-from BillCollectorHelpers import *
+from helpers import *
 
 def get_schema_for_yaml(yaml_file):
     try:
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     schema_file = None
     if sys.gettrace():
         print("Executed in debugger.")
-        recipe_file=os.path.join(os.path.dirname(__file__), RECIPES_SELENIUM_DIR, "recipe-se-test.yaml")
+        recipe_file=os.path.join(RECIPES_SELENIUM_DIR, "recipe-se-test.yaml")
     else:
         print("Executed from command line.")
         if len(sys.argv) < 2 or len(sys.argv) > 3:

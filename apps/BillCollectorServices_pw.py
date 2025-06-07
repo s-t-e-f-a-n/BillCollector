@@ -9,7 +9,7 @@ from datetime import datetime
 from playwright.sync_api import Playwright, sync_playwright, Route, Request, Page
 
 from BillCollectorRecipes import CheckRecipe
-from BillCollectorHelpers import *
+from helpers import *
 
 def InitBrowser(p, bcs):
     """Initialize the browser with a persistent context to always open PDF externally"""
@@ -133,23 +133,6 @@ class DatabaseManager:
             self.conn.close()
             self.conn = None
             self.cursor = None
-
-
-# Map yaml recipe action types to perform functions
-ACTION_MAP = {
-    "playwright": 
-    {"goto": "perform__goto",
-    "click": "perform__click",
-    "fill": "perform__fill",
-    "expect_download": "perform__expect_download"},
-}
-
-# Map yaml variables to function variables
-VARIABLE_MAP = {
-    "{{USERNAME}}": lambda bcs: bcs.usr,
-    "{{PASSWORD}}": lambda bcs: bcs.pwd,
-    "{{OTP}}": lambda bcs: bcs.otp,
-}
 
 class PageState:
     """Represents the state of a page at a given time."""
@@ -400,7 +383,8 @@ def retrieve_from_service_with_playwright(service, url, user, pwd, otp, debug):
     on_debug_start_keyboard_listener(bcs)
     try:
         sname = service.lower().replace(" ", "_")
-        bcs.yml = CheckRecipe(f"{APP_DIR}/{RECIPES_PLAYWRIGHT_DIR}/{RECIPES_PLAYWRIGHT_PREFIX}{sname}.yaml")
+        bcs.yml = CheckRecipe(os.path.join(APP_DIR, RECIPES_PLAYWRIGHT_DIR,f"{RECIPES_PLAYWRIGHT_PREFIX}{sname}.yaml"),
+            RECIPES_PLAYWRIGHT_SCHEMA_FILE)
         
         if bcs.yml == None: raise Exception(f"Recipe {sname} not found.")
         file_downloaded = perform_actions(bcs)

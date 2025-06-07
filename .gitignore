@@ -1,5 +1,6 @@
 .env
 .venv
+.code
 chrome*
 .pytest*
 __pycache__

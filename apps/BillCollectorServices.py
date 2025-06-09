@@ -14,7 +14,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from BillCollectorRecipes import CheckRecipe
+#from apps.helpers.BillCollectorRecipes import CheckRecipe
 from helpers import *
 
 # Initialize browser and return driver object

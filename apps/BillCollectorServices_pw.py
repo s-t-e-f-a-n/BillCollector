@@ -8,7 +8,7 @@ from datetime import datetime
 
 from playwright.sync_api import Playwright, sync_playwright, Route, Request, Page
 
-from BillCollectorRecipes import CheckRecipe
+#from apps.helpers.BillCollectorRecipes import CheckRecipe
 from helpers import *
 
 def InitBrowser(p, bcs):
@@ -50,6 +50,7 @@ class DatabaseManager:
             service_name TEXT NOT NULL,
             run_number INTEGER NOT NULL,
             run_table TEXT NOT NULL,
+            timestamp_start DATETIME,
             timestamp_end DATETIME,
             download_info JSON,
             result TEXT
@@ -69,23 +70,23 @@ class DatabaseManager:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             service_name TEXT NOT NULL,
             step_number INTEGER NOT NULL,
-            action TEXT NOT NULL,
-            action_args JSON,
-            locator TEXT,
-            locator_args JSON,
+            locator_action JSON,
             interactive_elements JSON,
-            result TEXT
+            result JSON
         );
         """)
 
-        # Register the run in the Service table
+        # Get the local timestamp
+        local_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Register the run in the Service table and set the start timestamp
         self.cursor.execute("""
-        INSERT INTO Service (service_name, run_number, run_table) 
-        VALUES (?, ?, ?)
-        """, (service_name, run_number, table_name))
+        INSERT INTO Service (service_name, run_number, run_table, timestamp_start) 
+        VALUES (?, ?, ?, ?)
+        """, (service_name, run_number, table_name, local_time))
 
         self.conn.commit()
-        return table_name  # Return the created table name
+        return table_name
 
     def get_latest_run_number(self, service_name):
         """Finds the highest run number for a service."""
@@ -97,19 +98,15 @@ class DatabaseManager:
         """Stores a PageState entry in the correct service run table."""
         self.cursor.execute(f"""
         INSERT INTO {table_name} (
-            service_name, step_number, action, action_args, locator, 
-            locator_args, interactive_elements, result
+            service_name, step_number, locator_action, interactive_elements, result
         ) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?)
         """, (
             page_state.service_name,
             page_state.step_number,
-            page_state.action,
-            json.dumps(page_state.action_args),
-            page_state.locator,
-            json.dumps(page_state.locator_args),
+            json.dumps(page_state.locator_action),  # Stores locator and action information
             json.dumps(page_state.interactive_elements),  # Stores interactive elements
-            page_state.error_status  # Stores error message or None
+            json.dumps(page_state.error_status)  # Stores error message or None
         ))
 
         self.conn.commit()
@@ -140,24 +137,17 @@ class PageState:
                  service_name: str,
                  step_number: int,
                  page: Page, 
-                 action: str, 
-                 action_args: dict, 
-                 locator: str, 
-                 locator_args: dict
                  ):
         
         self.service_name = service_name
         self.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.step_number = step_number
-        self.action = action
-        self.action_args = action_args or {}
-        self.locator = locator
-        self.locator_args = locator_args or {}
 #        self.aria_snapshot = page.accessibility.snapshot()
 #        self.dom_status = page.content()
-        self.interactive_elements = self.set_interactive_elements(page)
+        self.interactive_elements = None #self.set_interactive_elements(page)
         self.error_status = None
         self.download_info = None
+        self.locator_action = None
 
     def set_interactive_elements(self, page):
         """
@@ -361,6 +351,10 @@ class PageState:
         """Sets the download information"""
         self.download_info = download_info
 
+    def set_locator_action(self, locator_action):
+        """Sets the locator action"""
+        self.locator_action = locator_action
+
     def to_dict(self):
         """Returns the object data as a dictionary"""
         return {
@@ -383,12 +377,12 @@ def retrieve_from_service_with_playwright(service, url, user, pwd, otp, debug):
     on_debug_start_keyboard_listener(bcs)
     try:
         sname = service.lower().replace(" ", "_")
-        bcs.yml = CheckRecipe(os.path.join(APP_DIR, RECIPES_PLAYWRIGHT_DIR,f"{RECIPES_PLAYWRIGHT_PREFIX}{sname}.yaml"),
+        bcs.yml = CheckRecipe(os.path.join(RECIPES_PLAYWRIGHT_DIR,f"{RECIPES_PLAYWRIGHT_PREFIX}{sname}.yaml"),
             RECIPES_PLAYWRIGHT_SCHEMA_FILE)
         
         if bcs.yml == None: raise Exception(f"Recipe {sname} not found.")
         file_downloaded = perform_actions(bcs)
-        if file_downloaded != None: print(f"Service {service} for {bcs.usr} finished with downloaded file(s) {file_downloaded}.")
+        if file_downloaded: print(f"Service {service} for {bcs.usr} finished with downloaded file(s) {file_downloaded}.")
         else: print(f"Service {service} for {bcs.usr} finished without a file downloaded.")
         on_debug_stop_keyboard_listener(bcs)
         return True
@@ -416,34 +410,46 @@ def perform_actions(bcs):
                     print(f"Processing Service: {service_name} for {bcs.usr}.")
                     
                     # Initialize the database manager and create a service run table
-                    db = DatabaseManager(DB_FILE)
-                    run_table = db.create_service_run_table(service_name)
+                    bcs.db = DatabaseManager(DB_FILE)
+                    bcs.run_table = bcs.db.create_service_run_table(service_name)
 
                     steps = service.get('steps', [])
                     for step in sorted(steps, key=lambda x: x.get('step', 0)):  # Sort by step number
                         step_state = process_step(bcs, step)
                       
-                        if step_state and step_state.download_info != None:
-                            step_state.download_info.value.save_as(os.path.join(
-                                                                    DOWNLOAD_DIR, 
-                                                                    step_state.download_info.value.suggested_filename))
-                            file_downloaded.append(step_state.download_info.value)
-                        if step_state:
-                            # Save the page state to the database
-                            db.insert_page_status(run_table, step_state)
+                        if not step_state.error_status and step_state.download_info != None:
+                            exception_occurred = None
+                            try:
+                                step_state.download_info.value.save_as(os.path.join(
+                                                                        DOWNLOAD_DIR, 
+                                                                        step_state.download_info.value.suggested_filename))
+                            except Exception as e:
+                                exception_occurred = f"file failure: {e}"
+                                print(f" Error saving file: {exception_occurred}")  # This is needed for debugging!
+                            finally:
+                                if step_state.download_info.value.failure():
+                                    step_state.error_status = f"pw failure: {str(step_state.download_info.value.failure())}"
+                                    if exception_occurred:
+                                        step_state.error_status += f" | {str(exception_occurred)}"
+                                elif exception_occurred:
+                                    step_state.error_status = str(exception_occurred)
+                                else:
+                                    result_value = "success"
+                                    file_downloaded.append({
+                                        "url": str(step_state.download_info.value.url),
+                                        "suggested_filename": str(step_state.download_info.value.suggested_filename),
+                                        "result": result_value})
+                        # Save the page state to the database
+                        bcs.db.insert_page_status(bcs.run_table, step_state)
 
-                    db.finalize_service_run(
+                    bcs.db.finalize_service_run(
                         service_name=service_name,
-                        run_table=run_table,
-                        download_info = {
-                            "suggested_filename": step_state.download_info.value.suggested_filename,
-                            "url": step_state.download_info.value.url,
-                            },
-                        result=step_state.error_status
+                        run_table=bcs.run_table,
+                        download_info = json.dumps(file_downloaded) if file_downloaded else {},
+                        result = "failure" if not file_downloaded or not all(entry["result"] == "success" for entry in file_downloaded) else "success"
                     )
-
                     # Close the database connection
-                    db.close_connection()
+                    bcs.db.close_connection()
 
             # Close the page after processing all steps
             bcs.page.close()
@@ -454,108 +460,159 @@ def perform_actions(bcs):
     else:
         return file_downloaded
 
-def process_step(bcs, step):
-    """Process a single step, handling nested steps recursively."""
-    step_number = step.get('step')
-    description = step.get('description', "No description provided.")
-    action_type = step.get('actionType', [])
-    arguments = step.get('arguments', [])
-    locators = step.get('locators', [])
-    nested_steps = step.get("steps", [])
 
-    print(f"  Processing Step {step_number}: {action_type} - {description}")
-    on_debug_pause_check(bcs)
-
-    if locators and nested_steps:
-        raise Exception("Error: Locators and nested steps cannot be used together in the same step.")
-
-    perform_action_name = ACTION_MAP.get("playwright", {}).get(action_type)
-    if perform_action_name is None:
-        raise Exception(f"Error: Unsupported action type: {action_type}")
-
-    perform_action = globals().get(perform_action_name)
-    if not callable(perform_action):
-        raise Exception(f"Error: Function {perform_action_name} is not callable or not found")
-
-    return ( perform_action(bcs, arguments, locators or nested_steps, step_number) ) 
-    
-
-def perform__goto(bcs, arguments, locators, step_number):
-    """Navigate to a URL provided in the arguments."""
-    url = next((item.get('url') for item in (arguments or []) if 'url' in item), None)
-    if url:
-        bcs.page.goto(url)
-        print(f"  Navigated to {url}")
-        page_state = PageState(bcs.service, step_number, bcs.page, "goto", f"'url': {url}", None, None)
-        page_state.set_error(None)
-        return page_state
+def process_argument(arg, bcs):
+    """
+    Processes a single argument:
+      - For a string that exactly matches a placeholder (e.g. "{{PASSWORD}}"), return the actual value.
+      - For a dictionary, replace any placeholder values (leaving the dict intact).
+      - For a list, process its elements recursively.
+      - Otherwise, return the argument unchanged.
+    """
+    if isinstance(arg, str):
+        return VARIABLE_MAP[arg](bcs) if arg in VARIABLE_MAP else arg
+    elif isinstance(arg, dict):
+        new_arg = {}
+        for key, value in arg.items():
+            new_arg[key] = VARIABLE_MAP[value](bcs) if isinstance(value, str) and value in VARIABLE_MAP else value
+        return new_arg
+    elif isinstance(arg, list):
+        return [process_argument(item, bcs) for item in arg]
     else:
-        raise Exception("URL not provided in arguments.")
+        return arg
+
+def process_step(bcs, step):
+    """
+    Processes a step by executing a chain of methods (starting on bcs.page) and simultaneously 
+    builds a mapping of the method chain for later comparison.
     
-def perform__click(bcs, arguments, locators, step_number):
-    """Click on a web element using the specified locator."""
-    return ( perform_locator_action(bcs, "click", arguments, locators, step_number) )
+    Features:
+      • Uses process_argument() to handle placeholder replacement.
+      • Calls methods with keyword arguments when all processed args are dictionaries; otherwise, positional.
+      • Chains the result to update the "current" context for subsequent calls.
+      • Special-cases "expect_download" using a context manager.
+      • Builds a chain mapping where each mapping entry (if applicable) includes a locator part (with its type and arguments)
+        and an action part (with its action type(s) and arguments).
+    
+    The final result is a dictionary that includes both an "executions" log and a "chainMapping".
+    
+    :param bcs: A service object (with attributes like page, usr, pwd, otp, etc.).
+    :param step: A dictionary representing a step (must include a "methods" key; nested steps may be present).
+    :return: A dictionary summarizing execution status and the chain mapping.
+    """
+    if not isinstance(step, dict) or "methods" not in step:
+        raise ValueError("Invalid step format: Expected a dictionary with a 'methods' key.")
 
-def perform__fill(bcs, arguments, locators, step_number):
-    """Fill a web element using the specified locator."""
-    return ( perform_locator_action(bcs, "fill", arguments, locators, step_number) )
+    step_number = step.get("step", 0)
+    print(f"Processing Step {step_number}")
+    step_results = {}
+    chain_mapping = []  # This will accumulate our mapping entries.
+    previous_result = bcs.page  # Starting object.
+    current_mapping_entry = None  # Holds the most recent locator mapping to attach actions to.
 
-def perform__expect_download(bcs, arguments, steps, step_number):
-    """Expect a download to occur after performing actions."""
-    with bcs.page.expect_download() as download_info:
-        for step in sorted(steps, key=lambda x: x.get('step', 0)):
-            page_state = process_step(bcs, step)
-        page_state.set_download_info(download_info)
+    # Define sets for locator and action methods.
+    LOCATOR_METHODS = {"locator", "get_by_role", "get_by_text", "get_by_label", "get_by_title"}
+    ACTION_METHODS = {"click", "fill", "goto"}
+
+    page_state = PageState(bcs.service, step_number, bcs.page)
+    
+    for method_entry in step["methods"]:
+        method_name = method_entry.get("method")
+        arguments = method_entry.get("arguments", [])
+        processed_args = [process_argument(arg, bcs) for arg in arguments]
+
+        try:
+            if not method_name:
+                raise ValueError(f"Method entry missing 'method' key: {method_entry}")
+        except Exception as e:
+            step_results.setdefault("error", []).append({"method": method_name, "message": str(e)})
+            continue # Skip to the next method entry.
+
+        # Special handling for "expect_download".
+        if method_name == "expect_download":
+            mapping_entry = {"actionTypes": ["expect_download"]}
+            try:
+                with previous_result.expect_download() as download_info:
+                    previous_result = download_info
+                    # Process any nested steps within the download context.
+                    if "steps" in step and step["steps"]:
+                        for nested_step in sorted(step["steps"], key=lambda x: x.get("step", 0)):
+                            page_state = process_step(bcs, nested_step)
+                            bcs.db.insert_page_status(bcs.run_table, page_state)
+                        page_state.set_download_info(download_info)
+                    else:
+                        raise ValueError("No nested steps provided for 'expect_download'.")
+            except Exception as e:
+                step_results.setdefault("error", []).append({"method": method_name, "message": str(e)})
+#            chain_mapping.append(mapping_entry)
+#            current_mapping_entry = None
+            continue  # Skip normal processing for this method.
+
+        # --- Build the chain mapping ---
+        #
+        # TODO: HIDE CREDENTIALS!!!!!!!!!!!!!!
+        #
+        if method_name in LOCATOR_METHODS:
+            # It's a locator method; create a new mapping entry.
+            mapping_entry = {}
+            if processed_args and all(isinstance(arg, dict) for arg in processed_args):
+                merged_args = {}
+                for d in processed_args:
+                    merged_args.update(d)
+                mapping_entry["locator"] = {"locatorType": method_name, "arguments": merged_args}
+                if "role" in merged_args:
+                    mapping_entry["role"] = merged_args["role"]
+                if "name" in merged_args:
+                    mapping_entry["name"] = merged_args["name"]
+            else:
+                mapping_entry["locator"] = {"locatorType": method_name, "arguments": processed_args}
+            current_mapping_entry = mapping_entry  # Set current mapping entry to attach following action.
+            chain_mapping.append(mapping_entry)
+        elif method_name in ACTION_METHODS:
+            # It's an action method; update the most recent locator mapping entry.
+            if current_mapping_entry is None:
+                current_mapping_entry = {}
+                chain_mapping.append(current_mapping_entry)
+            if "actionTypes" not in current_mapping_entry:
+                current_mapping_entry["actionTypes"] = []
+            current_mapping_entry["actionTypes"].append(method_name)
+            if processed_args:
+                if all(isinstance(arg, dict) for arg in processed_args):
+                    action_args = {}
+                    for d in processed_args:
+                        action_args.update(d)
+                    current_mapping_entry["actionArguments"] = action_args
+                else:
+                    current_mapping_entry["actionArguments"] = processed_args
+        else:
+            # For any other (non-locator, non-action) method, add a separate mapping entry.
+            mapping_entry = {method_name: {"arguments": processed_args}}
+            chain_mapping.append(mapping_entry)
+        # --- End chain mapping build ---
+
+        # Retrieve the attribute (method or property) from the current context.
+        method_executor = getattr(previous_result, method_name, None)
+        try:
+            if method_executor is None:
+                raise AttributeError(f"Method '{method_name}' not found on {type(previous_result).__name__}.")
+            if callable(method_executor):
+                if processed_args and all(isinstance(arg, dict) for arg in processed_args):
+                    kwargs = {}
+                    for d in processed_args:
+                        kwargs.update(d)
+                    result = method_executor(**kwargs)
+                else:
+                    result = method_executor(*processed_args)
+                previous_result = result if result is not None else previous_result
+            else:
+                if processed_args:
+                    raise TypeError(f"Attribute '{method_name}' is not callable but arguments were provided: {processed_args}")
+                previous_result = method_executor
+        except Exception as e:
+            step_results.setdefault("error", []).append({"method": method_name, "message": str(e)})
+            continue
+
+    page_state.set_locator_action(chain_mapping)
+    page_state.set_error(step_results)
     return page_state
 
-def perform_locator_action(bcs, action, arguments, locators, step_number):
-    """Perform action on locator: page.<locator-method>(**locator_kwargs).<action>(**action_kwargs)"""
-    # Safely process action arguments
-    action_kwargs = {}
-    action_orig_kwargs = {}
-    if arguments:
-        for arg in arguments:
-            for key, value in arg.items():
-                value_copy = str(value)
-                # Find all occurrences of variables in {{}} format
-                matches = re.findall(r"\{\{(.*?)\}\}", str(value))
-                for match in matches:
-                    full_variable = f"{{{{{match}}}}}"  # Recreate full variable format
-                    # Replace if variable exists in VARIABLE_MAP
-                    if full_variable in VARIABLE_MAP:
-                        value = value.replace(full_variable, str(VARIABLE_MAP[full_variable](bcs)))
-                # Store the resolved value
-                action_kwargs[key] = value
-                action_orig_kwargs[key] = value_copy
-
-    # Extract locator information
-    locator_type = next((item.get("locatorType") for item in (locators or []) if "locatorType" in item), None)
-    locator_arguments = next((item for item in (locators or []) if "arguments" in item), None)
-
-    # Create action with (optional) arguments on locator with arguments
-    if locator_type and locator_arguments:
-        locator_kwargs = {key: value for arg in locator_arguments.get("arguments", []) if arg for key, value in arg.items()}
-        if locator_kwargs:
-            locator_method = getattr(bcs.page, locator_type, None)
-            if callable(locator_method):
-                locator_object = locator_method(**locator_kwargs)
-                locator_object = locator_object.first if hasattr(locator_object, 'first') else locator_object  # Handle first() if available
-                if hasattr(locator_object, action):  # Ensure action method exists
-                    action_method = getattr(locator_object, action)
-                    if callable(action_method):
-                        page_state = PageState(bcs.service, step_number, bcs.page, action, action_orig_kwargs, locator_type, locator_kwargs)
-                        try:
-                            action_method(**action_kwargs)  # Execute action with arguments
-                            page_state.set_error(None)
-                        except Exception as e:
-                            page_state.set_error(str(e))
-                        finally:
-                            return page_state
-                    else:
-                        raise TypeError(f"Error: '{action}' is not callable on {locator_object}")
-                else:
-                    raise AttributeError(f"Error: Action '{action}' not found on locator '{locator_type}'")
-            else:
-                raise AttributeError(f"Error: Locator method '{locator_type}' not found on bcs.page")
-    else:
-        raise ValueError("Error: LocatorType or arguments not provided.")

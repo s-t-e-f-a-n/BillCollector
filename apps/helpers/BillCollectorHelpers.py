@@ -23,7 +23,7 @@ CHROMIUM_SELENIUM_DIR = os.path.join(APP_DIR, "chrome-linux64", "chrome")       
 CHROMEDRIVER_SELENIUM_DIR = os.path.join(APP_DIR, "chromedriver-linux64", "chromedriver")   # Directory for ChromeDriver Selenium
 
 RECIPES_PLAYWRIGHT_DIR = os.path.join(APP_DIR, "recipes_playwright")                        # Directory for recipes
-RECIPES_PLAYWRIGHT_SCHEMA_FILE = "recipe-pw-schema.yaml"                                    # Schema file for Playwright recipes
+RECIPES_PLAYWRIGHT_SCHEMA_FILE = os.path.join(RECIPES_PLAYWRIGHT_DIR, "recipe-pw-schema.yaml")  # Schema file for Playwright recipes
 RECIPES_PLAYWRIGHT_PREFIX = "recipe-pw__"                                                   # Prefix for Playwright recipes
 RECIPES_PLAYWRIGHT_CODE_DIR = os.path.join(RECIPES_PLAYWRIGHT_DIR, ".code")                  # Directory for Playwright python code 
 CHROMIUM_PLAYWRIGHT_DIR = os.path.join(APP_DIR, "browser")                                  # Directory for Chromium Playwright
@@ -59,8 +59,10 @@ VARIABLE_LABELS = {
 
 # Service variables
 class ServiceObj:
-    def __init__(self, service, usr, pwd, otp, dbg, dld, yml=None, drv=None, page=None):
+    def __init__(self, service, usr, pwd, otp, dbg, dld, yml=None, drv=None, page=None, db=None, run_table=None):
         self.service = service
+        self.db = db
+        self.run_table = run_table
         self.page = page
         self.drv = drv
         self.usr = usr

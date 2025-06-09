@@ -9,17 +9,17 @@ services:
     - method: goto
       arguments:
       - url: "https://www.freenet-mobilfunk.de/anmeldung/"
-  - step: 2
-    description: ''
-    methods:
-    - method: locator
-      arguments:
-      - selector: "iframe[title=\\\"SP Consent Message\\\"]"
-    - method: content_frame
-    - method: get_by_label
-      arguments:
-      - text: "Alle akzeptieren"
-    - method: click
+  # - step: 2
+  #   description: ''
+  #   methods:
+  #   - method: locator
+  #     arguments:
+  #     - selector: "iframe[title='SP Consent Message']"
+  #   - method: content_frame
+  #   - method: get_by_label
+  #     arguments:
+  #     - text: "Alle akzeptieren"
+  #   - method: click
   - step: 3
     description: ''
     methods:

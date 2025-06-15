@@ -1,6 +1,6 @@
 $schema: /home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml
 services:
-- serviceName: winsim
+- serviceName: datev
   description: ''
   steps:
   - step: 1
@@ -8,78 +8,83 @@ services:
     methods:
     - method: goto
       arguments:
-      - url: "https://service.winsim.de/"
+      - url: "https://apps.datev.de/ano/"
   - step: 2
     description: ''
     methods:
-    - method: get_by_label
+    - method: get_by_role
       arguments:
-      - text: "Benutzername:oder Rufnummer,"
+      - role: "main"
+    - method: get_by_role
+      arguments:
+      - role: "button"
+      - name: "Login"
     - method: click
   - step: 3
     description: ''
     methods:
-    - method: get_by_label
+    - method: locator
       arguments:
-      - text: "Benutzername:oder Rufnummer,"
-    - method: fill
-      arguments:
-      - value: "{{USERNAME}}"
+      - selector: "[data-test-id=\"totp-login-button\"]"
+    - method: click
   - step: 4
     description: ''
     methods:
     - method: get_by_label
       arguments:
-      - text: "Online-Passwort:"
+      - text: "E-mail address"
     - method: click
   - step: 5
     description: ''
     methods:
     - method: get_by_label
       arguments:
-      - text: "Online-Passwort:"
+      - text: "E-mail address"
     - method: fill
       arguments:
-      - value: "{{PASSWORD}}"
+      - value: "{{USERNAME}}"
   - step: 6
     description: ''
     methods:
-    - method: get_by_title
+    - method: get_by_label
       arguments:
-      - text: "Login"
+      - text: "Password"
       - exact: true
     - method: click
   - step: 7
     description: ''
     methods:
-    - method: get_by_role
+    - method: get_by_label
       arguments:
-      - role: "button"
-      - name: "Bestätigen"
-    - method: click
+      - text: "Password"
+      - exact: true
+    - method: fill
+      arguments:
+      - value: "{{PASSWORD}}"
   - step: 8
     description: ''
     methods:
     - method: get_by_role
       arguments:
-      - role: "link"
-      - name: "Dialog Schließen"
+      - role: "button"
+      - name: "Login"
     - method: click
   - step: 9
     description: ''
     methods:
-    - method: get_by_role
+    - method: get_by_label
       arguments:
-      - role: "link"
-      - name: "Meine Rechnung"
-    - method: click
+      - text: "6-digit code from"
+    - method: fill
+      arguments:
+      - value: "{{OTP}}"
   - step: 10
     description: ''
     methods:
-    - method: get_by_text
+    - method: get_by_role
       arguments:
-      - text: "Rechnung vom"
-    - method: first
+      - role: "button"
+      - name: "Check and log in"
     - method: click
   - step: 11
     description: ''
@@ -92,8 +97,8 @@ services:
       - method: get_by_role
         arguments:
         - role: "link"
-        - name: "Rechnung"
-        - exact: true
+        - name: "Brutto-Netto-Abrechnung"
+      - method: first
       - method: click
   - step: 13
     description: ''

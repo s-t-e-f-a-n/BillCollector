@@ -1,0 +1,38 @@
+Extensions / Next steps
+===
+- extend by procedure which finds missing elements in set_interactive_elements() (see below)
+  - this is useful to increase the data quality
+  - this is also useful as a prerequisite for the planned self-healing feature
+
+- extend set_interactive_elements() by
+  - get_by_placeholder (ex.: 1und1)
+  - get_by_test_id (ex.: 1und1)
+  - locator (ex.: kabeldeutschland) 
+  - pdf document name (ex.: nuernberger)
+
+- user documentation
+  - tips for creating recipes:
+    - manually add a general text from the specific one proposed and make usage of .first method
+  
+
+===
+ 
+  Installation mit Playwright (...testen, ob Selenium auch damit arbeiten kann oder ob zwei Browser-Intallationen parallel benötigt werden)
+---
+ Python 3.8.10 ausreichend
+ Lasse Playwright Chromium und FFMPEG installieren.
+
+1. Python venv anlegen
+python3 -m venv .venv
+
+2. Playwright in venv installieren
+pip install playwright
+
+3. Chromium und FFMPEG von Playwright installieren
+mkdir $(pwd)/browser
+PLAYWRIGHT_BROWSERS_PATH=$(pwd)/browser playwright install chromium ffmpeg
+sudo apt-get update&& apt-get install -y --no-install-recommends fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 libatspi2.0-0 libcairo2 libcups2 libdbus-1-3 libdrm2 libegl1 libgbm1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libxshmfence1 xvfb fonts-noto-color-emoji ttf-unifont libfontconfig libfreetype6 xfonts-cyrillic xfonts-scalable fonts-ipafont-gothic fonts-wqy-zenhei fonts-tlwg-loma-otf ttf-ubuntu-font-family
+
+4. Umgebungsvariable PLAYWRIGHT_BROWSERS_PATH
+...in Python-Skript:
+os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/home/stefan/projects/ChromeRecorder/apps/browser"

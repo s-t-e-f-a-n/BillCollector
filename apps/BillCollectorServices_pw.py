@@ -1,38 +1,45 @@
 import os
+import shutil
 import re
 import inspect
 import sqlite3
 import json
 
 from datetime import datetime
-
 from playwright.sync_api import Playwright, sync_playwright, Route, Request, Page
-
-#from apps.helpers.BillCollectorRecipes import CheckRecipe
 from helpers import *
 
 def InitBrowser(p, bcs):
     """Initialize the browser with a persistent context to always open PDF externally"""
     try:
+        if not init_browser_profile():
+            raise Exception("Failed to initialize browser profile.")
         browser = p.chromium.launch_persistent_context(
             headless=not bcs.dbg,
             user_data_dir=CHROMIUM_PLAYWRIGHT_PROFILE
             )
-        # following Default/Preferences entry is required:
-        #   {
-        #       "plugins": {
-        #           "always_open_pdf_externally": true
-        #       }
-        #   }
-        # Todo: add general method for profile creation/preparation
-        #  https://www.chromium.org/administrators/configuring-other-preferences/
-        #  https://support.google.com/chrome/a/answer/187948?sjid=14232849532875888309-EU
-        # Following has not worked for me: https://github.com/microsoft/playwright/issues/7822
-        #
     except Exception as e:
         print(f"Error: {e}")
         return None
     return browser
+
+def init_browser_profile():
+    """Initialize the browser profile for Playwright Chromium."""
+    # https://www.chromium.org/administrators/configuring-other-preferences/
+    # https://support.google.com/chrome/a/answer/187948?sjid=14232849532875888309-EU
+    # The following has not worked for me: https://github.com/microsoft/playwright/issues/7822
+    try:
+        if os.path.exists(CHROMIUM_PLAYWRIGHT_PROFILE):
+            shutil.rmtree(CHROMIUM_PLAYWRIGHT_PROFILE)  # Remove existing profile directory
+        os.makedirs(os.path.join(CHROMIUM_PLAYWRIGHT_PROFILE, "Default"), exist_ok=True)  # Create a new profile directory
+        content = {"plugins": {"always_open_pdf_externally": True}} # Set the preference to always open PDFs externally
+        with open(os.path.join(CHROMIUM_PLAYWRIGHT_PROFILE, "Default", "Preferences"), "w", encoding="utf-8") as f:
+            json.dump(content, f, indent=2)
+    except Exception as e:
+        print(f"Error initializing browser profile: {e}")
+        return False
+    else:
+        return True
 
 class DatabaseManager:
     """Manages service-specific and run-specific tables."""
@@ -144,10 +151,17 @@ class PageState:
         self.step_number = step_number
 #        self.aria_snapshot = page.accessibility.snapshot()
 #        self.dom_status = page.content()
-        self.interactive_elements = None #self.set_interactive_elements(page)
+        self.interactive_elements = self.set_interactive_elements(page)
         self.error_status = None
-        self.download_info = None
         self.locator_action = None
+    
+    def set_error(self, error_message: str):
+        """Sets an error status"""
+        self.error_status = error_message
+
+    def set_locator_action(self, locator_action):
+        """Sets the locator action with the help of transform_step_to_json()"""
+        self.locator_action = locator_action
 
     def set_interactive_elements(self, page):
         """
@@ -168,10 +182,18 @@ class PageState:
         and filters out only those elements that are visible and "likely interactive" (based on their tag, onclick attribute, or contenteditable). 
         It computes a text value from each element’s innerText and its ::before and ::after pseudo-elements.
         """
-        # Wait for initial page load and an extra delay for dynamic updates.
-        page.wait_for_load_state("load")
-        page.wait_for_timeout(500)
-        
+
+        def safe_evaluate(page, script, max_attempts=3):
+            """Attempts to evaluate JavaScript on the page, retrying if necessary."""
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return page.evaluate(script)  # Try evaluating
+                except Exception as e:
+                    #print(f"Attempt {attempt}: Evaluation failed - {e}")
+                    time.sleep(1)  # Short delay before retrying
+            #print("All attempts failed.")
+            return None  # Return None if evaluation consistently fails
+
         # Use a MutationObserver to allow dynamic injection to occur.
         js_observer = r'''async () => {
             const observerTime = 3000; // wait for 3 seconds
@@ -182,8 +204,8 @@ class PageState:
             });
             return true;
         }'''
-        # Run the observer (we ignore its return value).
-        page.evaluate(js_observer)
+        # Run the observer safely to ensure the DOM is stable.
+        if not safe_evaluate(page, js_observer): return None
         
         # Now, scan the entire DOM for "likely interactive" elements.
         # We consider an element interactive if:
@@ -233,8 +255,10 @@ class PageState:
                 };
             });
         }'''
-        elements_data = page.evaluate(js_collect)
-        
+        # Run the observer safely to ensure the DOM is stable.
+        elements_data = safe_evaluate(page, js_collect)
+        if not elements_data: return None
+
         results = []
         seen = set()
         
@@ -342,31 +366,6 @@ class PageState:
         
         return results
 
-    
-    def set_error(self, error_message: str):
-        """Sets an error status"""
-        self.error_status = error_message
-
-    def set_download_info(self, download_info):
-        """Sets the download information"""
-        self.download_info = download_info
-
-    def set_locator_action(self, locator_action):
-        """Sets the locator action"""
-        self.locator_action = locator_action
-
-    def to_dict(self):
-        """Returns the object data as a dictionary"""
-        return {
-            "action_type": self.action_type,
-            "locator_method": self.locator_method,
-            "aria_snapshot": self.aria_snapshot,
-            "dom_status": self.dom_status,
-            "error_status": self.error_status,
-            "download_info": self.download_info,
-        }
-
-
 def retrieve_from_service_with_playwright(service, url, user, pwd, otp, debug):
     """Retrieve file from service - main function - Playwright variant    """
 
@@ -394,7 +393,8 @@ def retrieve_from_service_with_playwright(service, url, user, pwd, otp, debug):
 
 def perform_actions(bcs):
     """Perform actions from YAML recipe on web elements - helper function for dispatching actions"""
-    file_downloaded = []
+    
+    files_downloaded = []
 
     try:
         with sync_playwright() as p:
@@ -413,40 +413,42 @@ def perform_actions(bcs):
                     bcs.db = DatabaseManager(DB_FILE)
                     bcs.run_table = bcs.db.create_service_run_table(service_name)
 
+                    # process all steps in the service
                     steps = service.get('steps', [])
                     for step in sorted(steps, key=lambda x: x.get('step', 0)):  # Sort by step number
+
                         step_state = process_step(bcs, step)
-                      
-                        if not step_state.error_status and step_state.download_info != None:
-                            exception_occurred = None
-                            try:
-                                step_state.download_info.value.save_as(os.path.join(
-                                                                        DOWNLOAD_DIR, 
-                                                                        step_state.download_info.value.suggested_filename))
-                            except Exception as e:
-                                exception_occurred = f"file failure: {e}"
-                                print(f" Error saving file: {exception_occurred}")  # This is needed for debugging!
-                            finally:
-                                if step_state.download_info.value.failure():
-                                    step_state.error_status = f"pw failure: {str(step_state.download_info.value.failure())}"
-                                    if exception_occurred:
-                                        step_state.error_status += f" | {str(exception_occurred)}"
-                                elif exception_occurred:
-                                    step_state.error_status = str(exception_occurred)
-                                else:
-                                    result_value = "success"
-                                    file_downloaded.append({
-                                        "url": str(step_state.download_info.value.url),
-                                        "suggested_filename": str(step_state.download_info.value.suggested_filename),
-                                        "result": result_value})
-                        # Save the page state to the database
                         bcs.db.insert_page_status(bcs.run_table, step_state)
 
+                        # Check if the previous step expects a download
+                        if check_parameter_in_json(step_state.locator_action, {"action": "expect_download"}):
+                            result_value = "success"
+                            download_info = None
+                            download = None
+                            try:
+                                with bcs.page.expect_download() as di:
+                                    download_info = di
+                                    for nested_step in sorted(step["steps"], key=lambda x: x.get("step", 0)):
+                                        step_state = process_step(bcs, nested_step)
+                                        bcs.db.insert_page_status(bcs.run_table, step_state)
+                                download = download_info.value
+                                filepath = os.path.join(DOWNLOAD_DIR, str(download_info.value.suggested_filename))
+                                download.save_as(filepath)
+                            except Exception as e:
+                                    result_value = f"failure: download error {e}"
+                            finally:
+                                if download:
+                                    files_downloaded.append({
+                                        "url": str(download.url),
+                                        "suggested_filename": str(download.suggested_filename),
+                                        "result": result_value})
+
+                    # All steps processed, finalize the service run
                     bcs.db.finalize_service_run(
                         service_name=service_name,
                         run_table=bcs.run_table,
-                        download_info = json.dumps(file_downloaded) if file_downloaded else {},
-                        result = "failure" if not file_downloaded or not all(entry["result"] == "success" for entry in file_downloaded) else "success"
+                        download_info = json.dumps(files_downloaded) if files_downloaded else {},
+                        result = "failure" if not files_downloaded or not all(entry["result"] == "success" for entry in files_downloaded) else "success"
                     )
                     # Close the database connection
                     bcs.db.close_connection()
@@ -457,49 +459,67 @@ def perform_actions(bcs):
 
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
-    else:
-        return file_downloaded
-
-
-def process_argument(arg, bcs):
-    """
-    Processes a single argument:
-      - For a string that exactly matches a placeholder (e.g. "{{PASSWORD}}"), return the actual value.
-      - For a dictionary, replace any placeholder values (leaving the dict intact).
-      - For a list, process its elements recursively.
-      - Otherwise, return the argument unchanged.
-    """
-    if isinstance(arg, str):
-        return VARIABLE_MAP[arg](bcs) if arg in VARIABLE_MAP else arg
-    elif isinstance(arg, dict):
-        new_arg = {}
-        for key, value in arg.items():
-            new_arg[key] = VARIABLE_MAP[value](bcs) if isinstance(value, str) and value in VARIABLE_MAP else value
-        return new_arg
-    elif isinstance(arg, list):
-        return [process_argument(item, bcs) for item in arg]
-    else:
-        return arg
+    finally:
+        return files_downloaded
 
 def process_step(bcs, step):
-    """
-    Processes a step by executing a chain of methods (starting on bcs.page) and simultaneously 
-    builds a mapping of the method chain for later comparison.
-    
-    Features:
-      • Uses process_argument() to handle placeholder replacement.
-      • Calls methods with keyword arguments when all processed args are dictionaries; otherwise, positional.
-      • Chains the result to update the "current" context for subsequent calls.
-      • Special-cases "expect_download" using a context manager.
-      • Builds a chain mapping where each mapping entry (if applicable) includes a locator part (with its type and arguments)
-        and an action part (with its action type(s) and arguments).
-    
-    The final result is a dictionary that includes both an "executions" log and a "chainMapping".
-    
-    :param bcs: A service object (with attributes like page, usr, pwd, otp, etc.).
-    :param step: A dictionary representing a step (must include a "methods" key; nested steps may be present).
-    :return: A dictionary summarizing execution status and the chain mapping.
-    """
+    """ Processes a step by executing a chain of methods """
+
+    def process_argument(arg, bcs):
+        """ Processes a single argument:
+        - For a string that exactly matches a placeholder (e.g. "{{PASSWORD}}"), return the actual value.
+        - For a dictionary, replace any placeholder values (leaving the dict intact).
+        - For a list, process its elements recursively.
+        - Otherwise, return the argument unchanged.
+        """
+        if isinstance(arg, str):
+            return VARIABLE_MAP[arg](bcs) if arg in VARIABLE_MAP else arg
+        elif isinstance(arg, dict):
+            new_arg = {}
+            for key, value in arg.items():
+                new_arg[key] = VARIABLE_MAP[value](bcs) if isinstance(value, str) and value in VARIABLE_MAP else value
+            return new_arg
+        elif isinstance(arg, list):
+            return [process_argument(item, bcs) for item in arg]
+        else:
+            return arg
+
+    def transform_step_to_json(step):
+        """Transforms a step object into JSON with locators and actions."""
+        
+        if not isinstance(step, dict) or "methods" not in step:
+            raise ValueError("Invalid step format: Expected a dictionary with a 'methods' key.")
+
+        transformed_step = {
+            "description": step.get("description", ""),
+            "locators": [],
+            "actions": []
+        }
+
+        for method_entry in step["methods"]:
+            method_name = method_entry.get("method")
+            arguments = method_entry.get("arguments", [])
+
+            if not method_name:
+                continue  # Skip invalid methods
+
+            # Categorize as locator or action (just a simple heuristic based on action names)
+            if method_name in ["click", "fill", "expect_download", "goto", "close", "content_frame", "first"]:
+                transformed_step["actions"] = transformed_step.get("actions", [])
+                transformed_step["actions"].append({
+                    "action": method_name,
+                    "arguments": {k: v for arg in arguments for k, v in arg.items()}
+                })
+            else: # all other methods are considered locators
+                transformed_step["locators"] = transformed_step.get("locators", [])
+                transformed_step["locators"].append({
+                    "locator": method_name,
+                    "arguments": {k: v for arg in arguments for k, v in arg.items()}
+                })
+
+        return json.dumps(transformed_step, separators=(",", ":"))
+
+
     if not isinstance(step, dict) or "methods" not in step:
         raise ValueError("Invalid step format: Expected a dictionary with a 'methods' key.")
 
@@ -508,111 +528,72 @@ def process_step(bcs, step):
     step_results = {}
     chain_mapping = []  # This will accumulate our mapping entries.
     previous_result = bcs.page  # Starting object.
-    current_mapping_entry = None  # Holds the most recent locator mapping to attach actions to.
-
-    # Define sets for locator and action methods.
-    LOCATOR_METHODS = {"locator", "get_by_role", "get_by_text", "get_by_label", "get_by_title"}
-    ACTION_METHODS = {"click", "fill", "goto"}
 
     page_state = PageState(bcs.service, step_number, bcs.page)
-    
+    page_state.set_locator_action(transform_step_to_json(step))
+
     for method_entry in step["methods"]:
         method_name = method_entry.get("method")
         arguments = method_entry.get("arguments", [])
         processed_args = [process_argument(arg, bcs) for arg in arguments]
 
-        try:
-            if not method_name:
-                raise ValueError(f"Method entry missing 'method' key: {method_entry}")
-        except Exception as e:
-            step_results.setdefault("error", []).append({"method": method_name, "message": str(e)})
+        if not method_name:
+            step_results.setdefault("error", []).append(f"method: {method_name}, message: Method entry missing 'method' key: {method_entry}")
             continue # Skip to the next method entry.
 
         # Special handling for "expect_download".
         if method_name == "expect_download":
-            mapping_entry = {"actionTypes": ["expect_download"]}
+            if "steps" in step and step["steps"]:
+                page_state.set_error(step_results)
+            else:
+                page_state.set_error("error: No nested steps provided for 'expect_download'.")
+            break
+        # Standard handling of methods
+        else:
+            method_executor = getattr(previous_result, method_name, None)
             try:
-                with previous_result.expect_download() as download_info:
-                    previous_result = download_info
-                    # Process any nested steps within the download context.
-                    if "steps" in step and step["steps"]:
-                        for nested_step in sorted(step["steps"], key=lambda x: x.get("step", 0)):
-                            page_state = process_step(bcs, nested_step)
-                            bcs.db.insert_page_status(bcs.run_table, page_state)
-                        page_state.set_download_info(download_info)
+                if method_executor is None:
+                    raise AttributeError(f"Method '{method_name}' not found on {type(previous_result).__name__}.")
+                if callable(method_executor):
+                    if processed_args and all(isinstance(arg, dict) for arg in processed_args):
+                        kwargs = {}
+                        for d in processed_args:
+                            kwargs.update(d)
+                        result = method_executor(**kwargs)          # Call the method with keyword arguments.
                     else:
-                        raise ValueError("No nested steps provided for 'expect_download'.")
+                        result = method_executor(*processed_args)   # Call the method with positional arguments.
+                    previous_result = result if result is not None else previous_result
+                else:
+                    if processed_args:
+                        raise TypeError(f"Attribute '{method_name}' is not callable but arguments were provided: {processed_args}")
+                    previous_result = method_executor               # Get the value of a property.
             except Exception as e:
                 step_results.setdefault("error", []).append({"method": method_name, "message": str(e)})
-#            chain_mapping.append(mapping_entry)
-#            current_mapping_entry = None
-            continue  # Skip normal processing for this method.
+            finally:
+                page_state.set_error(step_results)
 
-        # --- Build the chain mapping ---
-        #
-        # TODO: HIDE CREDENTIALS!!!!!!!!!!!!!!
-        #
-        if method_name in LOCATOR_METHODS:
-            # It's a locator method; create a new mapping entry.
-            mapping_entry = {}
-            if processed_args and all(isinstance(arg, dict) for arg in processed_args):
-                merged_args = {}
-                for d in processed_args:
-                    merged_args.update(d)
-                mapping_entry["locator"] = {"locatorType": method_name, "arguments": merged_args}
-                if "role" in merged_args:
-                    mapping_entry["role"] = merged_args["role"]
-                if "name" in merged_args:
-                    mapping_entry["name"] = merged_args["name"]
-            else:
-                mapping_entry["locator"] = {"locatorType": method_name, "arguments": processed_args}
-            current_mapping_entry = mapping_entry  # Set current mapping entry to attach following action.
-            chain_mapping.append(mapping_entry)
-        elif method_name in ACTION_METHODS:
-            # It's an action method; update the most recent locator mapping entry.
-            if current_mapping_entry is None:
-                current_mapping_entry = {}
-                chain_mapping.append(current_mapping_entry)
-            if "actionTypes" not in current_mapping_entry:
-                current_mapping_entry["actionTypes"] = []
-            current_mapping_entry["actionTypes"].append(method_name)
-            if processed_args:
-                if all(isinstance(arg, dict) for arg in processed_args):
-                    action_args = {}
-                    for d in processed_args:
-                        action_args.update(d)
-                    current_mapping_entry["actionArguments"] = action_args
-                else:
-                    current_mapping_entry["actionArguments"] = processed_args
-        else:
-            # For any other (non-locator, non-action) method, add a separate mapping entry.
-            mapping_entry = {method_name: {"arguments": processed_args}}
-            chain_mapping.append(mapping_entry)
-        # --- End chain mapping build ---
-
-        # Retrieve the attribute (method or property) from the current context.
-        method_executor = getattr(previous_result, method_name, None)
-        try:
-            if method_executor is None:
-                raise AttributeError(f"Method '{method_name}' not found on {type(previous_result).__name__}.")
-            if callable(method_executor):
-                if processed_args and all(isinstance(arg, dict) for arg in processed_args):
-                    kwargs = {}
-                    for d in processed_args:
-                        kwargs.update(d)
-                    result = method_executor(**kwargs)
-                else:
-                    result = method_executor(*processed_args)
-                previous_result = result if result is not None else previous_result
-            else:
-                if processed_args:
-                    raise TypeError(f"Attribute '{method_name}' is not callable but arguments were provided: {processed_args}")
-                previous_result = method_executor
-        except Exception as e:
-            step_results.setdefault("error", []).append({"method": method_name, "message": str(e)})
-            continue
-
-    page_state.set_locator_action(chain_mapping)
-    page_state.set_error(step_results)
     return page_state
 
+def check_parameter_in_json(json_str, param_dict):
+    """Checks if a given key-value pair exists in the JSON structure."""
+    
+    try:
+        data = json.loads(json_str)  # Parse JSON string into a dictionary
+        
+        # Extract key-value pair from the parameter dictionary
+        param_key, param_value = next(iter(param_dict.items()))
+        
+        # Recursively search for the key-value pair
+        def recursive_search(obj):
+            if isinstance(obj, dict):
+                if param_key in obj and obj[param_key] == param_value:
+                    return True
+                return any(recursive_search(value) for value in obj.values())
+            elif isinstance(obj, list):
+                return any(recursive_search(item) for item in obj)
+            return False
+
+        return recursive_search(data)
+
+    except json.JSONDecodeError:
+        return False  # Return False if the JSON string is invalid

@@ -1,6 +1,6 @@
 $schema: /home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml
 services:
-- serviceName: winsim
+- serviceName: 1und1
   description: ''
   steps:
   - step: 1
@@ -8,78 +8,77 @@ services:
     methods:
     - method: goto
       arguments:
-      - url: "https://service.winsim.de/"
+      - url: "https://www.1und1.de/"
   - step: 2
-    description: ''
-    methods:
-    - method: get_by_label
-      arguments:
-      - text: "Benutzername:oder Rufnummer,"
-    - method: click
-  - step: 3
-    description: ''
-    methods:
-    - method: get_by_label
-      arguments:
-      - text: "Benutzername:oder Rufnummer,"
-    - method: fill
-      arguments:
-      - value: "{{USERNAME}}"
-  - step: 4
-    description: ''
-    methods:
-    - method: get_by_label
-      arguments:
-      - text: "Online-Passwort:"
-    - method: click
-  - step: 5
-    description: ''
-    methods:
-    - method: get_by_label
-      arguments:
-      - text: "Online-Passwort:"
-    - method: fill
-      arguments:
-      - value: "{{PASSWORD}}"
-  - step: 6
-    description: ''
-    methods:
-    - method: get_by_title
-      arguments:
-      - text: "Login"
-      - exact: true
-    - method: click
-  - step: 7
     description: ''
     methods:
     - method: get_by_role
       arguments:
       - role: "button"
-      - name: "Bestätigen"
+      - name: "Ablehnen"
     - method: click
-  - step: 8
+  - step: 3
     description: ''
     methods:
     - method: get_by_role
       arguments:
-      - role: "link"
-      - name: "Dialog Schließen"
+      - role: "button"
+      - name: "Login"
     - method: click
+  - step: 4
+    description: ''
+    methods:
+    - method: get_by_title
+      arguments:
+      - text: "Zum Control-Center-Login"
+    - method: click
+  - step: 5
+    description: ''
+    methods:
+    - method: get_by_placeholder
+      arguments:
+      - text: "E-Mail-Adresse oder"
+    - method: click
+  - step: 6
+    description: ''
+    methods:
+    - method: get_by_placeholder
+      arguments:
+      - text: "E-Mail-Adresse oder"
+    - method: fill
+      arguments:
+      - value: "{{USERNAME}}"
+  - step: 7
+    description: ''
+    methods:
+    - method: get_by_placeholder
+      arguments:
+      - text: "Passwort"
+    - method: click
+  - step: 8
+    description: ''
+    methods:
+    - method: get_by_placeholder
+      arguments:
+      - text: "Passwort"
+    - method: fill
+      arguments:
+      - value: "{{PASSWORD}}"
   - step: 9
     description: ''
     methods:
     - method: get_by_role
       arguments:
-      - role: "link"
-      - name: "Meine Rechnung"
+      - role: "button"
+      - name: "Login"
+      - exact: true
     - method: click
   - step: 10
     description: ''
     methods:
-    - method: get_by_text
+    - method: get_by_test_id
       arguments:
-      - text: "Rechnung vom"
-    - method: first
+      - test_id: "invoice-link"
     - method: click
   - step: 11
     description: ''
@@ -89,11 +88,9 @@ services:
     - step: 12
       description: ''
       methods:
-      - method: get_by_role
+      - method: get_by_test_id
         arguments:
-        - role: "link"
-        - name: "Rechnung"
-        - exact: true
+        - test_id: "invoice-download-link"
       - method: click
   - step: 13
     description: ''

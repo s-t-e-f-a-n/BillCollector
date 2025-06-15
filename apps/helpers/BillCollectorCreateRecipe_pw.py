@@ -20,11 +20,13 @@ def represent_double_quoted(dumper, data):
 CustomDumper.add_representer(DoubleQuoted, represent_double_quoted)
 
 def wrap_str(s):
-    return DoubleQuoted(s)
+    # Ensure double quotes are preserved correctly without unnecessary escaping
+    if s.startswith('"') and s.endswith('"'):
+        return DoubleQuoted(s)  # Preserve the original format
+    return DoubleQuoted(s.replace('\\"', '"'))  # Clean up extra escaping
 
-# -----------------------------------------------------------------------------
-# Parse keyword arguments from a string such as: key="value", exact=True
 def parse_kwargs(s):
+    """Parse key=value pairs from a string, handling quoted strings and boolean values."""
     kwargs_list = []
     pattern = re.compile(r'(\w+)\s*=\s*("([^"]+)"|(\w+))')
     for m in pattern.finditer(s):
@@ -47,11 +49,8 @@ def parse_kwargs(s):
         return [{"value": wrap_str(s.strip()[1:-1])}]
     return kwargs_list
 
-# -----------------------------------------------------------------------------
-# Split an argument string into parts (avoiding splitting inside quotes)
-# and parse each part. If the first part is a bare quoted string,
-# assign it to the correct keyword (e.g. selector, role, text, url).
 def parse_method_arguments(arg_str, method_name, allowed_page_methods):
+    """Parse method arguments from a string, handling quoted strings and key=value pairs."""
     arg_str = arg_str.strip()
     if not arg_str:
         return []
@@ -71,7 +70,6 @@ def parse_method_arguments(arg_str, method_name, allowed_page_methods):
             arg_list.extend(parse_kwargs(part))
     return arg_list
 
-# -----------------------------------------------------------------------------
 # Global mapping for locator-like methods: determines the key for the primary argument.
 allowed_page_methods = {
     "locator": "selector",
@@ -80,12 +78,14 @@ allowed_page_methods = {
     "get_by_label": "text",
     "get_by_text": "text",
     "goto": "url",
-    "click": "selector",   # If click receives an argument, it is treated as a CSS selector.
+    "click": "selector",
+    "get_by_placeholder": "text",
+    "get_by_test_id": "test_id", 
+    "nth": "index"
 }
 
-# -----------------------------------------------------------------------------
-# Tokenizer: Splits a dot-separated chain, but does not split on dots inside parentheses.
 def tokenize_chain(chain):
+    """Tokenizer: Splits a dot-separated chain, but does not split on dots inside parentheses."""
     tokens = []
     current = ""
     paren_level = 0
@@ -104,11 +104,9 @@ def tokenize_chain(chain):
         tokens.append(current)
     return tokens
 
-# -----------------------------------------------------------------------------
-# Parse a single Playwright line into a step dictionary.
-# Splits the chain into tokens (using our custom tokenizer) and
-# then parses each token as a method call (with arguments) or as a property accessor.
 def parse_normal_line(stripped, step_number):
+    """Parse a single Playwright line into a step dictionary."""
+
     # Remove any leading "await "
     if stripped.startswith("await "):
         stripped = stripped[len("await "):].strip()
@@ -145,9 +143,9 @@ def parse_normal_line(stripped, step_number):
         "methods": methods
     }
 
-# -----------------------------------------------------------------------------
-# Main parser: Processes normal lines and nested expect_download blocks.
 def parse_playwright_script(file_content):
+    """Main parser: Processes normal lines and nested expect_download blocks."""
+
     steps = []
     step_counter = 1
     lines = file_content.splitlines()
@@ -164,7 +162,7 @@ def parse_playwright_script(file_content):
             stripped = stripped[len("await "):].strip()
         
         # Handle nested block: with page.expect_download() as ...
-        if stripped.startswith("with page.expect_download("):
+        if stripped.startswith("with page.expect_download(") or stripped.startswith("with page.expect_popup("):
             block = {
                 "step": step_counter,
                 "description": "",
@@ -214,7 +212,8 @@ def find_best_replacement(line: str):
     lower_line = line.lower()
     for label, keywords in VARIABLE_LABELS.items():
         for keyword in keywords:
-            if keyword in lower_line:  # If any keyword appears in the line
+#            if keyword in lower_line:  # If any keyword appears in the line
+            if re.search(rf"\b{re.escape(keyword)}\b", lower_line):
                 return label  # Suggest the corresponding label
     return None  # No match found
 
@@ -331,7 +330,11 @@ def playwright_codegen(url: str, service_name: str):
     code_file = os.path.join(RECIPES_PLAYWRIGHT_CODE_DIR, f"{service_name}.py")
 
     # Run Playwright Codegen with -o flag to directly save output
-    subprocess.run(["playwright", "codegen", url, "--target=python", "-o", code_file])
+    subprocess.run(["playwright", 
+                    "codegen", url, 
+                    "--target=python", 
+                    "-o", code_file,
+                    ])
     
     # Suggest replacements for potential security discolosures in fill() methods
     process_fill_methods(code_file)
@@ -343,9 +346,9 @@ if __name__ == "__main__":
     if sys.gettrace():
         # Debugging
         print("Executed in debugger. Debug mode enabled.")
-        url = "https://www.freenet-mobilfunk.de/login/"
-        service = "freenet_mobilfunk"
-        playwright_codegen(url, service)
+        #url = "https://www.freenet-mobilfunk.de/login/"
+        service = "kabeldeutschland"
+        #playwright_codegen(url, service)
         playwright_python_to_yaml(service)
 
     else:
@@ -368,9 +371,9 @@ if __name__ == "__main__":
             print("Error: -t requires --service argument.")
             sys.exit(1)
         if args.g and (args.url and args.service):
-            playwright_codegen(args.url, args.service)
+            playwright_codegen(args.url, args.service.lower())
         if args.t and (args.service):
-            playwright_python_to_yaml(args.service)
+            playwright_python_to_yaml(args.service.lower())
 
 else:
     print(f"{__name__} imported as module.")

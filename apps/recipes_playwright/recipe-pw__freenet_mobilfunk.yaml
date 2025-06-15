@@ -106,7 +106,8 @@ services:
     - method: get_by_role
       arguments:
       - role: "button"
-      - name: "Mai 2025 35,55 € Rechnungsnr"
+      - name: "Rechnungsnr"
+    - method: first
     - method: click
   - step: 14
     description: ''

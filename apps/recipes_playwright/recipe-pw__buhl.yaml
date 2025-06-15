@@ -1,0 +1,86 @@
+$schema: /home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml
+services:
+- serviceName: buhl
+  description: ''
+  steps:
+  - step: 1
+    description: ''
+    methods:
+    - method: goto
+      arguments:
+      - url: "https://www.buhl.de/mein-buhlkonto/?buhlparam=1010101"
+  - step: 2
+    description: ''
+    methods:
+    - method: get_by_label
+      arguments:
+      - text: "Nur technisch notwendige"
+    - method: click
+  - step: 3
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "textbox"
+      - name: "E-Mail-Adresse"
+    - method: click
+  - step: 4
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "textbox"
+      - name: "E-Mail-Adresse"
+    - method: fill
+      arguments:
+      - value: "{{USERNAME}}"
+  - step: 5
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "textbox"
+      - name: "E-Mail-Adresse"
+    - method: press
+      arguments:
+      - value: "Tab"
+  - step: 6
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "textbox"
+      - name: "Passwort"
+    - method: fill
+      arguments:
+      - value: "{{PASSWORD}}"
+  - step: 7
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "button"
+      - name: "Anmelden"
+    - method: click
+  - step: 8
+    description: ''
+    methods:
+    - method: goto
+      arguments:
+      - url: "https://www.buhl.de/kundencenter/dokumente"
+  - step: 9
+    description: ''
+    methods:
+    - method: expect_download
+    steps:
+    - step: 10
+      description: ''
+      methods:
+      - method: get_by_label
+        arguments:
+        - text: "WISO Steuer 2025 herunterladen"
+      - method: click
+  - step: 11
+    description: ''
+    methods:
+    - method: close

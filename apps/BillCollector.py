@@ -60,26 +60,24 @@ def is_local_ip(ip):
     return False
 
 # Check DNS for domain is directing to local IP
-def is_domain_local_ip(domain):
+def is_domain_local_ip(domain, try_count=3):
     dns_query = Nslookup()
-    try:
-        ips_record = dns_query.dns_lookup(domain)
-    except:
-        print("DNS Exception...")
-        exit(1)
-    print(ips_record.answer)
-    ip = extract_ip(' '.join(ips_record.answer))
-    if ip:
-        print(f"IP address found: {ip}")
-        if is_local_ip(ip):
-            print("Local IP address.")
-            return ip
-        else:
-            print("No local IP address.")
-            return False
-    else:
-        print("No IP address received.")
-        return False
+    for attempt in range(1, try_count + 1):
+        try:
+            ips_record = dns_query.dns_lookup(domain)
+            ip = extract_ip(' '.join(ips_record.answer))
+            if ip:
+                if is_local_ip(ip):
+                    return ip
+                else:
+                    print("No local IP address.")
+                    return False
+            else:
+                print(f"No IP address received on attempt {attempt}.")
+        except Exception as e:
+            print(f"DNS Exception on attempt {attempt}: {e}")
+        finally:
+            time.sleep(1)
 
 # Get web content
 def get_json(url):

@@ -1,6 +1,6 @@
 $schema: /home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml
 services:
-- serviceName: winsim
+- serviceName: nuernberger
   description: ''
   steps:
   - step: 1
@@ -8,94 +8,102 @@ services:
     methods:
     - method: goto
       arguments:
-      - url: "https://service.winsim.de/"
+      - url: "https://meine.nuernberger.de/kunde/pages/startseite.html"
   - step: 2
     description: ''
     methods:
-    - method: get_by_label
+    - method: get_by_placeholder
       arguments:
-      - text: "Benutzername:oder Rufnummer,"
+      - text: "z. B. meinBenutzername"
     - method: click
   - step: 3
     description: ''
     methods:
-    - method: get_by_label
+    - method: get_by_placeholder
       arguments:
-      - text: "Benutzername:oder Rufnummer,"
+      - text: "z. B. meinBenutzername"
     - method: fill
       arguments:
       - value: "{{USERNAME}}"
   - step: 4
     description: ''
     methods:
-    - method: get_by_label
+    - method: get_by_placeholder
       arguments:
-      - text: "Online-Passwort:"
+      - text: "Passwort"
     - method: click
   - step: 5
     description: ''
     methods:
-    - method: get_by_label
+    - method: get_by_placeholder
       arguments:
-      - text: "Online-Passwort:"
+      - text: "Passwort"
     - method: fill
       arguments:
       - value: "{{PASSWORD}}"
   - step: 6
     description: ''
     methods:
-    - method: get_by_title
+    - method: get_by_role
       arguments:
-      - text: "Login"
-      - exact: true
+      - role: "button"
+      - name: "Anmelden"
     - method: click
   - step: 7
     description: ''
     methods:
     - method: get_by_role
       arguments:
-      - role: "button"
-      - name: "Bestätigen"
+      - role: "link"
+      - name: "Postfach "
     - method: click
   - step: 8
     description: ''
     methods:
     - method: get_by_role
       arguments:
-      - role: "link"
-      - name: "Dialog Schließen"
+      - role: "cell"
+      - name: "Leistungsabrechnung"
+      - exact: true
+    - method: first
     - method: click
   - step: 9
     description: ''
     methods:
-    - method: get_by_role
-      arguments:
-      - role: "link"
-      - name: "Meine Rechnung"
-    - method: click
-  - step: 10
+    - method: expect_download
+    steps:
+    - step: 10
+      description: ''
+      methods:
+      - method: get_by_text
+        arguments:
+        - text: "Leistungsabrechnung_"
+      - method: first
+      - method: click
+  - step: 11
     description: ''
     methods:
-    - method: get_by_text
+    - method: get_by_role
       arguments:
-      - text: "Rechnung vom"
+      - role: "cell"
+      - name: "Vertragsinformation"
+      - exact: true
     - method: first
     - method: click
-  - step: 11
+  - step: 12
     description: ''
     methods:
     - method: expect_download
     steps:
-    - step: 12
+    - step: 13
       description: ''
       methods:
-      - method: get_by_role
+      - method: get_by_text
         arguments:
-        - role: "link"
-        - name: "Rechnung"
-        - exact: true
+        - text: "Vertragsinformation_"
+      - method: first
       - method: click
-  - step: 13
+  - step: 14
     description: ''
     methods:
     - method: close

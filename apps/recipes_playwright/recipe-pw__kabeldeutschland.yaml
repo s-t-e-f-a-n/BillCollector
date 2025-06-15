@@ -1,6 +1,6 @@
 $schema: /home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml
 services:
-- serviceName: winsim
+- serviceName: kabeldeutschland
   description: ''
   steps:
   - step: 1
@@ -8,94 +8,75 @@ services:
     methods:
     - method: goto
       arguments:
-      - url: "https://service.winsim.de/"
+      - url: "https://www.vodafone.de/meinvodafone/account/login"
   - step: 2
     description: ''
     methods:
-    - method: get_by_label
+    - method: get_by_role
       arguments:
-      - text: "Benutzername:oder Rufnummer,"
+      - role: "button"
+      - name: "Alle ablehnen"
     - method: click
   - step: 3
     description: ''
     methods:
-    - method: get_by_label
+    - method: locator
       arguments:
-      - text: "Benutzername:oder Rufnummer,"
-    - method: fill
-      arguments:
-      - value: "{{USERNAME}}"
+      - selector: "#loginCredintialsId input[type=\"text\"]"
+    - method: click
   - step: 4
     description: ''
     methods:
-    - method: get_by_label
+    - method: locator
       arguments:
-      - text: "Online-Passwort:"
-    - method: click
+      - selector: "#loginCredintialsId input[type=\"text\"]"
+    - method: fill
+      arguments:
+      - value: "{{USERNAME}}"
   - step: 5
     description: ''
     methods:
-    - method: get_by_label
+    - method: locator
       arguments:
-      - text: "Online-Passwort:"
-    - method: fill
-      arguments:
-      - value: "{{PASSWORD}}"
+      - selector: "#loginCredintialsId input[type=\"password\"]"
+    - method: click
   - step: 6
     description: ''
     methods:
-    - method: get_by_title
+    - method: locator
       arguments:
-      - text: "Login"
-      - exact: true
-    - method: click
+      - selector: "#loginCredintialsId input[type=\"password\"]"
+    - method: fill
+      arguments:
+      - value: "{{PASSWORD}}"
   - step: 7
     description: ''
     methods:
     - method: get_by_role
       arguments:
       - role: "button"
-      - name: "Bestätigen"
+      - name: "Login"
     - method: click
   - step: 8
     description: ''
     methods:
-    - method: get_by_role
+    - method: get_by_text
       arguments:
-      - role: "link"
-      - name: "Dialog Schließen"
+      - text: "Weiter ohne Einwilligung"
     - method: click
   - step: 9
     description: ''
     methods:
-    - method: get_by_role
-      arguments:
-      - role: "link"
-      - name: "Meine Rechnung"
-    - method: click
-  - step: 10
-    description: ''
-    methods:
-    - method: get_by_text
-      arguments:
-      - text: "Rechnung vom"
-    - method: first
-    - method: click
-  - step: 11
-    description: ''
-    methods:
     - method: expect_download
     steps:
-    - step: 12
+    - step: 10
       description: ''
       methods:
-      - method: get_by_role
+      - method: get_by_text
         arguments:
-        - role: "link"
-        - name: "Rechnung"
-        - exact: true
+        - text: "€Aktuelle"
       - method: click
-  - step: 13
+  - step: 11
     description: ''
     methods:
     - method: close

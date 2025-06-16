@@ -164,11 +164,11 @@ install_playwright() {
     if [[ "$0" == "bash" || "$0" == "-bash" ]]; then
         echo "* Sourced: source activate .venv and install python modules in .venv."
         source ./.venv/bin/activate
-        pip install -r requirements-pw.txt
+        pip install -r requirements.txt
     else
         echo -e "${RED}* Called: activate .venv and install python modules in .venv.${NC}"
         source .venv/bin/activate
-        pip install -r requirements-pw.txt
+        pip install -r requirements.txt
         echo "* To re-activate the virtual environment, run the following commands:"
         echo -e "${RED}** cd apps${NC}"
         echo "** source .venv/bin/activate"
@@ -211,6 +211,15 @@ install_playwright() {
         xfonts-cyrillic xfonts-scalable fonts-ipafont-gothic fonts-wqy-zenhei \
         fonts-tlwg-loma-otf ttf-ubuntu-font-family -y > /dev/null
 
+    echo
+    echo "* To deactivate the virtual environment, run the following command:"
+    echo "** deactivate"
+    echo 
+    echo "* Finished installing local environment: Playwright, Chromium, Python3, and required Python modules"
+    echo
+    echo "* You may check the installation by running the following command:"
+    echo "** python -m playwright --version"
+    echo
 }
 
 if [ "$#" -ne 1 ]; then

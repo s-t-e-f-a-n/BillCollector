@@ -4,6 +4,7 @@
 # This is used to create a symlink in the `apps` directory
 # to the Downloads directory where the scanned documents are stored.
 CONSUMER_DIR="/srv/disk-by-label/Shared-Folders/EarthG/Scans/.paperless/_BillCollector_/"
+DB_DIR="/srv/disk-by-label/Shared-Folders/EarthG/Scans/.paperless/_BillCollector_/db"
 
 # Set image name
 IMAGE_NAME="billcollector:latest"
@@ -42,4 +43,6 @@ esac
 pushd apps
 rm -rf Downloads
 ln -s $CONSUMER_DIR Downloads
+rm -rf db
+ln -s $DB_DIR db
 popd

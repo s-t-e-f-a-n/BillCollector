@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y python3 python3-pip
 ARG VER=unknown
 COPY apps/. .
 RUN pip3 install -r requirements.txt --break-system-packages
-RUN python3 -m playwright install chromium ffmpeg
+RUN python3 -m playwright install --with-deps chromium ffmpeg
 
 # Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

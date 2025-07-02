@@ -16,7 +16,9 @@ def InitBrowser(p, bcs):
             raise Exception("Failed to initialize browser profile.")
         browser = p.chromium.launch_persistent_context(
             headless=not bcs.dbg,
-            user_data_dir=CHROMIUM_PLAYWRIGHT_PROFILE
+            user_data_dir=CHROMIUM_PLAYWRIGHT_PROFILE,
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+                     (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             )
     except Exception as e:
         print(f"Error: {e}")
@@ -401,7 +403,7 @@ def perform_actions(bcs):
             bcs.drv = InitBrowser(p, bcs)
             bcs.page = bcs.drv.new_page()
             bcs.page.context.clear_cookies()
-
+            
             # Parse the YAML structure
             services = bcs.yml.get('services', [])
             

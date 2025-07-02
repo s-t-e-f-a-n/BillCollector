@@ -32,19 +32,28 @@ services:
       arguments:
       - text: "Zum Control-Center-Login"
     - method: click
+  - step: 4
+    description: ''
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: "button"
+      - name: "Click to reveal"
+      - exact: true
+    - method: click
   - step: 5
     description: ''
     methods:
     - method: get_by_placeholder
       arguments:
-      - text: "E-Mail-Adresse oder"
+      - text: "E-Mail oder"
     - method: click
   - step: 6
     description: ''
     methods:
     - method: get_by_placeholder
       arguments:
-      - text: "E-Mail-Adresse oder"
+      - text: "E-Mail oder"
     - method: fill
       arguments:
       - value: "{{USERNAME}}"

@@ -10,6 +10,9 @@ Extensions / Next steps
   - locator (ex.: kabeldeutschland) 
   - pdf document name (ex.: nuernberger)
 
+- what about captchas?
+  freenet_mobilfunk blocks login by captcha
+
 - user documentation
   - tips for creating recipes:
     - manually add a general text from the specific one proposed and make usage of .first method

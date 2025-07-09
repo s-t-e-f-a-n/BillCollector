@@ -199,7 +199,7 @@ install_playwright() {
         exit 1
     fi
 
-    echo "* Installing chromiumd and ffmpeg for Playwright"
+    echo "* Installing chromium and ffmpeg for Playwright"
     PLAYWRIGHT_BROWSERS_PATH=$(pwd)/browser playwright install chromium ffmpeg
     echo "* Installing Chrome dependencies"
     $SUDO apt-get install --no-install-recommends \

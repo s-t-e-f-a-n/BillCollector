@@ -159,6 +159,10 @@ First and once, for the basic configuration you need to adapt the `.env` file lo
 - define the .env-variables:
   - `VAULT_HOST=<hostname of your vault e.g., vault.my-domain.duckdns.org>`
   - `BW_API_URL=<http/https-URL of the bitwarden API e.g., http://<local-ip>:8087>`
+  - optionally `BW_API_HOST=<Host header accepted by bw serve>` when the API
+    runs in another container. Recent Bitwarden CLI versions reject other Host
+    headers to prevent DNS rebinding; for the default port use
+    `BW_API_HOST=127.0.0.1:8087`.
 
 ### Optional: Vscode and Debugging
 

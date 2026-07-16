@@ -78,20 +78,26 @@ def is_domain_local_ip(domain):
         print("No IP address received.")
         return False
 
+def bitwarden_api_headers():
+    host = os.getenv("BW_API_HOST", "").strip()
+    return {"Host": host} if host else None
+
+
 # Get web content
 def get_json(url):
     try:
-        response = requests.get(url)
+        response = requests.get(url, headers=bitwarden_api_headers())
         response.raise_for_status()  # Checks for Statuscode 200
         return response.text
     except requests.exceptions.RequestException as e:
-        print(f"Error with requst: {e}")
+        print(f"Error with request: {e}")
         return None
 
 # Check Bitwarden API status
 def bitwarden_api_check_status(url):
     content = get_json(f"{url}/status")
     print(content)
+    if content is None: return False, None
     if not is_json_property_value(content, "success", True): return False, None
     else: 
         if not is_json_property_value(content, "data_template_status", "unlocked"): return True, "locked"
@@ -105,13 +111,14 @@ def is_json_property_value(content, prop, val):
     else: return False
 
 def post_json(url, payload):
-    response = requests.post(url, json=payload)
-    if response.status_code == 201 or response.status_code == 200:
+    try:
+        response = requests.post(
+            url, json=payload, headers=bitwarden_api_headers())
+        response.raise_for_status()
         print("Successfully posted!")
         return json.dumps(response.json())
-    else:
-        print(f"Error: {response.status_code}")
-        print(response.text)
+    except requests.exceptions.RequestException as e:
+        print(f"Error with request: {e}")
         return False
 
 def get_json_property_value(content, prop):

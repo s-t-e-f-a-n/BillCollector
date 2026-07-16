@@ -54,6 +54,7 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
+          load: ${{ github.event_name == 'pull_request' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -62,3 +63,12 @@ jobs:
             REVISION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test container
+        if: github.event_name == 'pull_request'
+        env:
+          IMAGE_REF: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: |
+          docker run --rm --entrypoint /apps/chrome-linux64/chrome "$IMAGE_REF" --version
+          docker run --rm --entrypoint /apps/chromedriver-linux64/chromedriver "$IMAGE_REF" --version
+          test "$(docker run --rm --entrypoint id "$IMAGE_REF" -u)" = "1000"

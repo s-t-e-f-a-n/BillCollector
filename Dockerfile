@@ -1,53 +1,102 @@
 FROM ubuntu:24.04
 
-# Set timezone
-ENV TZ="Europe/Berlin"
+ARG TARGETARCH
+ARG APP_UID=1000
+ARG APP_GID=1000
+ARG VERSION=dev
+ARG REVISION=unknown
 
-# Install command line tools
-RUN apt-get update && apt-get install -y wget zip curl jq
+LABEL org.opencontainers.image.title="BillCollector" \
+      org.opencontainers.image.description="Collect documents from web portals using Selenium recipes" \
+      org.opencontainers.image.source="https://github.com/flowcool/BillCollector" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.licenses="MIT"
+
+ENV TZ="Europe/Zurich" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /apps
 
-# Install latest Chrome testing
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN set -eux && \
-    meta_data=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json") && \
-    url=$(echo "$meta_data" | jq -r ".channels.Stable.downloads.chrome[0].url") && \
-    file=$(basename "$url") && \
-    wget "$url" && \
-    unzip "$file" && rm -f "$file"
 
-RUN apt-get -y install ca-certificates fonts-liberation \
-    libappindicator3-1 libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libc6 \
-    libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgbm1 \
-    libgcc1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 \
-    libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 \
-    libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 \
-    libxrandr2 libxrender1 libxss1 libxtst6 lsb-release xdg-utils
+RUN set -eux; \
+    if [[ "${TARGETARCH:-amd64}" != "amd64" ]]; then \
+      echo "BillCollector currently supports linux/amd64 only" >&2; \
+      exit 1; \
+    fi; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      fonts-liberation \
+      jq \
+      libappindicator3-1 \
+      libasound2t64 \
+      libatk-bridge2.0-0 \
+      libatk1.0-0 \
+      libc6 \
+      libcairo2 \
+      libcups2 \
+      libdbus-1-3 \
+      libexpat1 \
+      libfontconfig1 \
+      libgbm1 \
+      libgcc1 \
+      libglib2.0-0 \
+      libgtk-3-0 \
+      libnspr4 \
+      libnss3 \
+      libpango-1.0-0 \
+      libpangocairo-1.0-0 \
+      libstdc++6 \
+      libx11-6 \
+      libx11-xcb1 \
+      libxcb1 \
+      libxcomposite1 \
+      libxcursor1 \
+      libxdamage1 \
+      libxext6 \
+      libxfixes3 \
+      libxi6 \
+      libxrandr2 \
+      libxrender1 \
+      libxss1 \
+      libxtst6 \
+      lsb-release \
+      python3 \
+      python3-pip \
+      unzip \
+      wget \
+      xdg-utils; \
+    rm -rf /var/lib/apt/lists/*
 
-# Install latest Chromedriver
-RUN set -eux && \
-    meta_data=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json") && \
-    url=$(echo "$meta_data" | jq -r '.channels.Stable.downloads.chromedriver[0].url') && \
-    file=$(basename "$url") && \
-    wget "$url" && \
-    unzip "$file" && rm -f "$file"
+RUN set -eux; \
+    metadata="$(curl --fail --silent --show-error --location \
+      https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json)"; \
+    chrome_url="$(jq -r '.channels.Stable.downloads.chrome[] | select(.platform == "linux64") | .url' <<< "${metadata}")"; \
+    driver_url="$(jq -r '.channels.Stable.downloads.chromedriver[] | select(.platform == "linux64") | .url' <<< "${metadata}")"; \
+    wget --quiet "${chrome_url}" -O chrome.zip; \
+    wget --quiet "${driver_url}" -O chromedriver.zip; \
+    unzip -q chrome.zip; \
+    unzip -q chromedriver.zip; \
+    rm chrome.zip chromedriver.zip
 
-# Install Python3
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-RUN apt-get update && apt-get install -y python3 python3-pip
+COPY apps/requirements.txt ./requirements.txt
+RUN python3 -m pip install --break-system-packages -r requirements.txt
 
-# Install pip requirements and app
-ARG VER=unknown
-COPY apps/. .
-RUN pip3 install -r requirements.txt --break-system-packages
+COPY apps/ .
 
-# Creates a non-root user with an explicit UID and adds permission to access the /app folder
-# For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers
-# ...and https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user
-#RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /apps
-#USER appuser
+RUN set -eux; \
+    groupadd --gid "${APP_GID}" billcollector; \
+    useradd --uid "${APP_UID}" --gid "${APP_GID}" --create-home billcollector; \
+    mkdir -p /apps/Downloads; \
+    chown -R billcollector:billcollector /apps
 
-# Entry point
-CMD ["/bin/bash"]
+USER billcollector
+
+VOLUME ["/apps/Downloads"]
+
+CMD ["python3", "./BillCollector.py", "./bc_default.ini"]

@@ -2,6 +2,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import yaml
 
@@ -11,7 +13,11 @@ APPS = ROOT / "apps"
 sys.path.insert(0, str(APPS))
 
 from BillCollectorRecipes import CheckRecipe, is_yaml_file  # noqa: E402
-from BillCollectorServices import ACTION_MAP  # noqa: E402
+from BillCollectorServices import (  # noqa: E402
+    ACTION_MAP,
+    perform__switch_to_default_frame,
+    perform__switch_to_parent_frame,
+)
 
 
 class RecipeValidationTests(unittest.TestCase):
@@ -43,6 +49,16 @@ class RecipeValidationTests(unittest.TestCase):
 
         self.assertFalse(valid)
         self.assertIsNone(parsed)
+
+    @patch("BillCollectorServices.time.sleep", return_value=None)
+    def test_parameterless_frame_switch_actions(self, _sleep):
+        browser = SimpleNamespace(dbg=False, drv=MagicMock())
+
+        perform__switch_to_parent_frame(browser, None)
+        perform__switch_to_default_frame(browser, None)
+
+        browser.drv.switch_to.parent_frame.assert_called_once_with()
+        browser.drv.switch_to.default_content.assert_called_once_with()
 
 
 if __name__ == "__main__":

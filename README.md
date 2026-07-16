@@ -157,7 +157,9 @@ First and once, for the basic configuration you need to adapt the `.env` file lo
 
 - `cp .env.example .env`
 - define the .env-variables:
-  - `VAULT_HOST=<hostname of your vault e.g., vault.my-domain.duckdns.org>`
+  - optionally `VAULT_HOST=<hostname of your vault e.g., vault.my-domain.duckdns.org>`
+    to require that a Vaultwarden hostname resolves to a private IP. Leave it
+    unset when using the official Bitwarden CLI API without Vaultwarden.
   - `BW_API_URL=<http/https-URL of the bitwarden API e.g., http://<local-ip>:8087>`
   - optionally `BW_API_HOST=<Host header accepted by bw serve>` when the API
     runs in another container. Recent Bitwarden CLI versions reject other Host

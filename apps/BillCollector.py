@@ -135,10 +135,16 @@ class defs:
 
 def WebRetriDoc(self):
 
-    # Check if <domain> is resolvable and directs to a local IP address
-    ip = is_domain_local_ip(self.vault) 
-    if not ip: sys.exit(1)
-    else: print(f"{self.vault} is resolvable and directs to local IP {ip}")
+    # Vaultwarden deployments can require a local vault DNS check. It is not
+    # needed when the official Bitwarden CLI API is used without VAULT_HOST.
+    if self.vault:
+        ip = is_domain_local_ip(self.vault)
+        if not ip:
+            print(f"{self.vault} does not resolve to a local IP address.")
+            sys.exit(1)
+        print(f"{self.vault} is resolvable and directs to local IP {ip}")
+    else:
+        print("VAULT_HOST is not set; skipping the local vault DNS check.")
 
     # Check if Bitarden API at <bw_api_url> responds with success=true
     ret, status = bitwarden_api_check_status(self.api)
@@ -178,6 +184,7 @@ def WebRetriDoc(self):
 
             # Download Documents
             retrieve_from_service(servicename, uri, username, passsword, totp, self.debug)
+    file.close()
     #
     #################
 
@@ -211,9 +218,7 @@ if __name__ == "__main__":
 
     logfile = "./BillCollector.log"
     log_setup(logfile)
-    if bc.debug == False: 
-        print = logging.debug   # looging into file or stdout
-   
+
     WebRetriDoc(bc)
 
 else:

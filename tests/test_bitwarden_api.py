@@ -1,6 +1,8 @@
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -10,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps"))
 
 from BillCollector import (  # noqa: E402
+    WebRetriDoc,
     bitwarden_api_check_status,
     get_json,
     post_json,
@@ -54,6 +57,26 @@ class BitwardenApiTests(unittest.TestCase):
         self.assertEqual(
             bitwarden_api_check_status("http://bitwarden-cli:8087"),
             (False, None))
+
+    @patch("BillCollector.post_json", return_value='{"success": true}')
+    @patch("BillCollector.bitwarden_api_check_status",
+           return_value=(True, "unlocked"))
+    @patch("BillCollector.is_domain_local_ip")
+    def test_empty_recipe_skips_vault_dns_and_syncs(self, dns_lookup,
+                                                    check_status, sync):
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as recipe:
+            config = SimpleNamespace(
+                vault=None,
+                api="http://bitwarden-cli:8087",
+                fname=recipe.name,
+                debug=False,
+            )
+
+            WebRetriDoc(config)
+
+        dns_lookup.assert_not_called()
+        check_status.assert_called_once_with("http://bitwarden-cli:8087")
+        sync.assert_called_once_with("http://bitwarden-cli:8087/sync", None)
 
 
 if __name__ == "__main__":

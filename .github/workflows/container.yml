@@ -18,7 +18,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/flowcool/billcollector
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/billcollector
 
 jobs:
   build:

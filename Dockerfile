@@ -5,10 +5,11 @@ ARG APP_UID=1000
 ARG APP_GID=1000
 ARG VERSION=dev
 ARG REVISION=unknown
+ARG SOURCE=https://github.com/s-t-e-f-a-n/BillCollector
 
 LABEL org.opencontainers.image.title="BillCollector" \
       org.opencontainers.image.description="Collect documents from web portals using Selenium recipes" \
-      org.opencontainers.image.source="https://github.com/flowcool/BillCollector" \
+      org.opencontainers.image.source="${SOURCE}" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}" \
       org.opencontainers.image.licenses="MIT"

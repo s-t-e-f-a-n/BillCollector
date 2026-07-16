@@ -14,6 +14,7 @@ LABEL org.opencontainers.image.title="BillCollector" \
       org.opencontainers.image.licenses="MIT"
 
 ENV TZ="Europe/Zurich" \
+    HOME="/home/billcollector" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
@@ -90,12 +91,10 @@ RUN python3 -m pip install --break-system-packages -r requirements.txt
 COPY apps/ .
 
 RUN set -eux; \
-    groupadd --gid "${APP_GID}" billcollector; \
-    useradd --uid "${APP_UID}" --gid "${APP_GID}" --create-home billcollector; \
-    mkdir -p /apps/Downloads; \
-    chown -R billcollector:billcollector /apps
+    mkdir -p /apps/Downloads "${HOME}"; \
+    chown -R "${APP_UID}:${APP_GID}" /apps "${HOME}"
 
-USER billcollector
+USER ${APP_UID}:${APP_GID}
 
 VOLUME ["/apps/Downloads"]
 

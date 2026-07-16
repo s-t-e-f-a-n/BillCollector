@@ -88,11 +88,11 @@ RUN set -eux; \
 COPY apps/requirements.txt ./requirements.txt
 RUN python3 -m pip install --break-system-packages -r requirements.txt
 
-COPY apps/ .
-
 RUN set -eux; \
     mkdir -p /apps/Downloads "${HOME}"; \
-    chown -R "${APP_UID}:${APP_GID}" /apps "${HOME}"
+    chown "${APP_UID}:${APP_GID}" /apps /apps/Downloads "${HOME}"
+
+COPY --chown=${APP_UID}:${APP_GID} apps/ .
 
 USER ${APP_UID}:${APP_GID}
 

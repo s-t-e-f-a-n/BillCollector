@@ -7,7 +7,7 @@ def is_yaml_file(stream):
     try:
         yml = yaml.safe_load(stream)  
         return True, yml
-    except yml.YAMLError:
+    except yaml.YAMLError:
         print(f"File not valid YAML.")
         return False, None
     except FileNotFoundError:

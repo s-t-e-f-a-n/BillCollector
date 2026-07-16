@@ -120,7 +120,7 @@ LOCATOR_MAP = {
 
 # Map yaml recipe action types to perform functions
 ACTION_MAP = {
-    "SwitchToparentFrame": "perform__switch_to_parent_frame",
+    "SwitchToParentFrame": "perform__switch_to_parent_frame",
     "SwitchToDefaultFrame": "perform__switch_to_default_frame",
     "SwitchToFrame": "perform__switch_to_frame",
     "Click": "perform__click",
@@ -181,7 +181,7 @@ def perform_actions(bcs):
                     step = action['step']
                     description = action.get('description', "No description provided.") # optional
                     action_type = action['actionType']
-                    if action_type == "SwitchToDefaultFrame" or action_type == "SwitchToparentFrame":
+                    if action_type == "SwitchToDefaultFrame" or action_type == "SwitchToParentFrame":
                         parameters = None
                     else:
                         parameters = action['parameters']

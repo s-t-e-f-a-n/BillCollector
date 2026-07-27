@@ -78,20 +78,26 @@ def is_domain_local_ip(domain):
         print("No IP address received.")
         return False
 
+def bitwarden_api_headers():
+    host = os.getenv("BW_API_HOST", "").strip()
+    return {"Host": host} if host else None
+
+
 # Get web content
 def get_json(url):
     try:
-        response = requests.get(url)
+        response = requests.get(url, headers=bitwarden_api_headers())
         response.raise_for_status()  # Checks for Statuscode 200
         return response.text
     except requests.exceptions.RequestException as e:
-        print(f"Error with requst: {e}")
+        print(f"Error with request: {e}")
         return None
 
 # Check Bitwarden API status
 def bitwarden_api_check_status(url):
     content = get_json(f"{url}/status")
     print(content)
+    if content is None: return False, None
     if not is_json_property_value(content, "success", True): return False, None
     else: 
         if not is_json_property_value(content, "data_template_status", "unlocked"): return True, "locked"
@@ -105,13 +111,14 @@ def is_json_property_value(content, prop, val):
     else: return False
 
 def post_json(url, payload):
-    response = requests.post(url, json=payload)
-    if response.status_code == 201 or response.status_code == 200:
+    try:
+        response = requests.post(
+            url, json=payload, headers=bitwarden_api_headers())
+        response.raise_for_status()
         print("Successfully posted!")
         return json.dumps(response.json())
-    else:
-        print(f"Error: {response.status_code}")
-        print(response.text)
+    except requests.exceptions.RequestException as e:
+        print(f"Error with request: {e}")
         return False
 
 def get_json_property_value(content, prop):
@@ -128,10 +135,16 @@ class defs:
 
 def WebRetriDoc(self):
 
-    # Check if <domain> is resolvable and directs to a local IP address
-    ip = is_domain_local_ip(self.vault) 
-    if not ip: sys.exit(1)
-    else: print(f"{self.vault} is resolvable and directs to local IP {ip}")
+    # Vaultwarden deployments can require a local vault DNS check. It is not
+    # needed when the official Bitwarden CLI API is used without VAULT_HOST.
+    if self.vault:
+        ip = is_domain_local_ip(self.vault)
+        if not ip:
+            print(f"{self.vault} does not resolve to a local IP address.")
+            sys.exit(1)
+        print(f"{self.vault} is resolvable and directs to local IP {ip}")
+    else:
+        print("VAULT_HOST is not set; skipping the local vault DNS check.")
 
     # Check if Bitarden API at <bw_api_url> responds with success=true
     ret, status = bitwarden_api_check_status(self.api)
@@ -171,6 +184,7 @@ def WebRetriDoc(self):
 
             # Download Documents
             retrieve_from_service(servicename, uri, username, passsword, totp, self.debug)
+    file.close()
     #
     #################
 
@@ -204,9 +218,7 @@ if __name__ == "__main__":
 
     logfile = "./BillCollector.log"
     log_setup(logfile)
-    if bc.debug == False: 
-        print = logging.debug   # looging into file or stdout
-   
+
     WebRetriDoc(bc)
 
 else:

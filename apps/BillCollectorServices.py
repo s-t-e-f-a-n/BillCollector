@@ -120,7 +120,7 @@ LOCATOR_MAP = {
 
 # Map yaml recipe action types to perform functions
 ACTION_MAP = {
-    "SwitchToparentFrame": "perform__switch_to_parent_frame",
+    "SwitchToParentFrame": "perform__switch_to_parent_frame",
     "SwitchToDefaultFrame": "perform__switch_to_default_frame",
     "SwitchToFrame": "perform__switch_to_frame",
     "Click": "perform__click",
@@ -181,10 +181,7 @@ def perform_actions(bcs):
                     step = action['step']
                     description = action.get('description', "No description provided.") # optional
                     action_type = action['actionType']
-                    if action_type == "SwitchToDefaultFrame" or action_type == "SwitchToparentFrame":
-                        parameters = None
-                    else:
-                        parameters = action['parameters']
+                    parameters = action.get('parameters', {})
                    
                     print(f"  Executing Step {step}: {action_type}")
                     print(f"   {description}")
@@ -238,14 +235,14 @@ def init_webelement_obj(parameters, expected_locators=1):
 #
 def perform__switch_to_parent_frame(bcs, parameters):
     try:
-        webElement = init_webelement_obj(parameters, 0)
+        webElement = init_webelement_obj(parameters or {}, 0)
         switch_to_parent_frame_webelement(bcs, webElement)
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
 
 def perform__switch_to_default_frame(bcs, parameters):
     try:
-        webElement = init_webelement_obj(parameters, 0)
+        webElement = init_webelement_obj(parameters or {}, 0)
         switch_to_default_frame_webelement(bcs, webElement)
     except Exception as e:
         print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")

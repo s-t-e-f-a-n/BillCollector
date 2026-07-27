@@ -1,1 +1,9 @@
-**/Downloads
+.git
+.github
+.venv
+.vscode
+**/__pycache__
+**/*.pyc
+apps/Downloads
+doc
+tests

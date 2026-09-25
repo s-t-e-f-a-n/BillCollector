@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Path to you Paperless consumer directory
+# Path to your paperless consumer directory
 # This is used to create a symlink in the `apps` directory
 # to the Downloads directory where the scanned documents are stored.
 CONSUMER_DIR="/srv/disk-by-label/Shared-Folders/EarthG/Scans/.paperless/_BillCollector_/"

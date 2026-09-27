@@ -6,11 +6,14 @@ cd "$(git rev-parse --show-toplevel)"
 
 TAG="${1:-}"
 
+# Always mirror what is actually published on Gitea
+git fetch origin --prune
+
 # Paths to keep off the public face (GitHub)
 STRIP=( ".kilo" ".vscode" ".private" )
 
-# Rebuild 'public' directly from the production branch 'main'
-git checkout -B public main
+# Rebuild 'public' directly from the published production branch
+git checkout -B public origin/main
 
 # Remove private folders from the staging area
 git rm -r --cached --ignore-unmatch "${STRIP[@]}"

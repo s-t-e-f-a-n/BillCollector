@@ -16,6 +16,7 @@
   - [Vaultwarden and Bitwarden](#vaultwarden-and-bitwarden)
   - [Optional: Vscode and Debuggin](#optional-vscode-and-debugging)
   - [Web Service Config](#web-service-config)
+- [Development & Deployment](#development--deployment)
 
 ## What is BillCollector?
 
@@ -304,11 +305,20 @@ The BillCollector configuration for each web service from which you want to retr
             locators:
                - locatorType: "ID"
                element: "mat-mdc-checkbox-2-input"
-         - step: 11
-         description: "Download the selected document."
-         actionType: "Download"
-         parameters:
-            locators:
-               - locatorType: "CSS_SELECTOR"
-               element: "[data-test-id=\"download-button\"]"
-   ```
+    - step: 11
+      description: "Download the selected document."
+      actionType: "Download"
+      parameters:
+         locators:
+            - locatorType: "CSS_SELECTOR"
+              element: "[data-test-id=\"download-button\"]"
+    ```
+
+## Development & Deployment
+
+BillCollector uses a trunk-based model with release tags:
+
+- **`dev`** — the daily development branch. All work is committed and pushed here.
+- **`main`** — the verified production state. It moves only via `git merge --ff-only dev` after a milestone has been validated in a production run. The NAS deployment tracks `main`.
+- **Release tags** (e.g. `v0.3`) are cut on `main` for one-command rollback: point the deployment's `GIT_BRANCH` variable at the tag and re-run `deploy_remote.sh`.
+- This public GitHub repository mirrors `main` only, with private development tooling stripped out. Work on `dev` is not mirrored until it is promoted to `main`.

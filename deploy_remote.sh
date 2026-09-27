@@ -44,16 +44,28 @@ ssh ${REMOTE} "
   fi
 
   echo '[INFO] Fetching latest repository updates...'
-  if ! git fetch origin ${GIT_BRANCH}; then
-    echo "[ERROR] Git fetch from ${GIT_BRANCH} failed."
-    exit 1
-  fi
-
-  echo '[INFO] Resetting to origin/main...'
-  if ! git reset --hard origin/${GIT_BRANCH}; then
-    echo "[ERROR] Git reset to ${GIT_BRANCH} failed."
-    exit 1
-  fi
+  case "${GIT_BRANCH}" in
+    v*)
+      if ! git fetch --tags origin; then
+        echo "[ERROR] Git fetch of tags failed."
+        exit 1
+      fi
+      if ! git reset --hard "${GIT_BRANCH}"; then
+        echo "[ERROR] Git reset to ${GIT_BRANCH} failed."
+        exit 1
+      fi
+      ;;
+    *)
+      if ! git fetch origin "${GIT_BRANCH}"; then
+        echo "[ERROR] Git fetch from ${GIT_BRANCH} failed."
+        exit 1
+      fi
+      if ! git reset --hard "origin/${GIT_BRANCH}"; then
+        echo "[ERROR] Git reset to ${GIT_BRANCH} failed."
+        exit 1
+      fi
+      ;;
+  esac
 
   echo '[INFO] Current commit info:'
   git log -1

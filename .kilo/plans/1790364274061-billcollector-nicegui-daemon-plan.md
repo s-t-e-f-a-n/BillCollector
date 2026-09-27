@@ -236,6 +236,10 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
 
 ### UI pages (NiceGUI)
 
+> The dashboard is specified in detail (and is the GUI concept focus) in
+> `.kilo/plans/1790468502492-gui-concept-dashboard-spec.md` — it supersedes the
+> dashboard line below.
+
 - **Login:** `@ui.page('/login')`; app-level HTTP middleware on the NiceGUI app
   (Starlette `SessionMiddleware`) redirects all pages except login/static/`/_alive`;
   bcrypt check against `Settings.ui_password_hash`
@@ -270,6 +274,13 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
 - `BillCollector.sh` + cron stay operational until M4
 
 ## Milestones
+
+> **Fast track (2026-09-26):** a minimal manual start/stop UI is being delivered before
+> M1, as a carve-out: `.kilo/plans/1790465908381-nicegui-manual-run-ui.md` — one
+> standalone `apps/bc_ui.py` (subprocess supervisor for `BillCollector.py`) plus an
+> additive `--service` flag on the batch entry point. It previews M2's "run now"
+> behavior; when M1/M2 land, `bc_ui.py` is absorbed into `billcollector/ui/` and the
+> `--service` filter becomes the runner's task selection.
 
 ### M0 — Stabilize the batch system + modernize dependencies (cron keeps running)
 

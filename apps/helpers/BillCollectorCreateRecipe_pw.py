@@ -2,10 +2,13 @@ import sys
 import os
 import subprocess
 import re
+import logging
 import yaml
 import argparse
 
 from BillCollectorHelpers import *
+
+logger = logging.getLogger(__name__)
 
 # --- YAML helper classes for double-quoted strings ---
 class DoubleQuoted(str):
@@ -252,14 +255,14 @@ def get_user_choice(argument, suggested_replacement):
 def process_fill_methods(filename: str):
     """Process `.fill(...)` lines, suggest full-line based replacements, and update the file content."""
     if not os.path.exists(filename):
-        print(f"Error: File '{filename}' does not exist.")
+        logger.error(f"Error: File '{filename}' does not exist.")
         return
     
     try:
         with open(filename, "r", encoding="utf-8") as file:
             lines = file.readlines()
     except Exception as e:
-        print(f"Error while reading the file: {e}")
+        logger.error(f"Error while reading the file: {e}")
         return
     
     modified_lines = []
@@ -287,16 +290,16 @@ def process_fill_methods(filename: str):
     try:
         with open(filename, "w", encoding="utf-8") as file:
             file.writelines(modified_lines)
-        print(f"\nUpdated file '{filename}' successfully.")
+        logger.info(f"Updated file '{filename}' successfully.")
     except Exception as e:
-        print(f"Error while saving the file: {e}")
+        logger.error(f"Error while saving the file: {e}")
 
 def playwright_python_to_yaml(service_name: str):
     """ Translates Playwright Python codegen code to a BillCollector recipe yaml."""
 
     code_file = os.path.join(RECIPES_PLAYWRIGHT_CODE_DIR, f"{service_name}.py")
     if not os.path.exists(code_file):
-        print(f"Error: Code file '{code_file}' does not exist.")
+        logger.error(f"Error: Code file '{code_file}' does not exist.")
         sys.exit(1)
 
     output_file = f"{RECIPES_PLAYWRIGHT_PREFIX}{service_name}.yaml" 
@@ -320,7 +323,7 @@ def playwright_python_to_yaml(service_name: str):
 
     with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(output_data, f, sort_keys=False, allow_unicode=True, Dumper=CustomDumper)
-    print(f"Recipe has been saved in '{output_file}'.")
+    logger.info(f"Recipe has been saved in '{output_file}'.")
 
 def playwright_codegen(url: str, service_name: str):
     """ Generates Playwright Python code for the given URL and saves it to the specified output file."""
@@ -342,10 +345,11 @@ def playwright_codegen(url: str, service_name: str):
 
 if __name__ == "__main__":
     sys.stdout = sys.__stdout__
+    setup_logging()
 
     if sys.gettrace():
         # Debugging
-        print("Executed in debugger. Debug mode enabled.")
+        logger.info("Executed in debugger. Debug mode enabled.")
         #url = "https://www.freenet-mobilfunk.de/login/"
         service = "kabeldeutschland"
         #playwright_codegen(url, service)
@@ -365,15 +369,12 @@ if __name__ == "__main__":
         args = parser.parse_args()
 
         if args.g and not (args.url and args.service):
-            print("Error: -g requires both --url and --service arguments.")
+            logger.error("Error: -g requires both --url and --service arguments.")
             sys.exit(1)
         if args.t and not (args.service):
-            print("Error: -t requires --service argument.")
+            logger.error("Error: -t requires --service argument.")
             sys.exit(1)
         if args.g and (args.url and args.service):
             playwright_codegen(args.url, args.service.lower())
         if args.t and (args.service):
             playwright_python_to_yaml(args.service.lower())
-
-else:
-    print(f"{__name__} imported as module.")

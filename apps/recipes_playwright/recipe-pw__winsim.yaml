@@ -12,16 +12,16 @@ services:
   - step: 2
     description: ''
     methods:
-    - method: get_by_label
+    - method: locator
       arguments:
-      - text: "Benutzername:oder Rufnummer,"
+      - selector: "#UserLoginType_alias"
     - method: click
   - step: 3
     description: ''
     methods:
-    - method: get_by_label
+    - method: locator
       arguments:
-      - text: "Benutzername:oder Rufnummer,"
+      - selector: "#UserLoginType_alias"
     - method: fill
       arguments:
       - value: "{{USERNAME}}"
@@ -30,14 +30,14 @@ services:
     methods:
     - method: get_by_label
       arguments:
-      - text: "Online-Passwort:"
+      - text: "Servicewelt-Passwort:"
     - method: click
   - step: 5
     description: ''
     methods:
     - method: get_by_label
       arguments:
-      - text: "Online-Passwort:"
+      - text: "Servicewelt-Passwort:"
     - method: fill
       arguments:
       - value: "{{PASSWORD}}"

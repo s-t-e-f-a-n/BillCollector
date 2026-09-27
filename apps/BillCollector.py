@@ -8,15 +8,15 @@ import re
 from nslookup import Nslookup
 import time
 import logging
-import logging.handlers
 import requests
 import json
 import configparser
 from flatten_json import flatten
 
-from BillCollectorServices import retrieve_from_service_with_selenium
 from BillCollectorServices_pw import retrieve_from_service_with_playwright
 from helpers import *
+
+logger = logging.getLogger(__name__)
 
 # Function to extract strings before and within brackets
 def extract_strings(line):
@@ -27,20 +27,8 @@ def extract_strings(line):
         return before_bracket, within_bracket
     return line.strip(), []
 
-def log_setup(logfile):
-    script = os.path.basename(__file__)
-    log_handler = logging.handlers.WatchedFileHandler(logfile)
-    formatter = logging.Formatter(
-        f'%(asctime)s {script} [%(process)d]: %(message)s',
-        '%b %d %H:%M:%S')
-    formatter.converter = time.localtime  
-    log_handler.setFormatter(formatter)
-    logger = logging.getLogger()
-    logger.addHandler(log_handler)
-    logger.setLevel(logging.DEBUG)
-
 def extract_ip(string):
-    # Regex für IP-Adressen
+    # Regex for IP addresses
     ip_pattern = re.compile(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b')
     match = ip_pattern.search(string)
     if match:
@@ -48,7 +36,7 @@ def extract_ip(string):
     return None
 
 def is_local_ip(ip):
-    # Lokale IP-Bereiche
+    # Local IP ranges
     local_ip_ranges = [
         re.compile(r'^10\.'),  # 10.0.0.0 - 10.255.255.255
         re.compile(r'^172\.(1[6-9]|2[0-9]|3[0-1])\.'),  # 172.16.0.0 - 172.31.255.255
@@ -70,12 +58,12 @@ def is_domain_local_ip(domain, try_count=3):
                 if is_local_ip(ip):
                     return ip
                 else:
-                    print("No local IP address.")
+                    logger.error("No local IP address.")
                     return False
             else:
-                print(f"No IP address received on attempt {attempt}.")
+                logger.warning(f"No IP address received on attempt {attempt}.")
         except Exception as e:
-            print(f"DNS Exception on attempt {attempt}: {e}")
+            logger.warning(f"DNS Exception on attempt {attempt}: {e}")
         finally:
             time.sleep(1)
 
@@ -89,15 +77,15 @@ def get_json(url):
             if "No TOTP" in response.text: 
                 pass
             else: 
-                print(f"Client error: {response.status_code} - {response.text}")
+                logger.error(f"Client error: {response.status_code} - {response.text}")
                 sys.exit(1)
         else: 
-            print(f"Error with request: {e}")
+            logger.error(f"Error with request: {e}")
             sys.exit(1)
     except (requests.exceptions.ConnectionError, 
             requests.exceptions.Timeout, 
             requests.exceptions.RequestException) as e:
-        print(f"Error with request: {e}")
+        logger.error(f"Error with request: {e}")
         sys.exit(1)
     else:
         return response.text
@@ -105,7 +93,7 @@ def get_json(url):
 # Check Bitwarden API status
 def bitwarden_api_check_status(url):
     content = get_json(f"{url}/status")
-    print(content)
+    logger.debug(content)
     if not is_json_property_value(content, "success", True): return False, None
     else: 
         if not is_json_property_value(content, "data_template_status", "unlocked"): return True, "locked"
@@ -124,7 +112,7 @@ def is_json_valid(content):
         json.loads(content)
         return True
     except ValueError as e:
-        print(f"Error: Invalid JSON {e}")
+        logger.error(f"Error: Invalid JSON {e}")
         return False
 
 def is_string_valid(string):
@@ -133,17 +121,16 @@ def is_string_valid(string):
             raise ValueError("Invalid string")
         return True
     except ValueError as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         return False
     
 def post_json(url, payload):
     response = requests.post(url, json=payload)
     if response.status_code == 201 or response.status_code == 200:
-        print("Successfully posted!")
+        logger.info("Successfully posted!")
         return json.dumps(response.json())
     else:
-        print(f"Error: {response.status_code}")
-        print(response.text)
+        logger.error(f"Error: {response.status_code} - {response.text}")
         return False
 
 def get_json_property_value(content, prop):
@@ -158,23 +145,27 @@ class defs:
         self.fname = fname
         self.debug = debug
 
-def WebRetriDoc(self, type=None):
+def WebRetriDoc(self, type=None, service=None):
 
     # Check if <domain> is resolvable and directs to a local IP address
-    ip = is_domain_local_ip(self.vault) 
-    if not ip: sys.exit(1)
-    else: print(f"{self.vault} is resolvable and directs to local IP {ip}")
+    ip = is_domain_local_ip(self.vault)
+    if not ip:
+        sys.exit(1)
+    logger.info(f"{self.vault} is resolvable and directs to local IP {ip}")
 
     # Check if Bitarden API at <bw_api_url> responds with success=true
     ret, status = bitwarden_api_check_status(self.api)
-    if not ret or not status == "unlocked": sys.exit(1) 
-    else: print(status)
+    if not ret or not status == "unlocked":
+        sys.exit(1)
+    logger.info(status)
 
     # Sync database
     ret = post_json(f"{self.api}/sync", None)
-    if not ret: sys.exit(1) 
-    if not is_json_property_value(ret, "success", True): sys.exit(1)
-    else: print("Vault is sync'd successfully.")
+    if not ret:
+        sys.exit(1)
+    if not is_json_property_value(ret, "success", True):
+        sys.exit(1)
+    logger.info("Vault is sync'd successfully.")
 
     #################
     # Loop over Web Services
@@ -182,14 +173,18 @@ def WebRetriDoc(self, type=None):
     try:
         script.read(self.fname, encoding="utf-8")
     except configparser.Error as e:
-        print(f"Error: Reading ini-script: {e}")
+        logger.error(f"Error: Reading ini-script: {e}")
         sys.exit(1)
     
+    matched = False
     for automation_library in script.sections():
         if automation_library == None: break
         if type != None and automation_library.lower() != type.lower(): continue
 
         for servicename, users_list in script[automation_library].items():
+            if service is not None and servicename.lower() != service.lower():
+                continue
+            matched = True
             users = []
             if not servicename: break    
             if users_list:
@@ -200,7 +195,7 @@ def WebRetriDoc(self, type=None):
             # handle service variant with list of users in array
             for user in users:
                 service_user = f"{servicename} {user}".strip()
-                print(f"Service {service_user} started.")
+                logger.info(f"Service {service_user} started.")
 
                 # Retrieve credentials
                 item = get_json(f"{self.api}/object/item/{service_user}")
@@ -212,47 +207,55 @@ def WebRetriDoc(self, type=None):
                 else: totp = None 
 
                 # Download Documents with the help of the appropriate automation library
-                if automation_library.lower() == "selenium":
-                    retrieve_from_service_with_selenium(servicename, uri, username, passsword, totp, self.debug)
-                elif automation_library.lower() == "playwright":
+                if automation_library.lower() == "playwright":
                     retrieve_from_service_with_playwright(servicename, uri, username, passsword, totp, self.debug)
     #
     #################
+
+    if service is not None and not matched:
+        logger.warning(f"Service filter '{service}' matched no service in {self.fname}; nothing was done.")
 
 if __name__ == "__main__":
     sys.stdout = sys.__stdout__
 
     load_dotenv()
+
+    # Optional per-service filter: --service <NAME>. Extracted before the
+    # positional handling, so the existing <ini> [debug] call (incl. cron)
+    # stays fully compatible.
+    service = None
+    if "--service" in sys.argv[1:]:
+        if sys.argv[-1] == "--service":
+            logger.error("Error: --service requires a value.")
+            sys.exit(1)
+        idx = sys.argv.index("--service")
+        service = sys.argv[idx + 1]
+        del sys.argv[idx:idx + 2]
+
     bc = defs(
         os.getenv("VAULT_HOST"), 
         os.getenv("BW_API_URL")) #, 
 
-    if sys.gettrace():
+    if is_debug_session():
         # Debugging
-        print("Executed in debugger. Debug mode enabled.")
+        logger.info("Executed in debugger. Debug mode enabled.")
         bc.fname = INI_DEFAULT_TEST_FILE
         bc.debug = True
     else:
         # Command line handling
         if len(sys.argv) < 2 or len(sys.argv) > 3:
-            print(" Usage: python3 BillCollector.py <ini-filename> [\"debug\"]")
+            logger.error(" Usage: python3 BillCollector.py <ini-filename> [\"debug\"] [--service <NAME>]")
             sys.exit(1)
         if os.path.isfile(sys.argv[1]) == False:
-            print(f"File {sys.argv[1]} not found.")
+            logger.error(f"File {sys.argv[1]} not found.")
             sys.exit(1)
         if len(sys.argv) == 2:
             bc.debug = False
         else:
             bc.debug = True
-            print("Debug mode enabled.")
+            logger.info("Debug mode enabled.")
         bc.fname = sys.argv[1]
 
-    logfile = LOG_DEFAULT_FILE
-    log_setup(logfile)
-    if bc.debug == False: 
-        print = logging.debug   # looging into file or stdout
-   
-    WebRetriDoc(bc, "playwright")
+    setup_logging(LOG_DEFAULT_FILE, debug=bc.debug)
 
-else:
-    print(f"{__name__} imported as module.")
+    WebRetriDoc(bc, "playwright", service)

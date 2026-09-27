@@ -2,12 +2,15 @@ import os
 import shutil
 import re
 import inspect
+import logging
 import sqlite3
 import json
 
 from datetime import datetime
 from playwright.sync_api import Playwright, sync_playwright, Route, Request, Page
 from helpers import *
+
+logger = logging.getLogger(__name__)
 
 def InitBrowser(p, bcs):
     """Initialize the browser with a persistent context to always open PDF externally"""
@@ -21,7 +24,7 @@ def InitBrowser(p, bcs):
                      (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             )
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         return None
     return browser
 
@@ -38,7 +41,7 @@ def init_browser_profile():
         with open(os.path.join(CHROMIUM_PLAYWRIGHT_PROFILE, "Default", "Preferences"), "w", encoding="utf-8") as f:
             json.dump(content, f, indent=2)
     except Exception as e:
-        print(f"Error initializing browser profile: {e}")
+        logger.error(f"Error initializing browser profile: {e}")
         return False
     else:
         return True
@@ -191,9 +194,9 @@ class PageState:
                 try:
                     return page.evaluate(script)  # Try evaluating
                 except Exception as e:
-                    #print(f"Attempt {attempt}: Evaluation failed - {e}")
+                    logger.debug(f"Attempt {attempt}: Evaluation failed - {e}")
                     time.sleep(1)  # Short delay before retrying
-            #print("All attempts failed.")
+            logger.warning("All attempts failed.")
             return None  # Return None if evaluation consistently fails
 
         # Use a MutationObserver to allow dynamic injection to occur.
@@ -383,13 +386,15 @@ def retrieve_from_service_with_playwright(service, url, user, pwd, otp, debug):
         
         if bcs.yml == None: raise Exception(f"Recipe {sname} not found.")
         file_downloaded = perform_actions(bcs)
-        if file_downloaded: print(f"Service {service} for {bcs.usr} finished with downloaded file(s) {file_downloaded}.")
-        else: print(f"Service {service} for {bcs.usr} finished without a file downloaded.")
+        if file_downloaded:
+            logger.info(f"Service {service} for {bcs.usr} finished with downloaded file(s) {file_downloaded}.")
+        else:
+            logger.warning(f"Service {service} for {bcs.usr} finished without a file downloaded.")
         on_debug_stop_keyboard_listener(bcs)
         return True
     except Exception as e:
-        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
-        print(f"Service {service} for {bcs.usr} not successfully finished.")
+        logger.exception(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
+        logger.error(f"Service {service} for {bcs.usr} not successfully finished.")
         on_debug_stop_keyboard_listener(bcs)
         return False
 
@@ -409,7 +414,7 @@ def perform_actions(bcs):
             
             for service in services:
                     service_name = service.get('serviceName')
-                    print(f"Processing Service: {service_name} for {bcs.usr}.")
+                    logger.info(f"Processing Service: {service_name} for {bcs.usr}.")
                     
                     # Initialize the database manager and create a service run table
                     bcs.db = DatabaseManager(DB_FILE)
@@ -460,7 +465,7 @@ def perform_actions(bcs):
             bcs.drv.close()
 
     except Exception as e:
-        print(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
+        logger.exception(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
     finally:
         return files_downloaded
 
@@ -526,7 +531,7 @@ def process_step(bcs, step):
         raise ValueError("Invalid step format: Expected a dictionary with a 'methods' key.")
 
     step_number = step.get("step", 0)
-    print(f"Processing Step {step_number}")
+    logger.debug(f"Processing Step {step_number}")
     step_results = {}
     chain_mapping = []  # This will accumulate our mapping entries.
     previous_result = bcs.page  # Starting object.

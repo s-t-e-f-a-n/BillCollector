@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
+import logging
+import logging.handlers
 import threading
 import time
 
 from sshkeyboard import listen_keyboard, stop_listening
+
+logger = logging.getLogger(__name__)
 
 
 # Bill Collector Helpers
@@ -15,12 +20,6 @@ DOWNLOAD_DIR = os.path.join(APP_DIR, "Downloads")                               
 INI_DEFAULT_FILE = os.path.join(APP_DIR, "bc_default.ini")                                  # Default INI file
 INI_DEFAULT_TEST_FILE = os.path.join(APP_DIR, "bc_test.ini")                                # Test INI file
 LOG_DEFAULT_FILE = os.path.join(APP_DIR, "bc.log")                                          # Default log file
-
-RECIPES_SELENIUM_DIR = os.path.join(APP_DIR, "recipes_selenium")                            # Directory for recipes
-RECIPES_SELENIUM_SCHEMA_FILE = "recipe-se-schema.yaml"                                      # Schema file for Selenium recipes
-RECIPES_SELENIUM_PREFIX = "recipe-se__"                                                     # Prefix for Selenium recipes
-CHROMIUM_SELENIUM_DIR = os.path.join(APP_DIR, "chrome-linux64", "chrome")                   # Directory for Chromium Selenium
-CHROMEDRIVER_SELENIUM_DIR = os.path.join(APP_DIR, "chromedriver-linux64", "chromedriver")   # Directory for ChromeDriver Selenium
 
 RECIPES_PLAYWRIGHT_DIR = os.path.join(APP_DIR, "recipes_playwright")                        # Directory for recipes
 RECIPES_PLAYWRIGHT_SCHEMA_FILE = os.path.join(RECIPES_PLAYWRIGHT_DIR, "recipe-pw-schema.yaml")  # Schema file for Playwright recipes
@@ -34,6 +33,28 @@ os.environ["PLAYWRIGHT_BROWSERS_PATH"] = CHROMIUM_PLAYWRIGHT_DIR                
 DB_DIR = os.path.join(APP_DIR, "db")                                                        # Directory for database files
 DB_FILE = os.path.join(DB_DIR, "bc.db")                                                     # Database file
 os.makedirs(DB_DIR, exist_ok=True)
+
+# Configure the root logger: optional rotating file handler plus a plain stdout handler
+# (stdout is what the daemon streams to the UI)
+def setup_logging(logfile=None, debug=False, max_bytes=5_000_000, backup_count=5):
+    root = logging.getLogger()
+    if root.handlers:  # idempotent - safe if called twice in one process
+        return
+    root.setLevel(logging.DEBUG)
+    fmt = logging.Formatter(
+        "%(asctime)s %(name)s [%(process)d] %(levelname)s: %(message)s",
+        "%b %d %H:%M:%S")
+    fmt.converter = time.localtime
+    if logfile is not None:
+        file_handler = logging.handlers.RotatingFileHandler(
+            logfile, maxBytes=max_bytes, backupCount=backup_count)
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(fmt)
+        root.addHandler(file_handler)
+    console = logging.StreamHandler(sys.stdout)
+    console.setLevel(logging.DEBUG if debug else logging.INFO)
+    console.setFormatter(fmt)
+    root.addHandler(console)
 
 # Map yaml recipe action types to perform functions
 ACTION_MAP = {
@@ -85,6 +106,14 @@ class WebElementObj:
         self.variable = variable
         self.keys = keys
 
+# Check whether the current process runs inside a debugger
+# sys.gettrace() covers pdb and classic tracing; debugpy (VS Code) and PyCharm
+# inject pydevd, and on Python 3.12+ trace via sys.monitoring, not sys.settrace
+def is_debug_session():
+    if sys.gettrace():
+        return True
+    return "pydevd" in sys.modules or "debugpy" in sys.modules
+
 # Start keyboard listener if debugging is enabled
 def on_debug_start_keyboard_listener(bcs):
     global listener_thread
@@ -116,7 +145,7 @@ def on_debug_pause_check(bcs):
 # Pause check
 def pause_check():
     global pause
-    if pause: print ("Paused. Press <SPACE> to resume.")
+    if pause: logger.info("Paused. Press <SPACE> to resume.")
     while pause: time.sleep(0.1)
-    print ("Resume.")
+    logger.info("Resume.")
     pause = True # Pause again after resuming

@@ -320,6 +320,31 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
 **Exit:** cron run completes unchanged on Python 3.12 + Playwright 1.63; a broken step
 is visible in log + DB as an abort; a double start is rejected.
 
+**Status (verified against the repo, 2026-09-29):**
+
+- **Step 0 (host + dependencies) — done.** Dev host is Ubuntu 24.04.5 / Python 3.12.3;
+  `install_local.sh` updated (selenium branch removed, 24.04 apt names, header updated);
+  `requirements.txt` is a full freeze on 3.12 (`playwright==1.63.0`, `nicegui==3.17.1`,
+  `apscheduler==3.11.3`, `bcrypt==5.0.0`, `sqlalchemy`; selenium/dotenv/websocket-client
+  removed); venv recreated on 3.12; Playwright 1.63.0 + Chromium (browser dir
+  `chromium-1243`) + ffmpeg installed, old 1.48 browser dirs deleted. `CheckRecipe`
+  passes all 7 recipes on the new pins (verified 2026-09-29).
+- **Items 1–5 — done** (commits `bf5669c`, `c30be69`, `fce5c65`, `2c6c7a1`): selenium
+  code removed; logging module with `RotatingFileHandler` for `bc.log` plus plain stdout
+  (no `os.chdir` side effect); Vaultwarden timeouts + 3× retry, "No TOTP" magic string
+  replaced with status handling; flock duplicate-run guard in `BillCollector.py` +
+  `BillCollector.sh`; error propagation — a failed service/user pair aborts only that
+  pair's run, remaining services continue, the service run is always finalized in the DB,
+  and the process exits 1 if any pair failed.
+- **Item 6 (Docker) — open.** Non-root user still commented out in `Dockerfile_pw`;
+  NAS image not yet rebuilt with the new requirements.
+- **Step 0.5 verification — partial.** CheckRecipe: 7/7 pass. F5 debug (`bc_test.ini`)
+  on the new distro: not yet run (hits the real portals). Production cron on the NAS:
+  pending the item-6 image rebuild.
+- **Exit criteria:** "double start is rejected" implemented (flock); "a broken step is
+  visible in log + DB as an abort" implemented, not yet seen in a real run; "cron run
+  completes unchanged on 3.12 + 1.63" pending.
+
 ### M0 step 0 — Manual execution guide (host + Python environment)
 
 Steps to be executed by hand (verified against the old dev host on 2026-09-25:

@@ -301,4 +301,9 @@ if __name__ == "__main__":
 
     setup_logging(LOG_DEFAULT_FILE, debug=bc.debug)
 
+    # Reject a second concurrent run (overlapping cron starts, UI run + debug
+    # session). The module-level handle keeps the fd - and the lock - open
+    # until the process exits.
+    run_lock = acquire_run_lock()
+
     WebRetriDoc(bc, "playwright", service)

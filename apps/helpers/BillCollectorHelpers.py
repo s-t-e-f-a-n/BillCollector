@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import fcntl
 import os
 import sys
 import logging
@@ -33,6 +34,32 @@ os.environ["PLAYWRIGHT_BROWSERS_PATH"] = CHROMIUM_PLAYWRIGHT_DIR                
 DB_DIR = os.path.join(APP_DIR, "db")                                                        # Directory for database files
 DB_FILE = os.path.join(DB_DIR, "bc.db")                                                     # Database file
 os.makedirs(DB_DIR, exist_ok=True)
+
+LOCK_FILE = os.path.join(APP_DIR, ".bc.lock")                                               # Run lock file (flock)
+
+# Reject a second concurrent run (overlapping cron starts, UI run + debug
+# session, two manual runs). The lock is a non-blocking exclusive flock on
+# LOCK_FILE: the kernel holds it on the file descriptor and releases it
+# automatically when the process exits - even on SIGKILL - so no stale-lock
+# cleanup is needed. The caller must keep the returned handle alive for the
+# lifetime of the process (closing the fd releases the lock).
+def acquire_run_lock():
+    try:
+        lock = open(LOCK_FILE, "a+")
+    except OSError as e:
+        logger.error(f"Error: cannot open run lock {LOCK_FILE}: {e}")
+        sys.exit(1)
+    try:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        logger.error(f"Another BillCollector run is already in progress "
+                     f"(lock file: {LOCK_FILE}); refusing to start.")
+        sys.exit(1)
+    except OSError as e:
+        logger.error(f"Error: cannot lock run lock {LOCK_FILE}: {e}")
+        sys.exit(1)
+    logger.info(f"Run lock acquired: {LOCK_FILE}")
+    return lock
 
 # Configure the root logger: optional rotating file handler plus a plain stdout handler
 # (stdout is what the daemon streams to the UI)

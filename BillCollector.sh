@@ -6,6 +6,21 @@
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
+# Reject a double start: hold an exclusive, non-blocking lock on the shared
+# lock file for the whole duration of the docker run (the container's /apps
+# is image-owned, so only a host-side lock is visible to two runs). The lock
+# is released automatically when this script exits.
+LOCK_FILE="$SCRIPT_DIR/apps/.bc.lock"
+if ! touch "$LOCK_FILE" 2>/dev/null; then
+    echo "Error: cannot create lock file $LOCK_FILE" >&2
+    exit 1
+fi
+exec 9>>"$LOCK_FILE"
+if ! flock -n 9; then
+    echo "BillCollector is already running (lock file: $LOCK_FILE). Skipping this start." >&2
+    exit 1
+fi
+
 if [[ -f .commit_id ]]; then
     COMMIT_ID=$(cat .commit_id)
     echo "Commit-ID: $COMMIT_ID"

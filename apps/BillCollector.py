@@ -67,28 +67,67 @@ def is_domain_local_ip(domain, try_count=3):
         finally:
             time.sleep(1)
 
+# --- Vaultwarden API client ---
+# Every request carries an explicit timeout and is retried up to
+# VAULT_MAX_ATTEMPTS times on transient failures (connection errors, timeouts,
+# 5xx responses). A 4xx response is final: it is reported to the caller as a
+# VaultAPIError carrying the status code, so callers can distinguish expected
+# statuses (e.g. "no TOTP") from real failures.
+
+VAULT_TIMEOUT = 10        # seconds per request
+VAULT_MAX_ATTEMPTS = 3    # total attempts per request
+VAULT_RETRY_BACKOFF = 2   # seconds; delay before retry N is backoff * N
+
+class VaultAPIError(Exception):
+    """Fatal Vaultwarden API error: a final 4xx response or exhausted retries."""
+
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
+
+def vault_request(method, url, payload=None):
+    for attempt in range(1, VAULT_MAX_ATTEMPTS + 1):
+        try:
+            response = requests.request(method, url, json=payload, timeout=VAULT_TIMEOUT)
+        except (requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+                requests.exceptions.RequestException) as e:
+            logger.warning(f"Attempt {attempt}/{VAULT_MAX_ATTEMPTS} failed: {e}")
+            response = None
+        else:
+            if 400 <= response.status_code < 500:
+                raise VaultAPIError(
+                    f"Client error: {response.status_code} - {response.text}",
+                    status=response.status_code)
+            if response.status_code < 400:
+                return response
+            logger.warning(
+                f"Attempt {attempt}/{VAULT_MAX_ATTEMPTS} failed: "
+                f"server error {response.status_code} - {response.text}")
+        if attempt < VAULT_MAX_ATTEMPTS:
+            time.sleep(VAULT_RETRY_BACKOFF * attempt)
+    raise VaultAPIError(f"Request failed after {VAULT_MAX_ATTEMPTS} attempts: {url}")
+
 # Get web content
 def get_json(url):
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        if 400 <= response.status_code < 500:
-            if "No TOTP" in response.text: 
-                pass
-            else: 
-                logger.error(f"Client error: {response.status_code} - {response.text}")
-                sys.exit(1)
-        else: 
-            logger.error(f"Error with request: {e}")
-            sys.exit(1)
-    except (requests.exceptions.ConnectionError, 
-            requests.exceptions.Timeout, 
-            requests.exceptions.RequestException) as e:
-        logger.error(f"Error with request: {e}")
+        return vault_request("GET", url).text
+    except VaultAPIError as e:
+        logger.error(str(e))
         sys.exit(1)
-    else:
-        return response.text
+
+# Get a vault item's TOTP. A 400 from the TOTP endpoint means the item has no
+# TOTP entry: an expected status, not a failure (the item is known to exist,
+# it was fetched directly above). Any other 4xx is a real failure.
+def get_totp(url):
+    try:
+        return vault_request("GET", url).text
+    except VaultAPIError as e:
+        if e.status == 400:
+            logger.warning(f"No TOTP for this vault item, continuing without OTP: {e}")
+            return None
+        logger.error(str(e))
+        sys.exit(1)
 
 # Check Bitwarden API status
 def bitwarden_api_check_status(url):
@@ -125,7 +164,11 @@ def is_string_valid(string):
         return False
     
 def post_json(url, payload):
-    response = requests.post(url, json=payload)
+    try:
+        response = vault_request("POST", url, payload)
+    except VaultAPIError as e:
+        logger.error(str(e))
+        return False
     if response.status_code == 201 or response.status_code == 200:
         logger.info("Successfully posted!")
         return json.dumps(response.json())
@@ -202,7 +245,7 @@ def WebRetriDoc(self, type=None, service=None):
                 username = get_json_property_value(item, "data_login_username")
                 passsword = get_json_property_value(item, "data_login_password")
                 uri = get_json_property_value(item, "data_login_uris_0_uri")
-                item = get_json(f"{self.api}/object/totp/{service_user}")
+                item = get_totp(f"{self.api}/object/totp/{service_user}")
                 if item is not None: totp = get_json_property_value(item, "data_data") 
                 else: totp = None 
 

@@ -12,6 +12,14 @@ from helpers import *
 
 logger = logging.getLogger(__name__)
 
+class StepAbortError(Exception):
+    """A non-graceful step (or download) failed: abort the remaining steps of the run.
+    Carries the PageState of the failing step so it can still be recorded in the DB."""
+
+    def __init__(self, message, page_state=None):
+        super().__init__(message)
+        self.page_state = page_state
+
 def InitBrowser(p, bcs):
     """Initialize the browser with a persistent context to always open PDF externally"""
     try:
@@ -372,7 +380,12 @@ class PageState:
         return results
 
 def retrieve_from_service_with_playwright(service, url, user, pwd, otp, debug):
-    """Retrieve file from service - main function - Playwright variant    """
+    """Retrieve file from service - main function - Playwright variant.
+
+    Returns True only if the run completed without aborting and at least one file
+    was downloaded successfully; False otherwise (failed/aborted step or no
+    download). The caller is expected to treat False as a failed run.
+    """
 
     bcs = ServiceObj(service=service, usr=user, pwd=pwd, otp=otp, dbg=debug, dld=DOWNLOAD_DIR)
     if not os.path.exists(bcs.dld):
@@ -385,13 +398,16 @@ def retrieve_from_service_with_playwright(service, url, user, pwd, otp, debug):
             RECIPES_PLAYWRIGHT_SCHEMA_FILE)
         
         if bcs.yml == None: raise Exception(f"Recipe {sname} not found.")
-        file_downloaded = perform_actions(bcs)
-        if file_downloaded:
-            logger.info(f"Service {service} for {bcs.usr} finished with downloaded file(s) {file_downloaded}.")
-        else:
-            logger.warning(f"Service {service} for {bcs.usr} finished without a file downloaded.")
+        file_downloaded, aborted = perform_actions(bcs)
         on_debug_stop_keyboard_listener(bcs)
-        return True
+        if aborted:
+            logger.error(f"Service {service} for {bcs.usr} aborted; run failed.")
+            return False
+        if file_downloaded and all(entry["result"] == "success" for entry in file_downloaded):
+            logger.info(f"Service {service} for {bcs.usr} finished with downloaded file(s) {file_downloaded}.")
+            return True
+        logger.warning(f"Service {service} for {bcs.usr} finished without a successful download.")
+        return False
     except Exception as e:
         logger.exception(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
         logger.error(f"Service {service} for {bcs.usr} not successfully finished.")
@@ -399,75 +415,105 @@ def retrieve_from_service_with_playwright(service, url, user, pwd, otp, debug):
         return False
 
 def perform_actions(bcs):
-    """Perform actions from YAML recipe on web elements - helper function for dispatching actions"""
-    
+    """Perform actions from YAML recipe on web elements - helper function for dispatching actions.
+
+    Returns (files_downloaded, aborted). aborted is True when a non-graceful step
+    failure (or any other error) stopped the run before all services were processed.
+    Every started service run is finalized in the DB, even when the run is aborted.
+    """
+
     files_downloaded = []
+    aborted = False
 
     try:
         with sync_playwright() as p:
             bcs.drv = InitBrowser(p, bcs)
+            if bcs.drv is None:
+                raise Exception("Failed to initialize browser.")
             bcs.page = bcs.drv.new_page()
             bcs.page.context.clear_cookies()
-            
+
             # Parse the YAML structure
             services = bcs.yml.get('services', [])
-            
+
             for service in services:
                     service_name = service.get('serviceName')
                     logger.info(f"Processing Service: {service_name} for {bcs.usr}.")
-                    
+
                     # Initialize the database manager and create a service run table
                     bcs.db = DatabaseManager(DB_FILE)
                     bcs.run_table = bcs.db.create_service_run_table(service_name)
+                    service_files = []
 
-                    # process all steps in the service
-                    steps = service.get('steps', [])
-                    for step in sorted(steps, key=lambda x: x.get('step', 0)):  # Sort by step number
-
-                        step_state = process_step(bcs, step)
+                    def run_step(step):
+                        """Process one step and record it; on abort, record the failing step first."""
+                        try:
+                            step_state = process_step(bcs, step)
+                        except StepAbortError as e:
+                            if e.page_state is not None:
+                                bcs.db.insert_page_status(bcs.run_table, e.page_state)
+                            raise
                         bcs.db.insert_page_status(bcs.run_table, step_state)
+                        return step_state
 
-                        # Check if the previous step expects a download
-                        if check_parameter_in_json(step_state.locator_action, {"action": "expect_download"}):
-                            result_value = "success"
-                            download_info = None
-                            download = None
-                            try:
-                                with bcs.page.expect_download() as di:
-                                    download_info = di
-                                    for nested_step in sorted(step["steps"], key=lambda x: x.get("step", 0)):
-                                        step_state = process_step(bcs, nested_step)
-                                        bcs.db.insert_page_status(bcs.run_table, step_state)
-                                download = download_info.value
-                                filepath = os.path.join(DOWNLOAD_DIR, str(download_info.value.suggested_filename))
-                                download.save_as(filepath)
-                            except Exception as e:
-                                    result_value = f"failure: download error {e}"
-                            finally:
-                                if download:
-                                    files_downloaded.append({
+                    try:
+                        # process all steps in the service
+                        steps = service.get('steps', [])
+                        for step in sorted(steps, key=lambda x: x.get('step', 0)):  # Sort by step number
+
+                            step_state = run_step(step)
+
+                            # Check if the previous step expects a download
+                            if check_parameter_in_json(step_state.locator_action, {"action": "expect_download"}):
+                                result_value = "success"
+                                download = None
+                                try:
+                                    with bcs.page.expect_download() as download_info:
+                                        for nested_step in sorted(step.get("steps", []), key=lambda x: x.get("step", 0)):
+                                            run_step(nested_step)
+                                    download = download_info.value
+                                    filepath = os.path.join(DOWNLOAD_DIR, str(download.suggested_filename))
+                                    download.save_as(filepath)
+                                except StepAbortError:
+                                    raise
+                                except Exception as e:
+                                        result_value = f"failure: download error {e}"
+                                if download is None and result_value != "success":
+                                    if step.get("graceful", False):
+                                        logger.warning(f"Step {step.get('step', 0)} failed to download (graceful, run continues): {result_value}")
+                                    else:
+                                        raise StepAbortError(f"Step {step.get('step', 0)} failed to download: {result_value}")
+                                if download is not None:
+                                    service_files.append({
                                         "url": str(download.url),
                                         "suggested_filename": str(download.suggested_filename),
                                         "result": result_value})
+                    finally:
+                        # All steps processed (or the run aborted) - finalize the service
+                        # run, so the DB always holds a terminal result.
+                        bcs.db.finalize_service_run(
+                            service_name=service_name,
+                            run_table=bcs.run_table,
+                            download_info = json.dumps(service_files) if service_files else {},
+                            result = "failure" if not service_files or not all(entry["result"] == "success" for entry in service_files) else "success"
+                        )
+                        # Close the database connection
+                        bcs.db.close_connection()
 
-                    # All steps processed, finalize the service run
-                    bcs.db.finalize_service_run(
-                        service_name=service_name,
-                        run_table=bcs.run_table,
-                        download_info = json.dumps(files_downloaded) if files_downloaded else {},
-                        result = "failure" if not files_downloaded or not all(entry["result"] == "success" for entry in files_downloaded) else "success"
-                    )
-                    # Close the database connection
-                    bcs.db.close_connection()
+                    files_downloaded.extend(service_files)
 
             # Close the page after processing all steps
             bcs.page.close()
             bcs.drv.close()
 
+    except StepAbortError as e:
+        aborted = True
+        logger.error(f"Run aborted: {e}")
     except Exception as e:
+        aborted = True
         logger.exception(f"EXCEPTION in {inspect.currentframe().f_code.co_name}(): {e}")
     finally:
-        return files_downloaded
+        return files_downloaded, aborted
 
 def process_step(bcs, step):
     """ Processes a step by executing a chain of methods """
@@ -539,14 +585,27 @@ def process_step(bcs, step):
     page_state = PageState(bcs.service, step_number, bcs.page)
     page_state.set_locator_action(transform_step_to_json(step))
 
+    # A step is "graceful" when its failure must not abort the run:
+    # the error is recorded (log + DB) and the run continues with the next step.
+    graceful = bool(step.get("graceful", False))
+
+    def fail_step(error_entry):
+        """Record a step failure; continue when graceful, otherwise abort the run."""
+        step_results.setdefault("error", []).append(error_entry)
+        page_state.set_error(step_results)
+        if graceful:
+            logger.warning(f"Step {step_number} failed (graceful, run continues): {error_entry}")
+        else:
+            raise StepAbortError(f"Step {step_number} failed: {error_entry}", page_state)
+
     for method_entry in step["methods"]:
         method_name = method_entry.get("method")
         arguments = method_entry.get("arguments", [])
         processed_args = [process_argument(arg, bcs) for arg in arguments]
 
         if not method_name:
-            step_results.setdefault("error", []).append(f"method: {method_name}, message: Method entry missing 'method' key: {method_entry}")
-            continue # Skip to the next method entry.
+            fail_step(f"method: {method_name}, message: Method entry missing 'method' key: {method_entry}")
+            break # Stop the method chain (graceful failure).
 
         # Special handling for "expect_download".
         if method_name == "expect_download":
@@ -575,8 +634,9 @@ def process_step(bcs, step):
                         raise TypeError(f"Attribute '{method_name}' is not callable but arguments were provided: {processed_args}")
                     previous_result = method_executor               # Get the value of a property.
             except Exception as e:
-                step_results.setdefault("error", []).append({"method": method_name, "message": str(e)})
-            finally:
+                fail_step({"method": method_name, "message": str(e)})
+                break # Stop the method chain (graceful failure).
+            else:
                 page_state.set_error(step_results)
 
     return page_state

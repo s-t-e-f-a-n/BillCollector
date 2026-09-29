@@ -31,6 +31,12 @@ definitions:
         type: integer
       description:
         type: string
+      graceful:
+        type: boolean
+        description: >-
+          If true, a failure of this step is recorded in the log and the DB but
+          the run continues with the next step. If false (default), a failure
+          aborts the run.
       methods:
         type: array
         items:

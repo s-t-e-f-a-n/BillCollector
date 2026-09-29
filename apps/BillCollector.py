@@ -220,6 +220,7 @@ def WebRetriDoc(self, type=None, service=None):
         sys.exit(1)
     
     matched = False
+    failed = False
     for automation_library in script.sections():
         if automation_library == None: break
         if type != None and automation_library.lower() != type.lower(): continue
@@ -251,12 +252,20 @@ def WebRetriDoc(self, type=None, service=None):
 
                 # Download Documents with the help of the appropriate automation library
                 if automation_library.lower() == "playwright":
-                    retrieve_from_service_with_playwright(servicename, uri, username, passsword, totp, self.debug)
+                    if not retrieve_from_service_with_playwright(servicename, uri, username, passsword, totp, self.debug):
+                        # Skip the failed service/user pair; the remaining services
+                        # still run. The run exits with code 1 if any pair failed.
+                        logger.error(f"Service {service_user} failed; continuing with the next service.")
+                        failed = True
     #
     #################
 
     if service is not None and not matched:
         logger.warning(f"Service filter '{service}' matched no service in {self.fname}; nothing was done.")
+
+    if failed:
+        logger.error("Run finished with failed service(s); exiting with code 1.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     sys.stdout = sys.__stdout__

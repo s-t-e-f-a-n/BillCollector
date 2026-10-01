@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Security check - Mock Portal {{ site }}</title>
+</head>
+<body>
+<main>
+  <h1>Security check</h1>
+  <p>Type the 6-digit code shown on the page, then press Verify.</p>
+  <p id="captcha-code" class="code">{{ code }}</p>
+  {% if otp_error %}<p id="verify-error">Invalid code</p>{% endif %}
+  <form action="{{ path }}/verify" method="post">
+    <input name="code" type="text" placeholder="verification code">
+    <button type="submit">Verify</button>
+  </form>
+</main>
+</body>
+</html>

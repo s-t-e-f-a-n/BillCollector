@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Popup - Mock Portal {{ site }}</title>
+</head>
+<body>
+<p>A helpful message about your account.</p>
+<label for="close-popup">Close popup</label>
+<input type="button" id="close-popup" value="Close popup"
+       onclick="parent.document.getElementById('popup-frame').remove()">
+</body>
+</html>

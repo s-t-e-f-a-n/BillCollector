@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Security check - Mock Portal {{ site }}</title>
+</head>
+<body>
+<main>
+  <h1>Security check</h1>
+  <div id="challenge">
+    <button id="robot-btn" onclick="showVerified()">I am not a robot</button>
+  </div>
+  <script>
+    function showVerified() {
+      var b = document.getElementById("robot-btn");
+      var v = document.createElement("button");
+      v.id = "verified-btn";
+      v.textContent = "Verified";
+      v.onclick = function () { window.location = "{{ path }}/dashboard"; };
+      b.replaceWith(v);
+    }
+  </script>
+</main>
+</body>
+</html>

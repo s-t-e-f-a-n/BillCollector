@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Log in - Mock Portal {{ site }}</title>
+</head>
+<body>
+{% if show_banner %}
+<div id="consent-banner">
+  <p>This site uses cookies to provide its services.</p>
+  <form action="{{ path }}/consent" method="get">
+    <button type="submit">{{ reject_button }}</button>
+  </form>
+</div>
+{% endif %}
+{% if login_error %}
+<p id="login-error">Login failed</p>
+{% endif %}
+<main>
+  <h1>Log in to your account</h1>
+  <form action="{{ path }}/login" method="post">
+    <label for="user-id">User ID</label><br>
+    <input id="user-id" name="user_id" type="text"><br>
+    <label for="email">E-mail address</label><br>
+    <input id="email" name="email" type="text"><br>
+    <input name="alias" type="text" placeholder="e.g. myusername"><br>
+    <input name="pwd_title" type="password" title="Password"><br>
+    <input name="pwd" type="password" data-testid="password-input"><br>
+    <button type="submit">{{ login_button }}</button>
+  </form>
+</main>
+</body>
+</html>

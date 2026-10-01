@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Invoices - Mock Portal {{ site }}</title>
+</head>
+<body>
+<main>
+  <h1>Invoices - {{ user }}</h1>
+  <table border="1" cellpadding="6">
+    <tr>
+      <th>Document</th>
+      <th>Action</th>
+    </tr>
+    {% for label, doc in invoice_rows %}
+    <tr>
+      <td>{{ label }}</td>
+      <td><a href="{{ path }}/download/{{ doc }}">Invoice</a></td>
+    </tr>
+    {% endfor %}
+    {% if contract_label %}
+    <tr>
+      <td><a href="{{ path }}/download/contract">{{ contract_label }}</a></td>
+      <td></td>
+    </tr>
+    {% endif %}
+    {% if show_bonus %}
+    <tr>
+      <td><a href="{{ path }}/download/bonus">{{ bonus_label }}</a></td>
+      <td></td>
+    </tr>
+    {% endif %}
+  </table>
+</main>
+</body>
+</html>

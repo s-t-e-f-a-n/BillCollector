@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>One-time code - Mock Portal {{ site }}</title>
+</head>
+<body>
+<main>
+  <h1>One-time code</h1>
+  <p>Enter the 6-digit code you received.</p>
+  {% if otp_error %}<p id="otp-error">Invalid code</p>{% endif %}
+  <form action="{{ path }}/otp" method="post">
+    <label for="otp">6-digit code</label><br>
+    <input id="otp" name="otp" type="text" inputmode="numeric"><br>
+    <button type="submit">Check and log in</button>
+  </form>
+</main>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Security check - Mock Portal {{ site }}</title>
+  <style>
+    #track { position: relative; width: 300px; height: 32px; background: #ddd;
+             border-radius: 16px; }
+    #knob { position: absolute; left: 0; top: 2px; width: 28px; height: 28px;
+            background: #4a90d9; border-radius: 50%; cursor: grab;
+            touch-action: none; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Security check</h1>
+  <p>Drag the slider to verify</p>
+  <div id="track"><div id="knob"></div></div>
+  <p id="drag-status"></p>
+  <script>
+    (function () {
+      var track = document.getElementById("track");
+      var knob = document.getElementById("knob");
+      var status = document.getElementById("drag-status");
+      var dragging = false;
+      function move(e) {
+        var rect = track.getBoundingClientRect();
+        var x = (e.clientX || 0) - rect.left;
+        var max = rect.width - knob.offsetWidth;
+        var pct = Math.max(0, Math.min(max, x)) / max;
+        knob.style.left = (pct * max) + "px";
+        if (pct >= 0.98) {
+          dragging = false;
+          status.textContent = "Verified";
+          window.location = "{{ path }}/dashboard";
+          return true;
+        }
+        return false;
+      }
+      knob.addEventListener("pointerdown", function (e) {
+        dragging = true;
+        knob.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      });
+      window.addEventListener("pointermove", function (e) {
+        if (dragging) move(e);
+      });
+      window.addEventListener("pointerup", function () { dragging = false; });
+    })();
+  </script>
+</main>
+</body>
+</html>

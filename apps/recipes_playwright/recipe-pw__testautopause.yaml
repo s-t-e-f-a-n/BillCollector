@@ -1,0 +1,143 @@
+$schema: "/home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml"
+services:
+- serviceName: "testautopause"
+  description: "Layer B: the Verified button only appears after an operator clicks the I am not a robot button; 3x failure triggers the auto-pause."
+  steps:
+  - step: 1
+    description: "Open the mock site landing page."
+    methods:
+    - method: "goto"
+      arguments:
+      - url: "http://127.0.0.1:8787/autopause/"
+  - step: 2
+    description: "Dismiss the cookie banner (absent when the consent cookie persists)."
+    graceful: true
+    methods:
+    - method: "get_by_role"
+      arguments:
+      - role: "button"
+      - name: "Reject"
+    - method: "click"
+  - step: 3
+    description: "Fill the e-mail address field (labelled textbox inside main)."
+    methods:
+    - method: "get_by_role"
+      arguments:
+      - role: "main"
+    - method: "get_by_role"
+      arguments:
+      - role: "textbox"
+      - name: "E-mail address"
+    - method: "click"
+    - method: "fill"
+      arguments:
+      - value: "{{USERNAME}}"
+  - step: 4
+    description: "Fill the user-id field (CSS locator)."
+    methods:
+    - method: "locator"
+      arguments:
+      - selector: "#user-id"
+    - method: "click"
+    - method: "fill"
+      arguments:
+      - value: "{{USERNAME}}"
+  - step: 5
+    description: "Fill the alias field (placeholder locator), then press Tab."
+    methods:
+    - method: "get_by_placeholder"
+      arguments:
+      - text: "e.g. myusername"
+    - method: "fill"
+      arguments:
+      - value: "{{USERNAME}}"
+    - method: "press"
+      arguments:
+      - key: "Tab"
+  - step: 6
+    description: "Fill the password field (title locator)."
+    methods:
+    - method: "get_by_title"
+      arguments:
+      - text: "Password"
+    - method: "fill"
+      arguments:
+      - value: "{{PASSWORD}}"
+  - step: 7
+    description: "Fill the password field (test-id locator)."
+    methods:
+    - method: "get_by_test_id"
+      arguments:
+      - test_id: "password-input"
+    - method: "fill"
+      arguments:
+      - value: "{{PASSWORD}}"
+  - step: 8
+    description: "Submit the login form."
+    methods:
+    - method: "get_by_role"
+      arguments:
+      - role: "button"
+      - name: "Log in"
+    - method: "click"
+  - step: 9
+    description: "Enter the 6-digit code."
+    methods:
+    - method: "get_by_label"
+      arguments:
+      - text: "6-digit code"
+    - method: "fill"
+      arguments:
+      - value: "{{OTP}}"
+  - step: 10
+    description: "Submit the one-time code form."
+    methods:
+    - method: "get_by_role"
+      arguments:
+      - role: "button"
+      - name: "Check and log in"
+    - method: "click"
+  - step: 11
+    description: "Click the Verified button (appears only after the operator clicks 'I am not a robot')."
+    methods:
+    - method: "get_by_role"
+      arguments:
+      - role: "button"
+      - name: "Verified"
+    - method: "click"
+  - step: 12
+    description: "Navigate to the account page."
+    methods:
+    - method: "get_by_role"
+      arguments:
+      - role: "link"
+      - name: "My account"
+    - method: "click"
+  - step: 13
+    description: "Navigate to the invoices list."
+    methods:
+    - method: "get_by_role"
+      arguments:
+      - role: "link"
+      - name: "Invoices"
+      - exact: true
+    - method: "click"
+  - step: 14
+    description: "Download the invoice PDF of the first row."
+    methods:
+    - method: "expect_download"
+    steps:
+    - step: 1
+      description: ""
+      methods:
+      - method: "get_by_role"
+        arguments:
+        - role: "link"
+        - name: "Invoice"
+        - exact: true
+      - method: "first"
+      - method: "click"
+  - step: 15
+    description: "Close the page."
+    methods:
+    - method: "close"

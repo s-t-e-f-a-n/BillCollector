@@ -30,7 +30,7 @@ export GIT_COMMITTER_DATE="$(git log -1 --format=%ct HEAD)"
 # If files were removed, amend the tip commit using its existing message & author info
 if ! git diff --cached --quiet; then
   git commit --amend --no-edit \
-    --author="Stefan S "
+    --author="Stefan S <s-t-e-f-a-n@users.noreply.github.com>"
 fi
 
 # Push sanitized state to GitHub's main branch

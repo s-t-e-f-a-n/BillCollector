@@ -12,11 +12,14 @@
   - [Vault of Secrets](#vault-of-secrets)
   - [Enabling DNS and HTTPS with Let's Encrypt certs](#enabling-dns-and-https-with-lets-encrypt-certs)
   - [The BillCollector Installation](#the-billcollector-installation-and-docker-deployment)
+  - [Manual Run UI](#manual-run-ui)
 - [Configure BillCollector](#configuration)
   - [Vaultwarden and Bitwarden](#vaultwarden-and-bitwarden)
-  - [Optional: Vscode and Debuggin](#optional-vscode-and-debugging)
+  - [Local Development & Debugging](#local-development--debugging)
   - [Web Service Config](#web-service-config)
+- [Local Regression Test Environment](#local-regression-test-environment)
 - [Development & Deployment](#development--deployment)
+- [What's Next](#whats-next)
 
 ## What is BillCollector?
 
@@ -27,10 +30,10 @@
 BillCollector uses:
 
 - Vaultwarden as a safe vault of the login data for the online accounts
-- Chrome for testing and Chromedriver as the browser front end of the service provider's online portal
-- Selenium (for Python) to automate the browser control
+- Playwright (for Python) driving a headless Chromium as the browser front end of the service provider's online portal
+- SQLite to record the step-by-step progress of every run (performed actions, interactive elements found, results)
 
-Chrome is operated headless by default, so that BillCollector can do its job on a Raspberry PI or a NAS, headless integrated into the cron-scheduler on a regular basis.
+Chromium is operated headless by default, so that BillCollector can do its job on a Raspberry PI or a NAS, headless integrated into the cron-scheduler on a regular basis.
 
 Following diagram depicts the complete BillCollector Ecosystem:
 
@@ -38,9 +41,11 @@ Following diagram depicts the complete BillCollector Ecosystem:
 
 ## How does it work?
 
-Scheduled, for instance, bi-monthly, your server's cron daemon runs the BillCollector docker container which exposes a download folder to the server's file system. The docker container integrates Chrome and Chromedriver to interact with the service provider's online portal.
+Scheduled, for instance, bi-monthly, your server's cron daemon runs the BillCollector docker container which exposes a download folder to the server's file system. The docker container integrates Chromium (via Playwright) to interact with the service provider's online portal.
 
-For each container run, BillCollector scripts the `List of Services`, gets the secret login data from Vaultwarden via the Bitwarden API, accesses the web service via the configured Selenium recipes, and downloads the documents.
+For each container run, BillCollector scripts the `List of Services`, gets the secret login data from Vaultwarden via the Bitwarden API, accesses the web service via the configured Playwright recipes, and downloads the documents.
+
+Every step of every service run is recorded in a local SQLite database (`apps/db/bc.db`): the method chain that was executed, the interactive elements that were found on the page, and the result. This makes failed runs diagnosable and is the foundation for the planned self-healing/assisted-repair features. A failed service/user pair aborts only its own run: the remaining services continue, every started run is finalized in the DB, and the process exits with code 1 if any pair failed. A second concurrent start (overlapping cron starts, UI run plus manual run) is rejected by a `flock` guard.
 
 With a document-processing document management system (DMS) such as Paperless ngx in place, the downloaded file is consumed, automatically analyzed, tagged, and sorted.
 
@@ -51,11 +56,12 @@ With a document-processing document management system (DMS) such as Paperless ng
 - **Star this project** on GitHub.
 - **Share** it with your network.
 - **Contribute** recipes for more web services - see how to [Configure BillCollector](#configuration) and get familiar with the YAML recipes. Share your recipes 🙂🙂🙂
+- **Contribute code** - fork this repository, create a branch from `main`, and open a pull request against `main`. There is no CI pipeline yet: changes are validated in the [local regression test environment](#local-regression-test-environment) and in production runs before being integrated.
 - **Discuss** your ideas for improvements, more use cases and any comments by leaving notes in the Discussion area.
 
 > 💡 **Tip**  
-> Make yourself familiar with the concept of finding web elements. BillCollector takes advantage of Selenium and its methods for retrieving and controlling web elements.  
-> [Selenium WebDriver Elements Documentation](https://www.selenium.dev/documentation/webdriver/elements/) is a good starting point.
+> Make yourself familiar with the Playwright [Locator API](https://playwright.dev/python/docs/locators): BillCollector recipes are nothing but chains of locator calls and actions.  
+> `playwright codegen <url>` lets you walk through your web portal to record a draft of the procedure - don't forget to delete the cookies of that web portal to start with a clean session when training the procedure. `helpers/BillCollectorCreateRecipe_pw.py` can translate the codegen Python output into a BillCollector YAML recipe.
 
 ## Quick Start
 
@@ -140,41 +146,52 @@ Steps to follow:
 
 Now that we have done a good job installing all the prerequisites, we are focusing on installing the BillCollector docker which is as simple as follows:
 
-1. Download this git repository to a folder in your local docker environment assuming a Linux bash terminal, e.g., `git clone <URL>/stefan/BillCollector.git`.
+1. Download this git repository to a folder in your local docker environment assuming a Linux bash terminal, e.g., `git clone https://github.com/s-t-e-f-a-n/BillCollector.git`.
 
 2. [Configure BillCollector](#configuration) needs to be done. After each change in configuration proceed again with step 3.
 
 3. Open the installation script in your editor, e.g., `nano ./install_docker-image.sh`, adapt the link to your `Paperless ngx` instance's consumption folder (`ln -s </path/to/your/paperless/inbox>`).
 
-4. On your Linux console enter `./install_docker-image.sh` which creates a new docker image `billcollector:latest` and sets the soft link to the inbox of your `Paperless ngx` to let BillCollector collect bills periodically.
+4. On your Linux console enter `./install_docker-image.sh playwright` which builds the docker image `billcollector:latest` (Playwright/Chromium variant) and sets the soft link to the inbox of your `Paperless ngx` to let BillCollector collect bills periodically.
 
 5. Let your server's cron call your BillCollector periodically (e.g., bi-monthly) by calling `</path/to/your/billcollector-git-clone-folder/BillCollector.sh bc_default.ini`.
+
+### Manual Run UI
+
+Besides cron, BillCollector ships with a minimal web UI for manual runs. From the `apps` directory run:
+
+```bash
+python3 bc_ui.py
+```
+
+This opens a NiceGUI supervisor page on port 8000 where you select an INI file and a service, start or stop the run of that single service, and watch its output line by line. The UI is a pure subprocess supervisor: it launches `BillCollector.py <ini> --service <NAME>` and streams its stdout, so the scraping code stays untouched. A run left behind by a previous UI instance is cleaned up when the UI starts.
 
 ## Configuration
 
 ### Vaultwarden and Bitwarden
 
-First and once, for the basic configuration you need to adapt the `.env` file located in the `/apps` folder. Use the  `.env.example` as a template:
+First and once, for the basic configuration you need to adapt the `.env` file located in the `/apps` folder. Use the `.env.example` as a template:
 
 - `cp .env.example .env`
 - define the .env-variables:
   - `VAULT_HOST=<hostname of your vault e.g., vault.my-domain.duckdns.org>`
   - `BW_API_URL=<http/https-URL of the bitwarden API e.g., http://<local-ip>:8087>`
 
-### Optional: Vscode and Debugging
+### Local Development & Debugging
 
 Use vscode when extending BillCollector - either the coded or, more likely, the collection of recipes.
 
-There is a installation script for local installation of the local environment. This will install Chrome for Testing, ChromeDriver, Python3, a Python virtual environment, and all required Python modules into the venv. It is tested under WSL2 and Ubuntu 20.04 LTS. Run the following command on your Linux command line:
+There is an installation script for the local environment. It installs Python3, a Python virtual environment with all required Python modules, and Playwright's Chromium (plus the required system dependencies) into `apps/.venv`. It is tested under WSL2 and Ubuntu 24.04 LTS. Run the following command on your Linux command line:
 
-- `source install_local.sh`
+- `bash install_local.sh playwright`
 
-For debugging (in vscode) run `BillCollector.py` in debug mode (F5). The default debug settings are:
+For debugging, run `BillCollector.py` in debug mode - either via F5 in vscode or `python3 BillCollector.py bc_test.ini debug`:
 
-- Use `bc_test.ini` as the default script of web services.
-- Before the action of the recipe is executed
-  - BillCollector saves the currently loaded web page into the file `page_source.html`
-  - BillCollector pauses and waits for SPACE to proceed. By this you are able to analyze the web page step by step to extract the required web elements.
+- Uses `bc_test.ini` as the list of web services to run.
+- Chromium runs headed, so you can watch the run in a browser window.
+- Every step is recorded in the SQLite DB (`apps/db/bc.db`) together with the interactive elements that were found on the page - use these records to identify and fix failing steps.
+
+The Selenium-era per-step SPACE pause is not yet wired into the Playwright engine.
 
 ### Web Service Config
 
@@ -188,137 +205,116 @@ The BillCollector configuration for each web service from which you want to retr
    - `URI 1`: the web service's web address where BillCollector should start from
 
 2. A list of service entries in `/apps/bc_default.ini` represents the script for collecting all bills:
-   - Enter line by line the name of the web service matching the `Name` of the service's entry in Vaultwarden (1).
-   - For web services where you have more than one login data for (e.g., family members having different accounts at the same mobile phone provider) you can enter the line in the following format: `<Name of web service> [<your name>, <additional name>]`.
+   - Under the `[Playwright]` section, enter line by line the name of the web service matching the `Name` of the service's entry in Vaultwarden (1).
+   - For web services where you have more than one login data for (e.g., family members having different accounts at the same mobile phone provider) you can enter the line in the following format: `<Name of web service>=<your name>, <additional name>`.
 
      *Example ini script:*
 
-     ```text
-     winSIM [Dieter, Auto, Will, Anna]
-     KabelDeutschland
-     Lichtblick [Strom, Gas]
+     ```ini
+     [Playwright]
+     winSIM=Stefan, Auto, Brigitte, Eva, Anna
+     KabelDeutschland=
+     Freenet Mobilfunk=
      ```
 
 3. A YAML recipe defines the browser automation, which typically starts at login and ends at the download of the wanted document from the web service portal:
-   - The recipes are placed in the subfolder `bc-recipes` and follow the naming convention `bc-recipe__<Name of web service>.yaml` where `Name of web service>` must equal `Name` of the web service in Vaultwarden.
+   - The recipes are placed in the subfolder `apps/recipes_playwright` and follow the naming convention `recipe-pw__<serviceName>.yaml` where `<serviceName>` is the service's `Name` from Vaultwarden in lower case with spaces replaced by underscores (e.g., `Freenet Mobilfunk` -> `recipe-pw__freenet_mobilfunk.yaml`).
    - The basic concept of the BillCollector recipes is summarized as follows:
       - YAML format
-      - One recipe per web portal identified by the yaml element `serviceName` and its filename `bc-recipe__<serviceName>`.
-      - Each recipe is structured in steps of actions.
-      - Each action step is led by an actionType defining a specific (selenium) web element action from `Click`, `ClickShadow`, `SendKeys`, `SwitchToFrame`, `SwitchToDefaultFrame`, `SwitchToParentFrame` and `Download`.
-      - Each action step is followed by parameters, namely (selenium) web element locators, variables, and specific controls.
-         - Locators are a single or multiple pairs of (selenium) selectors (`ID`, `CSS_SELECTOR`, `XPATH`, `LINK_TEXT`) and web elements to be located.
-           - 💡 SwitchToDefaultFrame and SwichtToParentFrame must not be followed by parameters.
-         - Variables are `{USERNAME}`, `{PASSWORD}` or `{OTP}` (all three from vaultwarden linked to the web service) or the key `ENTER`.
-         - Specific controls are `timeout` and `graceful`.
-      - There is a YAML schema named `bc-recipe-schema.yml` which includes the rules to be followed by the YAML recipes.
+      - One recipe per web portal identified by the yaml element `serviceName` and its filename `recipe-pw__<serviceName>`.
+      - Each recipe is structured in numbered `steps`, executed in ascending `step` order.
+      - Each step is a chain of `methods`: Playwright Page/Locator calls executed in order. Locator methods (`locator` for CSS selectors, `get_by_role`, `get_by_label`, `get_by_text`, `get_by_title`, `get_by_placeholder`, `get_by_test_id`) yield a locator that is chained into the following action (`click`, `fill`, `press`, `first`). Page-level methods include `goto` (open the start URL), `content_frame` (enter an iframe) and `close`.
+      - Downloads: a step with the `expect_download` method wraps the nested `steps` that trigger the download; the file is saved into the Downloads folder.
+      - Variables: `{{USERNAME}}`, `{{PASSWORD}}` and `{{OTP}}` (all three from Vaultwarden, linked to the web service) are substituted at run time.
+      - `graceful: true` on a step: a failure of that step is recorded (log + DB) and the run continues with the next step; without it, a failure aborts the service's run.
+      - There is a YAML schema named `recipe-pw-schema.yaml` which includes the rules to be followed by the YAML recipes.
 
 > 💡 **Tip**  
 > When creating new recipes, make use of AI, e.g., let yourself be helped by Copilot - that speeds up creating the YAML recipe 🚀.
-> `BillCollectorRecipes.py` is used by `BillCollector` but also can be used as a separate command line tool for checking new YAML recipes:
-> `Usage: python3 BillCollectorRecipes.py <recipes.yaml> [<schema.yaml>]`.
->
-> Make use of the [Selenium IDE browser plugin](https://www.seleniumhq.org/selenium-ide). It lets you walk through your web portal to create a draft recipe.
-> Don’t forget to delete the cookies of that web portal to start with a clean session when training the web portal procedure for downloading your bills.
->
-> When `BillCollector.py` is run in debug mode, by default, it pauses at each step of the recipe, downloads the HTML into `page_source.html` and waits for a SPACE keystroke to proceed.
-> This lets you analyze the HTML for the web elements to be clicked or sent text (e.g., username) to.
+> `helpers/BillCollectorCheckRecipe.py` validates a recipe (YAML syntax + schema) and is also used by `BillCollector.py` at run time:
+> `Usage: python3 helpers/BillCollectorCheckRecipe.py <recipe.yaml> [<schema.yaml>]`.
 
-   *Full example of a YAML recipe, which also includes an One-Time-Password step (OTP):*
+*Example of a YAML recipe (excerpt, real `winsim` recipe):*
 
-   ```yaml
-   ---
-   services:
-   - serviceName: "datev"
-      actions:
-         - step: 1
-         description: "Click the login button to start the authentication process."
-         actionType: "Click"
-         parameters:
-            locators:
-               - locatorType: "CSS_SELECTOR"
-               element: "[data-test-id=\"login-button\"]"
-         - step: 2
-         description: "Click the TOTP login button to proceed with two-factor authentication."
-         actionType: "Click"
-         parameters:
-            locators:
-               - locatorType: "CSS_SELECTOR"
-               element: "[data-test-id=\"totp-login-button\"]"
-         - step: 3
-         description: "Focus on the username field for entering credentials."
-         actionType: "Click"
-         parameters:
-            locators:
-               - locatorType: "ID"
-               element: "username"
-         - step: 4
-         description: "Enter the username into the username input field."
-         actionType: "SendKeys"
-         parameters:
-            locators:
-               - locatorType: "ID"
-               element: "username"
-            variable: "{USERNAME}"
-         - step: 5
-         description: "Enter the password into the password input field."
-         actionType: "SendKeys"
-         parameters:
-            locators:
-               - locatorType: "ID"
-               element: "password"
-            variable: "{PASSWORD}"
-         - step: 6
-         description: "Click the login button to submit the entered credentials."
-         actionType: "Click"
-         parameters:
-            locators:
-               - locatorType: "ID"
-               element: "login"
-         - step: 7
-         description: "Enter the one-time password (OTP) into the verification field."
-         actionType: "SendKeys"
-         parameters:
-            locators:
-               - locatorType: "ID"
-               element: "enterverificationcode"
-            variable: "{OTP}"
-         - step: 8
-         description: "Press the Enter key to confirm the verification code."
-         actionType: "SendKeys"
-         parameters:
-            locators:
-               - locatorType: "ID"
-               element: "enterverificationcode"
-            variable: "ENTER"
-         - step: 9
-         description: "Click the button to load the documents in the dashboard."
-         actionType: "Click"
-         parameters:
-            locators:
-               - locatorType: "CSS_SELECTOR"
-               element: "[data-test-id=\"load-documents-button\"]"
-         - step: 10
-         description: "Select a specific checkbox to choose a document."
-         actionType: "Click"
-         parameters:
-            locators:
-               - locatorType: "ID"
-               element: "mat-mdc-checkbox-2-input"
-    - step: 11
-      description: "Download the selected document."
-      actionType: "Download"
-      parameters:
-         locators:
-            - locatorType: "CSS_SELECTOR"
-              element: "[data-test-id=\"download-button\"]"
-    ```
+```yaml
+services:
+- serviceName: winsim
+  steps:
+  - step: 1
+    methods:
+    - method: goto
+      arguments:
+      - url: "https://service.winsim.de/"
+  - step: 3
+    methods:
+    - method: locator
+      arguments:
+      - selector: "#UserLoginType_alias"
+    - method: fill
+      arguments:
+      - value: "{{USERNAME}}"
+  - step: 5
+    methods:
+    - method: get_by_label
+      arguments:
+      - text: "Servicewelt-Passwort:"
+    - method: fill
+      arguments:
+      - value: "{{PASSWORD}}"
+  - step: 6
+    methods:
+    - method: get_by_title
+      arguments:
+      - text: "Login"
+      - exact: true
+    - method: click
+  # ... further steps: confirm the dialog, open "Meine Rechnung", select the invoice ...
+  - step: 11
+    methods:
+    - method: expect_download
+    steps:
+    - step: 12
+      methods:
+      - method: get_by_role
+        arguments:
+        - role: "link"
+        - name: "Rechnung"
+        - exact: true
+      - method: click
+  - step: 13
+    methods:
+    - method: close
+```
+
+## Local Regression Test Environment
+
+A self-contained regression environment tests the scraping engine against a local mock portal instead of the real web services:
+
+- `tests/mock_portal/` - a small web portal (ASGI/uvicorn, `127.0.0.1:8787`) with sites covering the main scenarios: happy path with OTP and downloads, bad login, graceful step failure, download failure, empty document list, and CAPTCHA-style friction.
+- `tests/scenarios.py` - the expected outcome of every (service, user) pair.
+- `tests/run_regression.py` - the harness: starts the mock portal, executes every pair of a scope INI through the production scraping engine, and checks the engine return value, the DB rows, the downloaded files, and the exit semantics.
+
+From the repository root:
+
+```bash
+apps/.venv/bin/python tests/run_regression.py --ini tests/bc_regression.ini
+```
+
+Useful options: `--ini tests/bc_regression_happy.ini` (success-only scope), `--keep-downloads` (don't delete the test downloads afterwards), `--port <n>`, and `--vault` (preflight a real Vaultwarden - env, DNS, unlock, sync - and fetch credentials, URL and TOTP from the corresponding vault items instead of `scenarios.py`; requires a vault provisioned with those test items, i.e. the maintainer's dev setup - the default mode above is fully self-contained and needs no vault).
+
+Exit codes: `0` all expectations matched · `1` at least one expectation deviated · `2` the mock portal could not be started · `3` a real BillCollector run holds the run lock · `4` the `--vault` preflight failed.
 
 ## Development & Deployment
 
 BillCollector uses a trunk-based model with release tags:
 
-- **`dev`** — the daily development branch. All work is committed and pushed here.
-- **`main`** — the verified production state. It moves only via `git merge --ff-only dev` after a milestone has been validated in a production run. The NAS deployment tracks `main`.
-- **Release tags** (e.g. `v0.3`) are cut on `main` for one-command rollback: point the deployment's `GIT_BRANCH` variable at the tag and re-run `deploy_remote.sh`.
-- This public GitHub repository mirrors `main` only, with private development tooling stripped out. Work on `dev` is not mirrored until it is promoted to `main`.
+- **`main`** — the verified production state. It only moves forward once a milestone has been validated in a production run, so `main` is always safe to deploy from.
+- **Release tags** (e.g. `v0.3`) — snapshots of validated releases, for pinning a deployment or rolling it back: point the deployment's `GIT_BRANCH` variable (see `.env.example`) at the tag and re-run `deploy_remote.sh`, or simply `git checkout v0.3` in your clone and rebuild the image.
+
+Day-to-day development happens on an upstream repository that is not mirrored here. Once a milestone has been validated, it is promoted to `main` and this repository is updated accordingly - so `main` reflects the published production state, not in-flight work.
+
+To contribute code, see [Contributing](#contributing).
+
+## What's Next
+
+BillCollector is moving from a cron-driven batch tool towards a self-hosted daemon: a NiceGUI web UI that schedules the runs, watches them live, and lets you step in when a portal changes (pause, inspect the page, repair the recipe, resume). The batch system described above keeps running unchanged in the meantime. See [CHANGELOG.md](CHANGELOG.md) for the history of feature updates and changes.

@@ -1,5 +1,7 @@
 # BillCollector — Daemon, Web UI & Interactive Sessions
 
+> Status: SUPERSEDED by 1790364274061-billcollector-nicegui-daemon-plan.md (v2).
+
 ## Goal
 
 Transform BillCollector from a cron batch job into a 24/7 daemon with a web UI as its

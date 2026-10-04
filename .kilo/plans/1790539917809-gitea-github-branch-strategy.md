@@ -1,6 +1,6 @@
 # BillCollector — Deployment Strategy: dev + main Branch Flip (Gitea local / GitHub public)
 
-**Status:** COMPLETE (2026-09-27). Recovery executed; worktree script (plus the deterministic-amend fix from regression testing) committed to `dev`; `v0.3` released on both lineages; PR #7 closed; local `public` deleted; `deploy_remote.sh` tag-aware. Sections below are the executed record.
+> Status: COMPLETE (2026-09-27) — executed record; the standing process now lives in .kilo/skills/deploy/SKILL.md.
 
 ## What happened (2026-09-27 21:32)
 

@@ -1,6 +1,7 @@
 # BillCollector — Deploy Skills Plan (`dev-commits` + `deploy`)
 
-**Status:** READY FOR IMPLEMENTATION
+> Status: DELIVERED (2026-10-01, commits 8be7a8a/e466553) — the skills are now the source of truth and have since diverged from this plan.
+
 **Date:** 2026-10-01
 **Extends:** `.kilo/plans/1790539917809-gitea-github-branch-strategy.md` — encodes its "Promotion workflow (standing process)" + decisions as executable project skills.
 

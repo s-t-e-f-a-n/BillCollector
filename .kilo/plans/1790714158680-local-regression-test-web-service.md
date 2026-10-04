@@ -1,5 +1,7 @@
 # BillCollector — Local Test Web Service (Regression Test Environment) (v3)
 
+> Status: DELIVERED in v0.4 (tag v0.4) — Layer A; Layer B execution lands with daemon M1/M3.
+
 Changes vs v2:
 1. **English UI labels** throughout (mock portal, recipes, download filenames) — consistent
    with the daemon plan's "UI language: English" decision.

@@ -1,5 +1,7 @@
 # BillCollector — Restore the Playwright Batch Path (M0 Step 1, Code Side)
 
+> Status: DELIVERED in v0.3 (commit bf5669c) — retained for the record.
+>
 > Supersedes the previous content of this file (Ubuntu 24.04 WSL migration
 > remainder): that migration is **done and verified** (2026-09-26) — distro,
 > Python 3.12.3, fresh venv with pins, CheckRecipe green on all 7 PW recipes.

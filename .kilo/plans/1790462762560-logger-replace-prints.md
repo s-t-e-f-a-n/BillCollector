@@ -1,5 +1,7 @@
 # BillCollector — Replace print() with real logging
 
+> Status: DELIVERED in v0.3 — retained for the record.
+
 Implements M0 step 5 of the daemon plan (`1790364274061-billcollector-nicegui-daemon-plan.md`):
 "`logging` module instead of the `print = logging.debug` hack; `RotatingFileHandler` for
 `bc.log` plus plain stdout (stdout is what M1 streams to the UI)".

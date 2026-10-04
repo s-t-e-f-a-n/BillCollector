@@ -1,5 +1,7 @@
 # Ubuntu 20.04 → 24.04 WSL Migration (BillCollector Dev Environment)
 
+> Status: DONE (2026-09-26) — verified; retained for the record.
+
 Companion to `.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md`
 (M0 step 0). This plan covers **host + VS Code + Python environment only**; the M0
 code steps (1–6) and the rest of the daemon plan are unchanged and follow afterwards.

@@ -1,5 +1,7 @@
 # BillCollector — Useful code extensions from the flowcool fork
 
+> Status: CONSUMED — one-time input for the v2 daemon plan; no further action.
+
 Input for `.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md` (daemon/webui v2).
 Goal: catalog every extension in `github.com/flowcool/BillCollector` that is useful for the
 daemon/webui plan, with a verdict per item and concrete amendments to the v2 plan.

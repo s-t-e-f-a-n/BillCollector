@@ -56,7 +56,7 @@ With a document-processing document management system (DMS) such as Paperless ng
 - **Star this project** on GitHub.
 - **Share** it with your network.
 - **Contribute** recipes for more web services - see how to [Configure BillCollector](#configuration) and get familiar with the YAML recipes. Share your recipes 🙂🙂🙂
-- **Contribute code** - fork this repository, create a branch from `main`, and open a pull request against `main`. There is no CI pipeline yet: changes are validated in the [local regression test environment](#local-regression-test-environment) and in production runs before being integrated.
+- **Contribute code** - fork this repository, create a branch from `main`, and open a pull request against `main`. There is no CI pipeline yet: changes are validated in the [local regression test environment](#local-regression-test-environment) and in production runs before being integrated. The contribution rules (ownership, PR requirements, proof, security, AI-assisted code) are in [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Discuss** your ideas for improvements, more use cases and any comments by leaving notes in the Discussion area.
 
 > 💡 **Tip**  

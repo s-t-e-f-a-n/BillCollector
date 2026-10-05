@@ -150,9 +150,9 @@ Now that we have done a good job installing all the prerequisites, we are focusi
 
 2. [Configure BillCollector](#configuration) needs to be done. After each change in configuration proceed again with step 3.
 
-3. Open the installation script in your editor, e.g., `nano ./install_docker-image.sh`, adapt the link to your `Paperless ngx` instance's consumption folder (`ln -s </path/to/your/paperless/inbox>`).
+3. Create a `.env` file in the repository folder from the template `.env.example` and set `CONSUMER_DIR` to your `Paperless-ngx` instance's consumption folder and `DB_DIR` to the database folder inside it (the installation script reads both; the soft links are created automatically).
 
-4. On your Linux console enter `./install_docker-image.sh playwright` which builds the docker image `billcollector:latest` (Playwright/Chromium variant) and sets the soft link to the inbox of your `Paperless ngx` to let BillCollector collect bills periodically.
+4. On your Linux console enter `./install_docker-image.sh` which builds the docker image `billcollector:latest` and sets the soft links to the inbox of your `Paperless-ngx` to let BillCollector collect bills periodically. The image runs as a non-root user (UID/GID 1000, overridable at build time with the `APP_UID`/`APP_GID` build args).
 
 5. Let your server's cron call your BillCollector periodically (e.g., bi-monthly) by calling `</path/to/your/billcollector-git-clone-folder/BillCollector.sh bc_default.ini`.
 

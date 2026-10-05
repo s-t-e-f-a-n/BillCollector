@@ -9,6 +9,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The docker image now runs as a non-root user (UID/GID 1000, overridable via
+  the `APP_UID`/`APP_GID` build args) with container hardening aligned to the
+  flowcool fork: OCI image labels, `VOLUME /apps/Downloads`, dedicated `HOME`,
+  amd64 build guard. `install_docker-image.sh` no longer takes an engine
+  argument (the legacy `playwright` value is still tolerated) and sets the
+  ownership of the Downloads/db mount targets for the non-root user. Its
+  mount targets are no longer hardcoded: `CONSUMER_DIR`/`DB_DIR` are read from
+  the environment or a `.env` file next to the script (validated before the
+  build), and `SKIP_MOUNT_SETUP=1` skips the mount step for local image
+  builds. `deploy_remote.sh` forwards the two variables to the NAS.
+
+### Removed
+
+- Legacy Selenium `Dockerfile`; `Dockerfile_pw` renamed to `Dockerfile` (the
+  single Playwright/Chromium image).
+
 ## [v0.4] - 2026-10-02
 
 ### Added

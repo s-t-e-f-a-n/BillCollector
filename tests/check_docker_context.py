@@ -24,6 +24,9 @@ def main():
         "apps/browser/profile/Default/Cookies",
         "apps/Downloads/invoice.pdf", "apps/.venv/lib/private.py",
         "apps/__pycache__/private.pyc", "apps/nested/.env",
+        # Root deploy config, git metadata, rotated logs and other .gitignore'd artifacts.
+        ".env", ".git/config", "apps/bc.log.1", "apps/bc_default.ini.bak", "apps/invoice_page.html",
+        "apps/chrome-linux64/chrome", "apps/.pytest_cache/state",
     )
     retained = (
         "apps/BillCollector.py", "apps/requirements.txt", "apps/.env.example",
@@ -39,10 +42,12 @@ def main():
             path = context / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(SENTINEL if name in excluded else "synthetic source\n", encoding="utf-8")
-        subprocess.run(
+        build = subprocess.run(
             ["docker", "build", "--quiet", "--output", f"type=local,dest={output}", str(context)],
-            check=True, capture_output=True, text=True,
+            capture_output=True, text=True,
         )
+        if build.returncode != 0:
+            raise RuntimeError(f"docker build failed ({build.returncode}):\n{build.stderr}")
         for name in retained:
             if not (output / name).is_file():
                 raise RuntimeError(f"Required source excluded: {name}")

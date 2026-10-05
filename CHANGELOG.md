@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Exclude local credentials, logs, browser sessions and other runtime artifacts
   from Docker build contexts; retain example configuration and source fixtures.
+  Check: `python3 tests/check_docker_context.py` (Docker with BuildKit).
+- **Breaking:** the image no longer contains `apps/.env`. `BillCollector.sh`
+  mounts it read-only at `/apps/.env`; a direct `docker run`, compose file or
+  scheduler must add the same mount.
 
 ## [v0.4] - 2026-10-02
 

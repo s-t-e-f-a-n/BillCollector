@@ -175,7 +175,9 @@ First and once, for the basic configuration you need to adapt the `.env` file lo
 - `cp .env.example .env`
 - The Docker wrapper mounts `apps/.env` read-only at `/apps/.env`; credentials
   are excluded from the image and Python retains dotenv quoting/interpolation.
-  For direct `docker run`, mount the same file read-only.
+  For direct `docker run`, mount the same file read-only. `.env` changes take effect
+  at the next run without a rebuild; INI files and recipes are still baked into
+  the image and need step 3 again.
 - define the .env-variables:
   - `VAULT_HOST=<hostname of your vault e.g., vault.my-domain.duckdns.org>`
   - `BW_API_URL=<http/https-URL of the bitwarden API e.g., http://<local-ip>:8087>`

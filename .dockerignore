@@ -4,6 +4,12 @@
 **/.env.*
 !**/.env.example
 **/*.log
+**/*.log.*
+**/*.bak
+**/*.html
+!tests/mock_portal/templates/*.html
+**/chrome*
+**/.pytest*
 **/.bc_ui_run.json
 **/.bc.lock
 **/.code

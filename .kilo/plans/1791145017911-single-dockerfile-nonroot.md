@@ -179,7 +179,7 @@ run) is a separate user-gated step via the deploy skill, Stage 5 (see Follow-ups
     before building, so a misconfigured machine can neither build-then-fail nor
     replace real `apps/Downloads`/`apps/db` data with dangling symlinks).
 3. `docker run --rm billcollector:latest id` → `uid=1000 gid=1000`.
-4. `docker run --rm billcollector:latest ls -ldn /apps /apps/Downloads` → owned `1000 1000`.
+4. `docker run --rm billcollector:latest ls -ldn /apps /apps/Downloads /apps/browser` → owned `1000 1000` (the browser dir is created by the root-run `playwright install` step — it must be re-owned or the app user cannot create `/apps/browser/profile`).
 5. `docker image inspect billcollector:latest --format '{{.Config.User}}'` → `1000:1000`.
 6. `docker run --rm billcollector:latest python3 -m playwright --version` → `1.63.0`
    (pip env + bundled browser intact under non-root).

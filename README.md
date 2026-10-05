@@ -173,8 +173,9 @@ This opens a NiceGUI supervisor page on port 8000 where you select an INI file a
 First and once, for the basic configuration you need to adapt the `.env` file located in the `/apps` folder. Use the `.env.example` as a template:
 
 - `cp .env.example .env`
-- The Docker wrapper passes `apps/.env` with `--env-file` at runtime; credentials
-  are excluded from the image. For direct `docker run`, pass the same env file.
+- The Docker wrapper mounts `apps/.env` read-only at `/apps/.env`; credentials
+  are excluded from the image and Python retains dotenv quoting/interpolation.
+  For direct `docker run`, mount the same file read-only.
 - define the .env-variables:
   - `VAULT_HOST=<hostname of your vault e.g., vault.my-domain.duckdns.org>`
   - `BW_API_URL=<http/https-URL of the bitwarden API e.g., http://<local-ip>:8087>`

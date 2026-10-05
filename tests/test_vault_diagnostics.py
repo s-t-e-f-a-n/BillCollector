@@ -1,6 +1,11 @@
 """Vault diagnostics tests using synthetic data and mocked requests only."""
 
 import importlib
+import io
+import logging
+import tempfile
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import sys
 import unittest
@@ -39,6 +44,54 @@ class VaultDiagnosticsTests(unittest.TestCase):
         self.assertNotIn(self.marker, diagnostic)
         self.assertNotIn(self.url, diagnostic)
         return diagnostic
+
+    def test_real_http_dependency_logs_are_private_in_both_console_modes(self):
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.end_headers()
+            def log_message(self, *args):
+                pass
+
+        helpers = importlib.import_module("helpers.BillCollectorHelpers")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            for debug in (False, True):
+                with self.subTest(debug=debug), tempfile.TemporaryDirectory() as directory:
+                    root = logging.getLogger()
+                    handlers, level = root.handlers[:], root.level
+                    dependency = [logging.getLogger(name) for name in
+                                  ("urllib3", "requests.packages.urllib3")]
+                    levels = [logger.level for logger in dependency]
+                    root.handlers = []
+                    console = io.StringIO()
+                    logfile = Path(directory) / "bc.log"
+                    try:
+                        with patch.object(sys, "stdout", console):
+                            helpers.setup_logging(str(logfile), debug=debug)
+                            url = f"http://127.0.0.1:{server.server_port}/object/item/{self.marker}"
+                            response = collector.vault_request("GET", url)
+                            self.assertEqual(response.status_code, 200)
+                            logging.getLogger("synthetic.application").info("safe application event")
+                        for handler in root.handlers:
+                            handler.flush()
+                        for output in (console.getvalue(), logfile.read_text()):
+                            self.assertNotIn(self.marker, output)
+                            self.assertNotIn(url, output)
+                            self.assertIn("safe application event", output)
+                    finally:
+                        for handler in root.handlers:
+                            handler.close()
+                        root.handlers = handlers
+                        root.setLevel(level)
+                        for logger, old_level in zip(dependency, levels):
+                            logger.setLevel(old_level)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
 
     def test_final_4xx_retains_status_without_response_body(self):
         for status in (400, 401, 403, 404, 429):

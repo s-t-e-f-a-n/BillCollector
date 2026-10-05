@@ -1,4 +1,8 @@
-"""Use a scratch build with fake canaries to check the actual Docker context."""
+"""Check the actual Docker context with synthetic files.
+
+Requires Docker with BuildKit enabled for the local output exporter.
+No real checkout data or registry access is used.
+"""
 
 import argparse
 import shutil
@@ -17,7 +21,7 @@ def main():
     excluded = (
         "apps/.env", "apps/.env.local", "apps/bc.log", "apps/.bc_ui_run.json",
         "apps/.bc.lock", "apps/recipes_playwright/.code/recorded.py", "apps/db/bc.db",
-        "apps/profiles/account/Cookies", "apps/browser/profile/Default/Cookies",
+        "apps/browser/profile/Default/Cookies",
         "apps/Downloads/invoice.pdf", "apps/.venv/lib/private.py",
         "apps/__pycache__/private.pyc", "apps/nested/.env",
     )

@@ -10,5 +10,4 @@
 **/.venv
 **/__pycache__
 apps/browser
-apps/profiles
 apps/db

@@ -1,27 +1,56 @@
-# BillCollector — Daemon, NiceGUI Web UI & Interactive Sessions (v2)
+# BillCollector — Daemon, NiceGUI Web UI & Interactive Sessions (v3)
 
-Supersedes `.kilo/plans/1790289661685-billcollector-daemon-webui-plan.md`. Goal unchanged:
-turn the cron batch job into a 24/7 daemon whose web UI is its window — recipe-driven task
-management, interactive stepping into scraping sessions (CAPTCHAs, cookie banners, recipe
-repair), and easier adoption for other users (one instance per operator, DMS-agnostic
-document workflow).
+Supersedes `.kilo/plans/1790289661685-billcollector-daemon-webui-plan.md`.
+Goal (sharpened in v3): turn the cron batch job into a 24/7 daemon whose web UI is its
+window — recipe-driven task management, interactive stepping into scraping sessions,
+and easier adoption for other users (one instance per operator, DMS-agnostic document
+workflow).
 
-Three refinements vs. v1:
-1. **UI stack: NiceGUI** (on FastAPI/uvicorn) instead of Jinja2+htmx — no SPA/Node
-   toolchain, Python stays the only language, and the hard parts of this UI (live
-   dashboard, live screenshots, log streaming) are NiceGUI's native patterns.
-2. **Decoupled processes:** the UI process is a pure orchestrator. Each task run is an
-   isolated `python -m billcollector run <task_id>` **subprocess** running the **existing
-   sync Playwright** code — no async port, zero crash propagation (a Playwright OOM never
-   takes down the UI/scheduler), and full OS-level memory reclamation after every run.
-3. **Dependency baseline (checked 2026-09-25):** Python 3.12 everywhere (image already
-   on 3.12; dev environment migrates to Ubuntu 24.04 in M0). Direct pins:
-   `nicegui==3.17.1`, `playwright==1.63.0`, `apscheduler==3.11.3`, `bcrypt==5.0.0`.
+**User-friendliness objective (v3):** the daemon makes BillCollector as easy to operate
+as possible: the robot does the routine work, and at every friction point it stops with
+a clear "here is what happened — here is what you need to do" screen that a human
+resolves from the browser (desktop or phone) — no shell access, no YAML needed for the
+common case.
+
+**First development wave (v3):** the three current complicating circumstances, each
+supported by human interaction within the daemon + web UI environment:
+1. websites often change their DOM and the path to the documents' download area,
+2. sudden ads or cookie-request forms jump into the way of the user / BillCollector,
+3. CAPTCHAs are difficult to circumvent for a robot like BillCollector.
+The architecture must stay open for future ML / LLM-based AI support to automate tasks —
+**human interaction is still required** (human-in-the-loop is a permanent design gate,
+see "Intervention architecture"). AI implementation itself is out of Wave 1 scope.
+
+Refinements vs. v2:
+1. **Wave 1 framing** — M1+M2+M3, with the three friction flows as acceptance criteria
+   (the mock portal's Layer B sites are the acceptance fixture, delivered in v0.4).
+2. **Intervention architecture** — every pause carries a machine-readable context and is
+   resolved through a stable, versioned action protocol. The web UI is the first client;
+   a future AI assistant is a second client of the same protocol, gated by human approval.
+3. **Corrections & additions** — `wait_user` resume semantics (v2's "re-pause is
+   acceptable" was a trap; now: complete-on-resume + optional `until` verification
+   locator, the AI-friendliest variant); the 3× step retry is explicitly new runner
+   behavior (the batch engine has no retry); the element scan gains bounding boxes
+   (needed for the overlay + the AI context); the protocol gains `context` / `press` /
+   `drag` actions; ntfy pushes carry a deep link to the session page.
+
+Carried over from v1/v2 (unchanged):
+- **UI stack: NiceGUI** (on FastAPI/uvicorn) instead of Jinja2+htmx — no SPA/Node
+  toolchain, Python stays the only language, and the hard parts of this UI (live
+  dashboard, live screenshots, log streaming) are NiceGUI's native patterns.
+- **Decoupled processes:** the UI process is a pure orchestrator. Each task run is an
+  isolated `python -m billcollector run <task_id>` **subprocess** running the **existing
+  sync Playwright** code — no async port, zero crash propagation (a Playwright OOM never
+  takes down the UI/scheduler), and full OS-level memory reclamation after every run.
+- **Dependency baseline (checked 2026-09-25):** Python 3.12 everywhere (image already
+  on 3.12; dev environment migrates to Ubuntu 24.04 in M0). Direct pins:
+  `nicegui==3.17.1`, `playwright==1.63.0`, `apscheduler==3.11.3`, `bcrypt==5.0.0`.
 
 ## Current state (facts from the code)
 
 - Batch: cron → `BillCollector.sh` → `docker run` → `python3 BillCollector.py <ini> [debug]`
-- Playwright is hardcoded (`BillCollector.py:255`); the Selenium half is dead code
+- Playwright is the only automation path (`BillCollector.py:255`); the Selenium half
+  was removed in M0
 - `BillCollectorServices_pw.py` is **fully synchronous**: `retrieve_from_service_with_playwright(
   service, url, user, pwd, otp, debug)`, `process_step`, `PageState.set_interactive_elements(page)`,
   `DatabaseManager` (table-per-run `PageStatus_<service>_RunN`)
@@ -31,24 +60,46 @@ Three refinements vs. v1:
   `recipe-pw-schema.yaml`
 - Credentials: Vaultwarden, name-based link (`f"{service} {user}".strip()` → vault item)
 - State: SQLite `bc.db`; Playwright profile deleted + cookies cleared every run
-  (`BillCollectorServices_pw.py:35`, `:405`) → cold start every run
-- Image (`Dockerfile_pw`): ubuntu 24.04, Python 3.12, Playwright 1.48.0, **xvfb already
-  installed**, non-root user block commented out, `CMD ["/bin/bash"]`
-- Dev environment: Ubuntu 20.04 (WSL2) host, system Python 3.8.10; `apps/.venv` created
-  by `install_local.sh playwright` from the **system** `python3` (script targets 20.04
-  apt package names). No CI (`.github` holds only issue templates).
-- `requirements.txt` is a full `pip freeze`; actual direct imports: playwright,
-  PyYAML, jsonschema, requests, python-dotenv, nslookup, flatten-json, sshkeyboard
-  (SPACE-pause helper); `dotenv==0.9.9` (legacy package, unused) and `websocket-client`
-  (no import found) are stale entries
+  (`BillCollectorServices_pw.py:46`, `:434`) → cold start every run
+- Image (`Dockerfile`): ubuntu 24.04, Python 3.12, **xvfb already installed**,
+  **non-root user (UID/GID 1000) in the Dockerfile**, `CMD ["/bin/bash"]`; the
+  deployed NAS image is still on Playwright 1.48.0 (the Dockerfile now installs
+  from the current requirements; the image rebuild is M0 item 6, open)
+- Dev environment: Ubuntu 24.04 (WSL2) host, system Python 3.12 (migrated in M0 step 0
+  — see M0 status below); `apps/.venv` created by `install_local.sh playwright` from
+  the **system** `python3` (24.04 apt package names). No CI (`.github` holds only issue
+  templates).
+- `requirements.txt` is a full `pip freeze` regenerated on 3.12 (M0 step 0.4): direct
+  pins playwright 1.63.0, nicegui 3.17.1, apscheduler 3.11.3, bcrypt 5.0.0, sqlalchemy
+  plus PyYAML, jsonschema, requests, python-dotenv, nslookup, flatten-json, sshkeyboard
+  (SPACE-pause helper); `selenium`, stale `dotenv`, unused `websocket-client` removed
 - Debug: VS Code F5 → `bc_test.ini` + SPACE pauses
+- **Batch engine has no retry:** a failed step aborts the run on the first failure
+  (`fail_step` in `BillCollectorServices_pw.py:592-599`); the 3×-retry-then-pause is
+  **new daemon-runner behavior**, not existing
+- **Element scan has no coordinates:** `PageState.set_interactive_elements`
+  (`BillCollectorServices_pw.py:179-380`) returns role/name/candidate-locator per
+  element but **no bounding boxes** — the Copilot overlay and the machine-readable
+  pause context both need `getBoundingClientRect()` added
+- **Regression environment delivered (v0.4):** `tests/` — mock portal (FastAPI, port
+  8787) with Layer A sites (happy/graceful/badlogin/empty/dlfail) and **Layer B
+  friction sites** (`waituser`: displayed 6-digit code · `captchadrag`: slider ·
+  `autopause`: "I am not a robot" interstitial), `POST /admin/<site>/mutate|reset` for
+  the "changed website" drill; Layer B recipes
+  (`recipe-pw__testwaituser|testcaptchadrag|testautopause.yaml`) use the `wait_user`
+  method (free-form schema — already validates); `tests/scenarios.py` = single source
+  of truth. Layer B execution is deferred to the daemon runner = **Wave 1**. See
+  `.kilo/plans/1790714158680-local-regression-test-web-service.md` (DELIVERED, all
+  validation green incl. vault e2e)
+- **Fast-track manual run UI delivered:** `apps/bc_ui.py` — minimal NiceGUI subprocess
+  supervisor (start/stop + live log); absorbed into `billcollector/ui/` in M2
 
 ## Library state (verified on PyPI, 2026-09-25)
 
 | Package | Latest | requires_python | Notes |
 |---|---|---|---|
 | NiceGUI | 3.17.1 | `>=3.10,<4` | UI framework; FastAPI/uvicorn underneath |
-| Playwright | 1.63.0 | `>=3.10` | bundles Chromium 153.0.8010.12; current pin 1.48.0 |
+| Playwright | 1.63.0 | `>=3.10` | bundles Chromium 153.0.8010.12; requirements pin 1.63.0, deployed NAS image still 1.48.0 |
 | APScheduler | 3.11.3 | `>=3.8` | 3.x is the current stable line; SQLAlchemy jobstore |
 | FastAPI | 0.141.1 | `>=3.10` | NiceGUI dependency |
 | uvicorn | 0.54.0 | `>=3.10` | NiceGUI dependency |
@@ -62,6 +113,41 @@ Consequences:
   SQLAlchemy jobstore" decision stands.
 - Playwright 1.48 → 1.63 spans 15 minor releases: the image must be rebuilt with a fresh
   `playwright install chromium` (Chromium 153).
+
+## Wave 1 — objective and acceptance
+
+**Scope:** M1 (daemon core) + M2 (UI core) + M3 (interactive sessions). M0 is
+substantially done (status below); M4 (adoption for other users) is the follow-up wave.
+Wave 1's focus is the three current complicating circumstances, each made operable by a
+human from the web UI:
+
+| # | Friction | How Wave 1 handles it (human interaction) |
+|---|---|---|
+| 1 | Site changed its DOM / path to the download area | The step's locator fails → 3 attempts → pause with **failure context** (screenshot at failure, expected locator, candidate elements). **One-off:** human clicks the real element (Copilot) or navigates (noVNC) → resume → run finishes. **Permanent (repair):** from the pause, the recipe step is fixed — pick a candidate element or edit the step, validate, save, git commit → the next run passes unattended. |
+| 2 | Sudden ads / cookie-request forms in the way | **Prevention:** persistent per-task profile → banner only on the 1st run (known banners can additionally be encoded as `graceful` steps, the existing pattern). **Reaction:** the overlay blocks the expected step → same pause flow; the overlay is visible in the screenshot; human dismisses it (Copilot click or noVNC) → resume. No auto-dismiss heuristics. |
+| 3 | CAPTCHAs | **No detection heuristics** — three explicit paths: (a) displayed code: recipe `wait_user(prompt)` → pause → human reads the code from the screenshot, types it via Copilot `fill` (or noVNC), presses Verify on the page → resume (optional `until` check verifies). (b) drag/slider: `wait_user(prompt)` → human drags via Copilot `drag` or noVNC → resume. (c) unknown challenge: the 3×-failure **auto-pause** is the generic safety net — the human sees the challenge in the screenshot and acts. |
+
+**AI-readiness (Wave 1 scope line):** Wave 1 implements the **architecture, not the AI**:
+a stable versioned intervention protocol, a machine-readable pause context, and the
+human-approval gate (below). No ML/LLM code, no model calls, no API keys. A future
+assistant plugs in as a **second client of the same protocol**; its actions are
+*proposals* the operator approves in the UI before the runner executes them — human
+interaction stays required by construction, not by convention.
+
+**Acceptance (all on the mock portal, Layer B — the delivered fixture):**
+1. `testautopause`: 3× step failure → `waiting` + ntfy (deep link) → human clicks "I am
+   not a robot" via Copilot → resume → step re-executes → download tracked.
+2. `testwaituser`: `wait_user` pause with prompt → human types the displayed 6-digit code
+   via Copilot `fill` + clicks "Verify" on the page → resume → download.
+3. `testcaptchadrag`: `wait_user` pause → human drags the slider via Copilot `drag` or
+   noVNC → resume → download.
+4. Persistent profile: `testhappy` run 1 shows the banner (graceful step succeeds); run 2
+   (same task) has the banner absent; login re-runs (session cookie expired).
+5. Download dedup: two `testhappy` runs → run 2's downloads deduped by sha256.
+6. "Changed website" drill: `POST /admin/happy/mutate` renames "Log in" → run pauses at
+   the login step with failure context → repair in the recipe UI (candidate picker or
+   YAML) → validate + save + git commit (visible in `git log`) → re-run succeeds →
+   `POST /admin/happy/reset`.
 
 ## Decisions
 
@@ -92,15 +178,23 @@ Consequences:
    CAPTCHAs. (This is the per-portal-account isolation; it replaces the expert's
    per-login-identity directories.)
 10. **Interaction in paused sessions, two levels:**
-    - **Copilot (primary):** live screenshot + numbered element overlays (reusing
-      `PageState.set_interactive_elements`); click/fill executed by the runner on demand.
+    - **Copilot (primary):** live screenshot + numbered element overlays positioned by
+      bounding boxes (reusing `PageState.set_interactive_elements`, extended — see
+      "Current state"); click/fill/press/drag executed by the runner on demand;
+      mobile-first (the phone is a first-class intervention device).
     - **noVNC (fallback):** per-run Xvfb + x11vnc + websockify; noVNC web client embedded
-      in the UI via `ui.html` iframe; full mouse/keyboard (drag-and-drop CAPTCHAs).
+      in the UI via `ui.html` iframe; full mouse/keyboard for anything Copilot cannot
+      express.
 11. **Pause triggers:** a step fails 3× → status `waiting`; explicit recipe method
-    `wait_user(prompt)` for known friction points. **No** CAPTCHA heuristics.
+    `wait_user(prompt[, until])` for known friction points. **No** CAPTCHA heuristics.
+    The 3× retry is new runner behavior (the batch engine aborts on first failure):
+    the runner re-executes the step's method chain up to 3 times — `expect_download`
+    nested steps included — before pausing.
 12. **Waiting session:** held 30 min (configurable), then aborted as `needs_attention`;
     profile preserved, manual retry possible.
-13. **Notification:** UI badge (live element updates / `ui.timer`) + ntfy push on pauses.
+13. **Notification:** UI badge (live element updates / `ui.timer`) + ntfy push on pauses,
+    with a **deep link** to the session page (`<UI_BASE_URL>/runs/<run_id>`) — the
+    operator can act from a phone without opening the dashboard first.
 14. **Downloads:** existing folder drop stays (DMS-agnostic) + DB tracking
     (service, task, timestamp, filename, size, sha256) + per-task sha256 dedup +
     post-download hook (`consumers/`, initially empty) executed **inside the runner
@@ -114,6 +208,24 @@ Consequences:
     environment migrates to Ubuntu 24.04 (WSL2/VM) in M0 and `.venv` is rebuilt from the
     system `python3` (3.12). Direct deps pinned, transitive deps regenerated as a full
     freeze.
+19. **`wait_user` resume semantics (v3 correction, user-confirmed):** on resume the
+    `wait_user` step **completes** (it is consumed, not re-executed — v2's "re-pause is
+    acceptable" would trap the operator, since a consumed CAPTCHA code cannot be
+    re-entered). Optional `until` locator argument: before completing, the runner polls
+    the page for that locator, bounded by the pause deadline; found → complete,
+    deadline exceeded → re-pause with the same prompt. Without `until`: complete
+    immediately; subsequent recipe steps verify the action (failure there pauses again
+    with fresh context). This is the most AI-friendliest variant: the `until` check is
+    the objective "did the action work" signal that future AI proposals will be checked
+    against.
+20. **Intervention protocol + pause context are a stable, versioned contract** — the
+    mechanism that keeps the architecture open for future ML/LLM support (see
+    "Intervention architecture"). The runner is client-agnostic: it executes explicit
+    action requests; Wave 1 has exactly one client (the human web UI). No AI code in
+    Wave 1.
+21. **Operator reach:** every pause pushes ntfy with the session deep link (decision 13);
+    the Copilot session view is mobile-first; the candidate-element recipe repair is the
+    primary no-YAML fix path.
 
 ## Target architecture
 
@@ -153,10 +265,55 @@ Consequences:
   `<data>/run-<run_id>.sock`, JSON-line protocol, served by the runner's **main thread
   while in the waiting loop** (between steps, so sync Playwright calls are safe there):
   - `screenshot` → base64 PNG · `elements` → numbered interactive elements (existing
-    `PageState.set_interactive_elements` logic) · `click {n}` · `fill {n, text}` ·
-    `resume` · `cancel`
+    `PageState.set_interactive_elements` logic **+ bounding boxes**) · `context` → full
+    machine-readable pause payload (below) · `click {n}` · `fill {n, text}` ·
+    `press {key}` · `drag {n, dx, dy}` (relative mouse drag from element n — slider
+    CAPTCHAs on the phone path) · `resume` · `cancel`
   - The UI opens a short-lived connection per request; a `ui.timer` polls
     `screenshot`/`elements` while the session page is open.
+- **Protocol versioning:** the first JSON field of every message is `v` (starts at 1).
+  The protocol is the AI-integration contract — changes need a version bump and a doc
+  update (`doc/`), and the `context` payload must stay complete and small enough to ship
+  over a socket.
+
+### Intervention architecture (human-in-the-loop, AI-open)
+
+Every friction point is an **intervention**: the runner gets stuck, persists a
+structured pause with machine-readable context, and yields into the waiting loop. The
+intervention is resolved by explicit actions and a final `resume`. In Wave 1 the only
+action source is the human via the web UI (Copilot / noVNC). The architecture is built
+so a future ML/LLM assistant becomes a **second action source without touching the
+runner**:
+
+1. **Stable intervention protocol** — the control-socket JSON protocol above:
+   versioned, documented, client-agnostic.
+2. **Machine-readable pause context** — the `context` response; also persisted in
+   `Run.pause_context` per pause. This is exactly the input an LLM/ML system would
+   consume:
+   - `reason` ∈ `step_failed | wait_user | download_failed`
+   - `prompt` (human-readable; from `wait_user` or generated from the step description)
+   - `url`, `page_title`, `error`
+   - `step` (the failing step's JSON: description, locator chain, actions)
+   - `screenshot` (path + base64)
+   - `elements[]` — numbered: `role`, `name`, `rect {x, y, w, h}` (bounding box),
+     candidate `locator`, `actionTypes`, optional `url`
+   - `page_text` — visible page text, truncated (≈20 KB)
+   - `deadline_at`
+3. **Human-in-the-loop is a permanent gate.** The runner executes only explicit action
+   requests from a client; the protocol has no "auto" mode. Wave 1: all actions
+   originate from the human UI. Future (out of scope): an assistant may *propose*
+   actions or recipe edits; proposals surface in the UI and execute only after the
+   operator approves — the runner's execution path is identical either way. The
+   `wait_user` `until` check (decision 19) is the objective "did it work" signal that
+   makes such proposals checkable.
+4. **No heuristics, no AI in Wave 1** — the runner never detects CAPTCHAs or banners
+   and never calls a model. Openness is concrete and testable: protocol + context
+   contract + approval gate, all exercised by the Wave 1 E2E scenarios.
+
+The element scan (`PageState.set_interactive_elements`) gains **bounding boxes**
+(`getBoundingClientRect`) in Wave 1 — required for overlay placement and for the
+context's `rect` fields; the scan's existing role/name/locator-candidate logic is
+reused unchanged.
 - **Running-session live view:** the runner saves a step screenshot to
   `<data>/runs/<run_id>/step_<n>.png` after each step (also the M3 failure-context
   evidence). The UI shows the latest file, refreshed by `ui.timer` (~3 s). This is
@@ -195,7 +352,11 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
 - `Task(id, service, user, recipe_file, enabled, cron, last_run, next_run, status,
   profile_dir, created_at, updated_at)`
 - `Run(id, task_id, pid, display, novnc_port, log_path, control_sock, started_at,
-  ended_at, result, pause_reason, pause_deadline_at, notes)`
+  ended_at, result, pause_reason, pause_prompt, pause_context, pause_deadline_at,
+  notes)` — `pause_context` = the machine-readable intervention context JSON (see
+  "Intervention architecture"). Note: the dashboard-spec Session 1 DDL
+  (`1790468502492-gui-concept-dashboard-spec.md`, not yet implemented) gains these two
+  columns when that session runs.
 - `PageStatus(id, run_id, step_number, locator_action, interactive_elements,
   screenshot_path, error)` — **one** table, replacing table-per-run
 - `Download(id, run_id, task_id, url, filename, size, sha256, saved_path, created_at,
@@ -209,12 +370,25 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
   `bc_test.ini` → tasks (default: monthly, **disabled until confirmed in the UI**), on
   first daemon start (M1). Legacy tables left as-is (runtime status, not archive).
 
-### Recipe schema extension
+### Recipe schema extension — `wait_user`
 
-- New method `wait_user(prompt)`: pauses the task with a user-visible prompt in the UI.
-  Method-chain format otherwise unchanged; `recipe-pw-schema.yaml` extended; `CheckRecipe`
-  continues to validate. After resume the current step re-executes from the beginning
-  (a `wait_user` step that immediately re-pauses is acceptable by design).
+- New method `wait_user(prompt)` with an optional second argument `until` (a locator
+  argument in the same shape as the other locator methods, e.g.
+  `{"role": "link", "name": "My account"}`):
+  - **Pause:** the runner pauses with the operator-visible prompt (UI banner + ntfy push
+    with deep link).
+  - **Resume semantics (decision 19):** the `wait_user` step **completes** on resume —
+    it is consumed, not re-executed.
+  - **With `until`:** before completing, the runner polls the page for the locator,
+    bounded by the pause deadline. Found → step completes (objective success check for
+    the human's — and later the AI's — action). Deadline exceeded → the pause repeats
+    with the same prompt.
+  - **Without `until`:** completes immediately on resume; subsequent recipe steps verify
+    the action (a failed verification fails 3× and pauses again with fresh context).
+- Method-chain format otherwise unchanged. The schema **stays free-form** (`method` is a
+  string — `wait_user` already validates today; no method enum, keeping future methods
+  trivial). `CheckRecipe` continues to validate; the known methods are documented in the
+  recipe-authoring docs (M4).
 
 ### Execution flow
 
@@ -224,10 +398,12 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
    user_data_dir=<task profile>)`, headful on `DISPLAY=:N`
 4. Execute recipe steps; each step → `PageStatus` row + step screenshot file (reusing
    `PageState` logic); failure → up to 3 attempts (existing per-step timeout)
-5. Pause: `Run.status=waiting` + `pause_deadline_at`, ntfy push, UI badge; enter waiting
-   loop (service control socket until deadline)
-6. User interacts: Copilot (screenshot, element click, fill) or noVNC (full control)
-   → `resume` → loop re-executes the current step
+5. Pause: `Run.status=waiting` + `pause_prompt` + `pause_context` (machine-readable,
+   see "Intervention architecture") + `pause_deadline_at`; ntfy push with session deep
+   link; UI badge; enter waiting loop (serve the control socket until deadline)
+6. User interacts: Copilot (screenshot, element click/fill/press/drag) or noVNC (full
+   control) → `resume` → failed step: re-executed from the beginning; `wait_user` step:
+   completed (with the `until` check when present)
 7. Deadline exceeded: close context, `needs_attention`, profile preserved
 8. Download: track (sha256), dedupe per task (hash already present → skip,
    `duplicate_of_id`), call post-download hook
@@ -248,22 +424,28 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
 - **Task detail:** create (service, user, recipe, schedule), enable/disable, run now,
   profile reset, history, per-run step results (`PageStatus` + step screenshots),
   downloads, live run log (`ui.log`)
-- **Session view:** Copilot tab (`ui.image` with base64 src + absolutely-positioned
-  numbered overlay divs via `ui.element`; action bar: element select/fill, resume,
-  cancel) · noVNC tab (`ui.html` iframe). Interactive only while `waiting`;
-  `running` = read-only latest step screenshot
+- **Session view** (the core user-friendliness page): layout = **"what to do" first**
+  (pause prompt banner), then the screenshot with numbered overlays positioned by
+  bounding boxes, then the action bar (element select → click/fill/press/drag, resume,
+  cancel). Mobile-first: the Copilot tab works on a phone (screenshot + tap-to-act) —
+  the ntfy deep link lands here. noVNC tab (`ui.html` iframe) = full mouse/keyboard
+  fallback. Interactive while `waiting`; `running` = read-only latest step screenshot +
+  noVNC observation. "Repair recipe" button on failure pauses → recipe editor with the
+  failure context preloaded
 - **Recipe editor:** `ui.editor` (CodeMirror) YAML + step-tree view + validation via
   `CheckRecipe`; save = file write + validation + git commit. On failed step: failure
-  context (screenshot at failure, expected locator, candidate elements → pick/edit →
-  save → commit)
+  context (screenshot at failure, expected locator, candidate elements) — the
+  **candidate picker (no YAML required) is the primary repair path**; raw YAML editing
+  is the advanced path. After saving a repair: "run now" is one click away
 - **Downloads** (dedup status) · **Settings** (password, ntfy topic, pause deadline,
   concurrency, git-commit toggle, download folder, display start) · **Onboarding**
 
 ### Docker / deployment
 
 - Image `billcollector:latest` becomes long-running: `CMD ["python3", "-m",
-  "billcollector", "serve"]`; **non-root user enabled** (M0), adds `git`, `x11vnc`,
-  `websockify`, noVNC web client (apt `novnc`) in M1
+  "billcollector", "serve"]`; **non-root user enabled** (M0, done: UID/GID 1000 in
+  the `Dockerfile`); adds `git`, `x11vnc`, `websockify`, noVNC web client (apt
+  `novnc`) in M1 (pending)
 - Volumes: `Downloads`, `db` (+ `data/` for logs, displays, run artifacts),
   `browser/profiles`, git repo (recipes + commits), `.env`
 - Ports: 8000 (UI) + websockify range `6080..6080+max_concurrency-1` — both via NPM with
@@ -290,9 +472,9 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
       (`apps/db`, `apps/Downloads`, `apps/browser`, `apps/recipes_playwright`, `.env`).
       Note: Ubuntu 20.04 is EOL.
    2. `install_local.sh`: drop the selenium branch; update the apt dep list to 24.04
-      names (align with `Dockerfile_pw`: `libasound2t64`, `fonts-unifont`,
-      `fonts-ubuntu`); venv keeps being created from the system `python3` (3.12 on
-      24.04).
+       names (align with `Dockerfile`: `libasound2t64`, `fonts-unifont`,
+       `fonts-ubuntu`); venv keeps being created from the system `python3` (3.12 on
+       24.04).
    3. Rewrite `requirements.txt` with direct pins: `playwright==1.63.0` plus PyYAML,
       jsonschema, requests, python-dotenv, nslookup, flatten-json, sshkeyboard (latest),
       and new `nicegui==3.17.1`, `apscheduler==3.11.3`, `bcrypt==5.0.0`, `sqlalchemy`;
@@ -336,8 +518,9 @@ is visible in log + DB as an abort; a double start is rejected.
   `BillCollector.sh`; error propagation — a failed service/user pair aborts only that
   pair's run, remaining services continue, the service run is always finalized in the DB,
   and the process exits 1 if any pair failed.
-- **Item 6 (Docker) — open.** Non-root user still commented out in `Dockerfile_pw`;
-  NAS image not yet rebuilt with the new requirements.
+- **Item 6 (Docker) — partially done.** Non-root user (UID/GID 1000) + single
+  `Dockerfile` landed (legacy Selenium Dockerfile removed, `Dockerfile_pw` renamed);
+  NAS image rebuild + mount-ownership verification pending at the next NAS deploy.
 - **Step 0.5 verification — partial.** CheckRecipe: 7/7 pass. F5 debug (`bc_test.ini`)
   on the new distro: not yet run (hits the real portals). Production cron on the NAS:
   pending the item-6 image rebuild.
@@ -398,7 +581,7 @@ Notes:
 - Delete the `install_selenium()` function and the `selenium` branch of the
   final dispatch (usage becomes `bash install_local.sh playwright`).
 - In `install_playwright()`'s apt list, replace the 20.04 package names with
-  the 24.04 names (align with `Dockerfile_pw`):
+   the 24.04 names (align with `Dockerfile`):
   - `libasound2` → `libasound2t64`
   - `ttf-unifont` → `fonts-unifont`
   - `ttf-ubuntu-font-family` → `fonts-ubuntu`
@@ -457,7 +640,7 @@ done                                              # all 7 recipes must pass
 - F5 debug (`bc_test.ini`, SPACE pauses) from VS Code on the new distro — hits
   the real portals, so time it deliberately (Playwright 1.48 → 1.63 drift check).
 - Production cron (remote NAS): rebuild the image with the new requirements
-  (`deploy_remote.sh` or `install_docker-image.sh playwright` on the NAS), then
+   (`deploy_remote.sh` or `install_docker-image.sh` on the NAS), then
   the next monthly cron run must complete unchanged.
 
 **Cleanup (after everything is verified):** the old distro `ubuntu` (20.04) can
@@ -472,19 +655,26 @@ safely over.
    via M0 step 0.3)
 2. DB redesign (Task/Run/PageStatus/Download/Settings, WAL) + one-time ini import
 3. Runner: sync Playwright logic refactored from `BillCollectorServices_pw.py`; pausable
-   (control socket), persistent per-task profile, no profile deletion / cookie clears;
-   step screenshots; display allocation + Xvfb/x11vnc/websockify child management
-   (image apt deps `git`, `x11vnc`, `websockify`, `novnc` added with this milestone)
+   (versioned control socket: screenshot/elements/context/click/fill/press/drag/resume/
+   cancel), persistent per-task profile, no profile deletion / cookie clears; step
+   screenshots; **step retry 3× before pause (new runner behavior)**;
+   `wait_user(prompt[, until])` method; element scan + bounding boxes; pause context
+   persisted (`Run.pause_prompt` / `Run.pause_context`); display allocation +
+   Xvfb/x11vnc/websockify child management (image apt deps `git`, `x11vnc`,
+   `websockify`, `novnc` added with this milestone)
 4. Orchestrator + APScheduler: per-task cron, persistent jobstore, global semaphore
    (default 1), DB row locks; stdout streaming to log file
-5. Pause triggers (3× failure, `wait_user`) + 30-min hold + ntfy push + DB status
+5. Pause triggers (`step_failed` after 3× retry, `wait_user`) + 30-min hold + ntfy push
+   with session deep link + DB status
 6. Download tracking + deduplication + post-download hook
 7. CLI: `python -m billcollector serve` / `python -m billcollector run <task_id>`;
    legacy `BillCollector.py` stays the batch entry point until M4
 
-**Exit:** daemon runs tasks on schedule; on the mock portal: pause → ntfy → resume via
-control-socket test client → download tracked; profile accumulation verifiable (cookie
-banner only on the 1st run).
+**Exit:** daemon runs tasks on schedule; on the mock portal: `testautopause` — 3× step
+failure → `waiting` → resume via the control-socket test client → step re-executes →
+download tracked; `testwaituser` — `wait_user` pause/resume (complete-on-resume
+semantics; `until` check when given); profile accumulation verifiable (cookie banner
+only on the 1st run).
 
 ### M2 — UI core
 
@@ -501,18 +691,28 @@ edit → save → validation → git commit works.
 
 ### M3 — Interactive sessions
 
-1. Copilot UI on the control socket: live screenshot + numbered overlays, click/fill,
-   resume; read-only running view (step screenshots)
+1. Copilot UI on the control socket: screenshot + numbered overlays (bounding boxes),
+   click/fill/press/drag, resume; "what to do" layout; mobile-first; read-only running
+   view (step screenshots)
 2. noVNC: per-run display stack (already in M1 image deps), embedded noVNC iframe on
    the session page
-3. Failure context in the recipe editor: step screenshot, expected locator, candidate
-   elements → pick/edit → save (→ git commit)
-4. `wait_user` method in schema + runner
+3. Recipe repair flow: failure context (step screenshot, expected locator, candidate
+   elements) → candidate picker (primary path, no YAML) or YAML edit (advanced) →
+   validate → save → git commit → "run now"
+4. `wait_user(prompt[, until])` in runner + recipe docs (schema stays free-form)
 5. Git auto-commit structured messages: `recipe(<service>): <summary>`
 
-**Exit (mock portal, E2E):** cookie banner → Copilot click; CAPTCHA code typed via
-Copilot; drag CAPTCHA via noVNC; recipe repair after a "changed website" → changed YAML +
-commit visible in `git log`.
+**Exit (mock portal, E2E — the Wave 1 acceptance set):** `testautopause` (3× → pause →
+Copilot click "I am not a robot" → resume); `testwaituser` (CAPTCHA code typed via
+Copilot `fill` + "Verify" click → resume); `testcaptchadrag` (slider via Copilot `drag`
+or noVNC → resume); persistent profile (banner only on run 1); download dedup (run 2);
+"changed website" drill (`/admin/happy/mutate` → pause with failure context → repair via
+candidate picker → commit visible in `git log` → re-run green → `/admin/happy/reset`).
+
+**Wave 1 exit** = the M3 exit above: all three friction points (DOM change,
+ads/cookie forms, CAPTCHAs) are demonstrable end-to-end by a human from the web UI, and
+the AI-open architecture (versioned intervention protocol + machine-readable pause
+context + human-approval gate) is in place and exercised.
 
 ### M4 — Adoption for other users
 
@@ -534,11 +734,14 @@ mock portal — without shell access to the daemon.
   the mock portal (headful under Xvfb)
 - **M2:** NiceGUI built-in pytest UI tests (`nicegui.testing`: `Screen`/`User`) for login,
   task CRUD, recipe save; schema tests incl. `wait_user`
-- **M3:** E2E on the mock portal: Copilot flows (banner, code entry), noVNC flow (drag),
-  recipe repair + `git log` check
-- **Mock portal:** `tests/mock_portal/` — small **FastAPI** app (separate fixture,
-  unaffected by the NiceGUI choice): cookie banner, login, fake CAPTCHA (displayed
-  6-digit code), drag-and-drop CAPTCHA, document download
+- **M3 / Wave 1 acceptance:** E2E on the mock portal — the six Wave 1 acceptance
+  scenarios above (autopause, waituser, captchadrag, persistent profile, dedup,
+  changed-website repair drill) incl. `git log` check of the repair commit
+- **Mock portal:** `tests/mock_portal/` — **delivered (v0.4)** FastAPI app (separate
+  fixture, unaffected by the NiceGUI choice): Layer A sites + Layer B friction sites
+  (cookie banner, login, displayed 6-digit code, drag CAPTCHA, "I am not a robot"
+  challenge, document download) + `POST /admin/<site>/mutate|reset` for the repair
+  drill. No second mock portal should be built.
 
 ## Risks
 
@@ -562,16 +765,30 @@ mock portal — without shell access to the daemon.
 - **Git auto-commit:** repo as bind mount, single user → conflicts unlikely; toggle.
 - **Vaultwarden API:** "No TOTP" text matching replaced in M0; status checks idempotent.
 - **CAPTCHA detection:** no heuristics by design — only `wait_user` + auto-pause after
-  3× failure. No "CAPTCHAs are solved automatically" promise in the docs.
+  3× failure; a human resolves (Copilot/noVNC). No "CAPTCHAs are solved automatically"
+  promise in the docs; future AI assistance stays behind the human-approval gate.
+- **Intervention protocol stability:** it is the future AI-integration contract — keep
+  the `context` payload complete, stable, and small; changes need a version bump + doc
+  update.
+- **3× retry cost:** failing steps wait out Playwright's per-attempt timeout (default
+  30 s) → a `step_failed` pause costs ~90 s+ of retries before the human is asked (the
+  regression plan already notes this for `testautopause`). Acceptable: the human is
+  asked once, with full context, not three times.
 - **Non-root switch (M0):** bind-mount ownership (Downloads, db, profiles, data) must be
   adjusted for the new user.
 
 ## Out of scope
 
+- **ML/LLM implementation** (assistant, action proposals, auto-repair, CAPTCHA
+  solving) — Wave 1 delivers the open architecture only (versioned intervention
+  protocol + machine-readable pause context + human-approval gate, all exercised by
+  the E2E scenarios); the assistant itself is a future wave, and its actions will
+  still require human approval
 - Multi-user / multi-tenancy (single login per instance — confirmed; expert's
   per-login-identity directories rejected; per-portal-account isolation is the
   per-task browser profile)
-- Custom REST/external API surface (UI-only; health via built-in `/_alive`)
+- Custom REST/external API surface (UI-only; health via built-in `/_alive`; the
+  control socket is an internal unix socket, not an API)
 - E-mail / SMTP notification
 - Paperless REST API upload (post-download hook only; later consumer)
 - `playwright codegen` in the UI (stays a VS Code dev workflow)

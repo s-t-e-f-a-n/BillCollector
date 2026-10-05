@@ -2,7 +2,7 @@
 
 **Status:** implementation-ready. Execute **Session 1** in a new implementation session.
 **Baseline docs:** this file (GUI concept + dashboard spec, below) and
-`.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md` (v2 daemon plan — master
+`.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md` (v3 daemon plan — master
 for daemon/scheduler/runner; its M1 section defines what Session 1 starts).
 
 ---

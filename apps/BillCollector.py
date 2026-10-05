@@ -89,24 +89,24 @@ def vault_request(method, url, payload=None):
     for attempt in range(1, VAULT_MAX_ATTEMPTS + 1):
         try:
             response = requests.request(method, url, json=payload, timeout=VAULT_TIMEOUT)
-        except (requests.exceptions.ConnectionError,
-                requests.exceptions.Timeout,
-                requests.exceptions.RequestException) as e:
-            logger.warning(f"Attempt {attempt}/{VAULT_MAX_ATTEMPTS} failed: {e}")
+        except requests.exceptions.RequestException:
+            # Exceptions can include the request URL, credentials or a response
+            # body. Keep only bounded diagnostics from this credential service.
+            logger.warning(f"Attempt {attempt}/{VAULT_MAX_ATTEMPTS} failed: network error")
             response = None
         else:
             if 400 <= response.status_code < 500:
                 raise VaultAPIError(
-                    f"Client error: {response.status_code} - {response.text}",
+                    f"Client error: {response.status_code}",
                     status=response.status_code)
             if response.status_code < 400:
                 return response
             logger.warning(
                 f"Attempt {attempt}/{VAULT_MAX_ATTEMPTS} failed: "
-                f"server error {response.status_code} - {response.text}")
+                f"server error {response.status_code}")
         if attempt < VAULT_MAX_ATTEMPTS:
             time.sleep(VAULT_RETRY_BACKOFF * attempt)
-    raise VaultAPIError(f"Request failed after {VAULT_MAX_ATTEMPTS} attempts: {url}")
+    raise VaultAPIError(f"Request failed after {VAULT_MAX_ATTEMPTS} attempts")
 
 # Get web content
 def get_json(url):
@@ -132,7 +132,7 @@ def get_totp(url):
 # Check Bitwarden API status
 def bitwarden_api_check_status(url):
     content = get_json(f"{url}/status")
-    logger.debug(content)
+    logger.debug("Vault status request completed")
     if not is_json_property_value(content, "success", True): return False, None
     else: 
         if not is_json_property_value(content, "data_template_status", "unlocked"): return True, "locked"
@@ -173,7 +173,7 @@ def post_json(url, payload):
         logger.info("Successfully posted!")
         return json.dumps(response.json())
     else:
-        logger.error(f"Error: {response.status_code} - {response.text}")
+        logger.error(f"Error: {response.status_code}")
         return False
 
 def get_json_property_value(content, prop):

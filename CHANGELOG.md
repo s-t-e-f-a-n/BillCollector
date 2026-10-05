@@ -9,6 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Vault request diagnostics retain HTTP status and retry information without
+  logging response bodies, request URLs or raw network exceptions.
+
 ## [v0.4] - 2026-10-02
 
 ### Added

@@ -28,9 +28,9 @@ rolls back, or publishes release notes without the gate confirmation.
 - Release notes (Release objects on Gitea/GitHub) are never created
   automatically: the user opts in, reviews the full suggested body, and only
   then does the agent post it.
-- App code is baked into the docker image (`Dockerfile_pw` does `COPY apps/. .`):
-  after committing code changes, rebuild with `bash install_docker-image.sh
-  playwright` before any docker-based local run.
+- App code is baked into the docker image (`Dockerfile` does `COPY apps/. .`):
+  after committing code changes, rebuild with `bash install_docker-image.sh`
+  before any docker-based local run.
 - `main` reflects the published production state; GitHub `main` intentionally
   lags `dev` until promotion.
 
@@ -60,8 +60,8 @@ will be promoted.
    - Success-only quick check: `--ini tests/bc_regression_happy.ini`.
    - Optional, maintainer dev setup only: `--vault` (real Vaultwarden path:
      env, DNS, unlock, sync, per-pair item + TOTP).
-   - For docker/NiceGUI/image-touching changes: rebuild
-     `bash install_docker-image.sh playwright` + a manual smoke run
+    - For docker/NiceGUI/image-touching changes: rebuild
+      `bash install_docker-image.sh` + a manual smoke run
      (`./BillCollector.sh apps/bc_default.ini False` or the NiceGUI UI).
 3. Wait for the user's results. Full-scope exit 0 = gate passed. Anything else
    -> fix on `dev` (new dev-commits cycle), re-test; never patch on `main`.
@@ -126,7 +126,9 @@ call happens before the user has reviewed the suggested body.
 
 ## Stage 5 - NAS deploy (user decides)
 
-1. Root `.env`: `GIT_BRANCH=main` (or the release tag for a pinned deploy).
+1. Root `.env`: `GIT_BRANCH=main` (or the release tag for a pinned deploy);
+   `CONSUMER_DIR` + `DB_DIR` set (forwarded to the NAS install script; if
+   empty there, a `.env` next to the script on the NAS is used instead).
 2. `./deploy_remote.sh` - ssh to the NAS, fetch + reset in `REMOTE_PATH`, run
    `INSTALL_SCRIPT` (image build), prints the new `git log -1`.
 3. Verify: the remote commit equals the promoted Gitea `main` tip; the next

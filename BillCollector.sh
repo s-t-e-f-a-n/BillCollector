@@ -26,7 +26,8 @@ if [[ -f .commit_id ]]; then
     echo "Commit-ID: $COMMIT_ID"
 fi
 
-docker run -v $SCRIPT_DIR/apps/Downloads:/apps/Downloads \
+docker run --env-file "$SCRIPT_DIR/apps/.env" \
+        -v $SCRIPT_DIR/apps/Downloads:/apps/Downloads \
         -v $SCRIPT_DIR/apps/db:/apps/db \
         --rm billcollector:latest \
         python3 ./BillCollector.py $1 $2

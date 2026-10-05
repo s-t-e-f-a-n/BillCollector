@@ -46,8 +46,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create the download folder and the app user's home, then hand ownership of
-# /apps, /apps/Downloads and $HOME to the non-root app user
-RUN mkdir -p /apps/Downloads "$HOME" && chown ${APP_UID}:${APP_GID} /apps /apps/Downloads "$HOME"
+# the whole /apps tree (app code, browser, downloads) and $HOME to the
+# non-root app user
+RUN mkdir -p /apps/Downloads "$HOME" && chown -R ${APP_UID}:${APP_GID} /apps "$HOME"
 
 # Run as the non-root app user (numeric, no user account needed)
 USER ${APP_UID}:${APP_GID}

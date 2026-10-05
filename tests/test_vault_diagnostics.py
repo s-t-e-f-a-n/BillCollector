@@ -24,15 +24,16 @@ class VaultDiagnosticsTests(unittest.TestCase):
     url = "http://127.0.0.1:8087/object/item/SYNTHETIC_SENSITIVE_VALUE"
 
     def mock_request(self, **kwargs):
-        # Also exercise the same diagnostics after the focused transport PR lands.
+        # Also exercise the same diagnostics after the transport PR #13 lands
+        # (it routes requests through vault_http_request).
         if hasattr(collector, "vault_http_request"):
             return patch.object(collector, "vault_http_request", **kwargs)
         return patch.object(collector.requests, "request", **kwargs)
 
     def expected_call(self, method, payload):
         if hasattr(collector, "vault_http_request"):
-            return call(method, self.url, payload, 10)
-        return call(method, self.url, json=payload, timeout=10)
+            return call(method, self.url, payload, collector.VAULT_TIMEOUT)
+        return call(method, self.url, json=payload, timeout=collector.VAULT_TIMEOUT)
 
     def response(self, status, body=None):
         return SimpleNamespace(status_code=status, text=body or self.marker)
@@ -62,8 +63,7 @@ class VaultDiagnosticsTests(unittest.TestCase):
                 with self.subTest(debug=debug), tempfile.TemporaryDirectory() as directory:
                     root = logging.getLogger()
                     handlers, level = root.handlers[:], root.level
-                    dependency = [logging.getLogger(name) for name in
-                                  ("urllib3", "requests.packages.urllib3")]
+                    dependency = [logging.getLogger("urllib3")]
                     levels = [logger.level for logger in dependency]
                     root.handlers = []
                     console = io.StringIO()
@@ -133,7 +133,8 @@ class VaultDiagnosticsTests(unittest.TestCase):
                     self.assertLogs(collector.logger, level="DEBUG") as logs:
                 with self.assertRaises(collector.VaultAPIError) as error:
                     collector.vault_request("GET", self.url)
-                self.assertIn("network error", self.assert_safe(logs, error.exception))
+                diagnostic = self.assert_safe(logs, error.exception)
+                self.assertIn(f"network error ({exception_type.__name__})", diagnostic)
                 self.assertEqual(request.call_count, 3)
                 self.assertEqual(sleep.call_args_list, [call(2), call(4)])
 
@@ -173,6 +174,20 @@ class VaultDiagnosticsTests(unittest.TestCase):
                 self.assertLogs(collector.logger, level="DEBUG") as logs:
             self.assertEqual(collector.bitwarden_api_check_status(self.url), (True, "unlocked"))
             self.assert_safe(logs)
+
+    def test_locked_or_failed_status_is_logged_before_exit(self):
+        config = collector.defs(None, "http://127.0.0.1:8087", fname="unused.ini")
+        for result, expected in (((True, "locked"), "Vault API status: locked"),
+                                 ((False, None), "Vault API status: check failed")):
+            with self.subTest(expected=expected), \
+                    patch.object(collector, "is_domain_local_ip", return_value="127.0.0.1", create=True), \
+                    patch.object(collector, "pinned_api_url", create=True), \
+                    patch.object(collector, "bitwarden_api_check_status", return_value=result), \
+                    self.assertLogs(collector.logger, level="ERROR") as logs:
+                with self.assertRaises(SystemExit) as exit_result:
+                    collector.WebRetriDoc(config, "playwright")
+                self.assertEqual(exit_result.exception.code, 1)
+                self.assertIn(expected, "\n".join(logs.output))
 
     def test_post_errors_and_unexpected_success_status_are_safe(self):
         for status in (403, 202):

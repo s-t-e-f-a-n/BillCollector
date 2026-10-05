@@ -12,7 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - Vault request diagnostics retain HTTP status and retry information without
-  logging response bodies, request URLs or raw network exceptions.
+  logging response bodies, request URLs or raw network exceptions. A locked or
+  failing vault status is logged as its parsed state only.
+- `setup_logging` silences the `urllib3` logger in every entry point: its DEBUG
+  records contain request URLs with private vault item names.
 
 ## [v0.4] - 2026-10-02
 

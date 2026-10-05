@@ -89,10 +89,10 @@ def vault_request(method, url, payload=None):
     for attempt in range(1, VAULT_MAX_ATTEMPTS + 1):
         try:
             response = requests.request(method, url, json=payload, timeout=VAULT_TIMEOUT)
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
             # Exceptions can include the request URL, credentials or a response
-            # body. Keep only bounded diagnostics from this credential service.
-            logger.warning(f"Attempt {attempt}/{VAULT_MAX_ATTEMPTS} failed: network error")
+            # body. Keep only bounded diagnostics (the class name) from this credential service.
+            logger.warning(f"Attempt {attempt}/{VAULT_MAX_ATTEMPTS} failed: network error ({type(e).__name__})")
             response = None
         else:
             if 400 <= response.status_code < 500:
@@ -199,6 +199,8 @@ def WebRetriDoc(self, type=None, service=None):
     # Check if Bitarden API at <bw_api_url> responds with success=true
     ret, status = bitwarden_api_check_status(self.api)
     if not ret or not status == "unlocked":
+        # Log only the parsed state; the status body also holds account identity.
+        logger.error("Vault API status: " + ("locked" if ret else "check failed (success is not true)"))
         sys.exit(1)
     logger.info(status)
 

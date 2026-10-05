@@ -66,8 +66,8 @@ def acquire_run_lock():
 def setup_logging(logfile=None, debug=False, max_bytes=5_000_000, backup_count=5):
     # HTTP debug records contain request URLs, including private vault item names.
     # Disable dependency logging before the idempotence guard for every entry point.
-    for name in ("urllib3", "requests.packages.urllib3"):
-        logging.getLogger(name).setLevel(logging.CRITICAL + 1)
+    # requests' vendored alias logs through the same "urllib3" logger hierarchy.
+    logging.getLogger("urllib3").setLevel(logging.CRITICAL + 1)
     root = logging.getLogger()
     if root.handlers:  # idempotent - safe if called twice in one process
         return

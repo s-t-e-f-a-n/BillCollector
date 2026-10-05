@@ -1,1 +1,14 @@
 **/Downloads
+.git
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+**/.bc_ui_run.json
+**/.bc.lock
+**/.code
+**/.venv
+**/__pycache__
+apps/browser
+apps/profiles
+apps/db

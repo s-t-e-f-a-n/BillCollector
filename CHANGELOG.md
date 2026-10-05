@@ -9,6 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Exclude local credentials, logs, browser sessions and other runtime artifacts
+  from Docker build contexts; retain example configuration and source fixtures.
+
 ## [v0.4] - 2026-10-02
 
 ### Added

@@ -63,8 +63,8 @@ Carried over from v1/v2 (unchanged):
   (`BillCollectorServices_pw.py:46`, `:434`) → cold start every run
 - Image (`Dockerfile`): ubuntu 24.04, Python 3.12, **xvfb already installed**,
   **non-root user (UID/GID 1000) in the Dockerfile**, `CMD ["/bin/bash"]`; the
-  deployed NAS image is still on Playwright 1.48.0 (the Dockerfile now installs
-  from the current requirements; the image rebuild is M0 item 6, open)
+  deployed NAS image was rebuilt from the current requirements on 2026-10-05
+  (Playwright 1.63.0) — M0 item 6 done
 - Dev environment: Ubuntu 24.04 (WSL2) host, system Python 3.12 (migrated in M0 step 0
   — see M0 status below); `apps/.venv` created by `install_local.sh playwright` from
   the **system** `python3` (24.04 apt package names). No CI (`.github` holds only issue
@@ -117,7 +117,7 @@ Consequences:
 ## Wave 1 — objective and acceptance
 
 **Scope:** M1 (daemon core) + M2 (UI core) + M3 (interactive sessions). M0 is
-substantially done (status below); M4 (adoption for other users) is the follow-up wave.
+done (status below); M4 (adoption for other users) is the follow-up wave.
 Wave 1's focus is the three current complicating circumstances, each made operable by a
 human from the web UI:
 
@@ -502,7 +502,7 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
 **Exit:** cron run completes unchanged on Python 3.12 + Playwright 1.63; a broken step
 is visible in log + DB as an abort; a double start is rejected.
 
-**Status (verified against the repo, 2026-09-29):**
+**Status (verified against the repo 2026-09-29; NAS deploy verified 2026-10-05):**
 
 - **Step 0 (host + dependencies) — done.** Dev host is Ubuntu 24.04.5 / Python 3.12.3;
   `install_local.sh` updated (selenium branch removed, 24.04 apt names, header updated);
@@ -518,15 +518,17 @@ is visible in log + DB as an abort; a double start is rejected.
   `BillCollector.sh`; error propagation — a failed service/user pair aborts only that
   pair's run, remaining services continue, the service run is always finalized in the DB,
   and the process exits 1 if any pair failed.
-- **Item 6 (Docker) — partially done.** Non-root user (UID/GID 1000) + single
-  `Dockerfile` landed (legacy Selenium Dockerfile removed, `Dockerfile_pw` renamed);
-  NAS image rebuild + mount-ownership verification pending at the next NAS deploy.
-- **Step 0.5 verification — partial.** CheckRecipe: 7/7 pass. F5 debug (`bc_test.ini`)
-  on the new distro: not yet run (hits the real portals). Production cron on the NAS:
-  pending the item-6 image rebuild.
+- **Item 6 (Docker) — done.** Non-root user (UID/GID 1000) + single `Dockerfile`
+  landed (legacy Selenium Dockerfile removed, `Dockerfile_pw` renamed); NAS image
+  rebuilt + mount ownership verified on the 2026-10-05 NAS deploy
+  (`deploy_remote.sh` → `install_docker-image.sh`, production checks green).
+- **Step 0.5 verification — partial.** CheckRecipe: 7/7 pass. Production run on the
+  NAS: green on the rebuilt image (2026-10-05 deploy). F5 debug (`bc_test.ini`) on
+  the new distro: not yet run (hits the real portals — optional drift check).
 - **Exit criteria:** "double start is rejected" implemented (flock); "a broken step is
   visible in log + DB as an abort" implemented, not yet seen in a real run; "cron run
-  completes unchanged on 3.12 + 1.63" pending.
+  completes unchanged on 3.12 + 1.63" verified on the NAS (2026-10-05 deploy
+  production run green). **M0 complete** — Wave 1 (M1–M3) is next.
 
 ### M0 step 0 — Manual execution guide (host + Python environment)
 

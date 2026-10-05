@@ -1,6 +1,7 @@
 # BillCollector — Single Dockerfile + Non-Root User (aligned with the flowcool fork)
 
-> Status: READY FOR IMPLEMENTATION.
+> Status: DELIVERED (2026-10-05, tip ddd9639; promoted to Gitea/GitHub main and
+> deployed to the NAS with green production checks) — retained for the record.
 > Implements daemon-plan M0 item 6 (`1790364274061-billcollector-nicegui-daemon-plan.md`,
 > "Docker: enable the non-root user … rebuild the image with the new requirements") plus
 > the user-requested consolidation: drop the legacy Selenium `Dockerfile`, rename
@@ -218,6 +219,8 @@ run) is a separate user-gated step via the deploy skill, Stage 5 (see Follow-ups
    (`./BillCollector.sh apps/bc_default.ini False`) succeeds (DB rows + download lands
    in the paperless folder), then the next monthly cron run is unchanged. This closes
    daemon-plan M0 item 6 + the pending v0.4 NAS deploy.
+   **Done 2026-10-05:** promoted (Gitea/GitHub main) + `deploy_remote.sh` run, NAS
+   checks green.
 3. M1 (daemon plan): add `git`, `x11vnc`, `websockify`, `novnc` apt deps; the non-root
    user then also owns the future `browser/profiles/` + `data/` volumes (daemon plan
    "Docker / deployment" section) — the `APP_UID`/`APP_GID` build args already cover

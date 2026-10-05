@@ -1,7 +1,21 @@
 FROM ubuntu:24.04
 
-# Set timezone
-ENV TZ="Europe/Berlin"
+ARG TARGETARCH
+ARG APP_UID=1000
+ARG APP_GID=1000
+ARG VERSION=dev
+ARG REVISION=unknown
+ARG SOURCE=https://github.com/s-t-e-f-a-n/BillCollector
+
+LABEL org.opencontainers.image.title="BillCollector" \
+    org.opencontainers.image.description="Collect documents from web portals using Playwright recipes" \
+    org.opencontainers.image.source="${SOURCE}" \
+    org.opencontainers.image.version="${VERSION}" \
+    org.opencontainers.image.revision="${REVISION}" \
+    org.opencontainers.image.licenses="MIT"
+
+# Set timezone and environment
+ENV TZ="Europe/Berlin" HOME="/home/billcollector" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 
 # Set the directory for the application
 WORKDIR /apps
@@ -9,14 +23,14 @@ WORKDIR /apps
 # Set environment variables
 ENV PLAYWRIGHT_BROWSERS_PATH=/apps/browser
 
-# Install Python3
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-RUN apt-get update && apt-get install -y python3 python3-pip
+# Install Python3 (the image builds for linux/amd64 only)
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN if [[ "${TARGETARCH:-amd64}" != "amd64" ]]; then \
+        echo "BillCollector image builds for linux/amd64 only" >&2; exit 1; \
+    fi && apt-get update && apt-get install -y python3 python3-pip
 
 # Install pip requirements, app and browser
-ARG VER=unknown
-COPY apps/. .
+COPY --chown=${APP_UID}:${APP_GID} apps/. .
 RUN pip3 install -r requirements.txt --break-system-packages
 RUN python3 -m playwright install --with-deps chromium ffmpeg
 
@@ -31,11 +45,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-tlwg-loma-otf fonts-ubuntu \
     && rm -rf /var/lib/apt/lists/*
 
-# Creates a non-root user with an explicit UID and adds permission to access the /apps folder
-# For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers
-# ...and https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user
-#RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /apps
-#USER appuser
+# Create the download folder and the app user's home, then hand ownership of
+# /apps, /apps/Downloads and $HOME to the non-root app user
+RUN mkdir -p /apps/Downloads "$HOME" && chown ${APP_UID}:${APP_GID} /apps /apps/Downloads "$HOME"
+
+# Run as the non-root app user (numeric, no user account needed)
+USER ${APP_UID}:${APP_GID}
+
+# Expose the download folder as a volume
+VOLUME ["/apps/Downloads"]
 
 # Entry point
 CMD ["/bin/bash"]

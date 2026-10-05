@@ -76,6 +76,12 @@ ssh ${REMOTE} "
     exit 1
   fi
 
+  # Forward the NAS bind-mount targets from this machine's .env (empty values
+  # are treated as unset by the remote script, which then falls back to a .env
+  # file next to itself on the NAS)
+  export CONSUMER_DIR='${CONSUMER_DIR}'
+  export DB_DIR='${DB_DIR}'
+
   chmod +x '${INSTALL_SCRIPT}'
   echo '[INFO] Running installation script with arguments: ${INSTALL_SCRIPT_ARGS}'
   ./'${INSTALL_SCRIPT}' ${INSTALL_SCRIPT_ARGS}

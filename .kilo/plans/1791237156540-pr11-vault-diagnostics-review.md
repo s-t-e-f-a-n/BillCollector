@@ -1,5 +1,10 @@
 # PR #11 Review — fix: keep sensitive vault request data out of diagnostics
 
+> Status: DELIVERED (2026-10-06) — integrated on `dev` (commits `4ba35c3` /
+> `259a8f6` / `057304d`), promoted to Gitea `main` `be3dbbc` and mirrored to
+> GitHub `main` `04b7525`; PR #11 closed without merge with an explanation to
+> flowcool. Retained for the record.
+
 Repo `s-t-e-f-a-n/BillCollector`, PR by **flowcool**, head `2e73e83` (5 commits),
 base `main`, fixes issue #9. Review date 2026-10-05, against local Gitea state
 `dev` = `0428cc2` / `main` = `ddd9639`, public mirror `github/main` = `80eeea9`.
@@ -96,16 +101,21 @@ apparently "deleted" private files that are not PR intent).
   note this when adding new ones.
 - **CHANGELOG conflict on a direct GitHub merge** (see integration step 2).
 
-## Integration plan (Gitea-first, per deploy skill)
+## Integration plan (Gitea-first, per deploy skill) — executed 2026-10-06
 
 1. On Gitea `dev`, apply the three code files from PR head `2e73e83`:
    `apps/BillCollector.py`, `apps/helpers/BillCollectorHelpers.py`,
    `tests/test_vault_diagnostics.py`. Hunks verified to apply cleanly
    (pre-images byte-identical to dev). Skip `CONTRIBUTING.md` and `README.md`
    (already present, identical).
+   — **Done:** files applied from the fetched PR ref; `CONTRIBUTING.md`
+   byte-identical and the README pointer line (line 59) confirmed already on
+   `dev`. Code files in `4ba35c3`, test file in `259a8f6`.
 2. `CHANGELOG.md`: add a `### Fixed` subsection under the existing
    `## [Unreleased]` with the PR's two bullets (vault diagnostics; urllib3
    suppression). This is the manual resolution of the only conflict.
+   — **Done:** `### Fixed` placed after `### Removed` (Keep a Changelog order),
+   `057304d`.
 3. Validate (repo root, from the venv):
    - `apps/.venv/bin/python -m unittest tests.test_vault_diagnostics -v`
      → expect **11 OK**
@@ -113,7 +123,16 @@ apparently "deleted" private files that are not PR intent).
      → expect 7 scenarios / 8 PDFs, `VERDICT: PASS` (mock portal, port 8787)
    - ruff (F821, E4/E7/E9) and bandit on the changed files → no new findings
      beyond the known baseline (B608 dynamic SQL table names, B104 UI bind)
+   — **Done, all green on the exact tree being promoted:** unit tests **11 OK**;
+   regression 7 scenarios / 8 PDFs, **VERDICT: PASS**; ruff 20 findings,
+   identical to the pre-PR `dev` baseline (no new); bandit clean on the changed
+   files. Note: `apps/db/bc.db` was an empty 0-byte file (gitignored, ephemeral)
+   — the harness needs the `Service` table, so the schema was re-initialized via
+   the production `DatabaseManager` class before the run (no repo impact).
 4. Commit on `dev` (use the dev-commits skill for the commit suggestion).
+   — **Done:** four commits, one concern each — `4ba35c3` fix (code) /
+   `259a8f6` test (11-test suite) / `057304d` doc (changelog) / `be3dbbc` doc
+   (this plan); pushed to Gitea `dev`.
 5. GitHub PR handling — maintainer decision (open question):
    - (a) merge on GitHub for the public record: safe (3-way merge keeps the
      sanitized state), but the orphaned `38ff01b` re-enters public history and
@@ -121,16 +140,32 @@ apparently "deleted" private files that are not PR intent).
    - (b) **recommended:** keep the PR open, let the change reach GitHub via the
      normal promote + `sync_github.sh` mirror, then close/merge the PR.
      Keeps public history canonical.
+   — **Done, option (b) (user-confirmed 2026-10-06):** Gitea `main` ff-promoted
+   (`ddd9639` → `be3dbbc`); `sync_github.sh` mirrored (GitHub `main`
+   `80eeea9` → `04b7525`, no tag — not a release); public gate verified (no
+   `.kilo`/`.vscode`/`.private` in the tree; new code + tests present). PR #11
+   **closed without merge** (2026-10-06 06:11 UTC) with a comment to flowcool
+   explaining the mirror flow, confirming all PR content is in place, and noting
+   the urllib3 nit (`disabled = True` is more idiomatic; the PR's
+   `setLevel(CRITICAL + 1)` was kept — behavior identical).
 6. Ordering vs PR #13 (`vault_http_request`): no dependency — #11's tests are
    written to pass in either merge order.
+   — **Unchanged:** #13 can land independently.
 
 ## Open question
 
-- GitHub PR handling: merge-on-GitHub vs Gitea-first-then-close
-  (recommendation: Gitea-first). Code outcome is identical either way.
+- GitHub PR handling: **resolved (2026-10-06)** — option (b) Gitea-first;
+  PR #11 closed without merge after the mirror sync (integration step 5).
 
 ## Out of scope
 
 - PRs #12, #13, #14, #15 (separate reviews); issue #10 (DOM/SQLite retention);
   the residual identity logs in `Service ... started.` (would be a follow-up
   issue, not this PR).
+
+## Follow-up (only remaining mechanical step)
+
+- Commit this plan update on `dev` (doc-only, e.g.
+  `doc: plans: mark PR #11 review plan delivered`) and push to Gitea — the
+  plan file is tracked, so the delivered state should land on `dev` (and via
+  the next promotion cycle it stays private; `.kilo/` never reaches GitHub).

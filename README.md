@@ -18,6 +18,7 @@
   - [Local Development & Debugging](#local-development--debugging)
   - [Web Service Config](#web-service-config)
 - [Local Regression Test Environment](#local-regression-test-environment)
+- [Docker Build Context Check](#docker-build-context-check)
 - [Development & Deployment](#development--deployment)
 - [What's Next](#whats-next)
 
@@ -173,6 +174,11 @@ This opens a NiceGUI supervisor page on port 8000 where you select an INI file a
 First and once, for the basic configuration you need to adapt the `.env` file located in the `/apps` folder. Use the `.env.example` as a template:
 
 - `cp .env.example .env`
+- The Docker wrapper mounts `apps/.env` read-only at `/apps/.env`; credentials
+  are excluded from the image and Python retains dotenv quoting/interpolation.
+  For direct `docker run`, mount the same file read-only. `.env` changes take effect
+  at the next run without a rebuild; INI files and recipes are still baked into
+  the image and need step 3 again.
 - define the .env-variables:
   - `VAULT_HOST=<hostname of your vault e.g., vault.my-domain.duckdns.org>`
   - `BW_API_URL=<http/https-URL of the bitwarden API e.g., http://<local-ip>:8087>`
@@ -303,6 +309,18 @@ apps/.venv/bin/python tests/run_regression.py --ini tests/bc_regression.ini
 Useful options: `--ini tests/bc_regression_happy.ini` (success-only scope), `--keep-downloads` (don't delete the test downloads afterwards), `--port <n>`, and `--vault` (preflight a real Vaultwarden - env, DNS, unlock, sync - and fetch credentials, URL and TOTP from the corresponding vault items instead of `scenarios.py`; requires a vault provisioned with those test items, i.e. the maintainer's dev setup - the default mode above is fully self-contained and needs no vault).
 
 Exit codes: `0` all expectations matched · `1` at least one expectation deviated · `2` the mock portal could not be started · `3` a real BillCollector run holds the run lock · `4` the `--vault` preflight failed.
+
+## Docker Build Context Check
+
+The `.dockerignore` keeps local credentials, logs, browser sessions and other runtime artifacts out of the Docker build context. To prove that it really works, `tests/check_docker_context.py` builds a worst-case image (`FROM scratch`, `COPY . /`) from a scratch context filled with synthetic canary files — no real checkout data, no registry access — and checks that every excluded artifact stays out of the image while every source file stays in:
+
+From the repository root, on a machine with Docker and BuildKit:
+
+```bash
+python3 tests/check_docker_context.py
+```
+
+Expected output: `Docker context: 19 private canaries excluded, 5 source files retained`. Useful options: `--dockerignore <path>` to check a different `.dockerignore` (e.g., a previous version as a negative control). Run this check whenever you change the `.dockerignore`, the `Dockerfile` or add new runtime artifacts.
 
 ## Development & Deployment
 

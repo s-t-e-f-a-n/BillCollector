@@ -1,8 +1,8 @@
 # PR #12 Review — fix: exclude private runtime artifacts from Docker builds
 
-> Status: AWAITING-DECISION (2026-10-07) — review complete; verdict
-> "approve with maintainer changes" proposed; awaiting user decision before
-> selective integration on Gitea `dev`.
+> Status: INTEGRATING (2026-10-07) — S3 confirmed as-is (R1 breaking change
+> accepted); S4 selective integration applied to the `dev` working tree
+> (uncommitted, awaiting S5 validation).
 
 Repo `s-t-e-f-a-n/BillCollector`, PR by **flowcool**, head `ac70217`
 (6 commits: 5 PR content + orphaned `38ff01b`), base `main` (`04b7525` at
@@ -181,6 +181,40 @@ no longer contains `apps/.env`).
 ## Open questions
 
 - Accept the breaking change (R1) as-is for the next release? (maintainer
-  call at the S3 gate)
-- S5 Docker-host location for the context check: NAS (where
-  `install_docker-image.sh` runs) — confirm at the S5 session.
+  call at the S3 gate) — **resolved 2026-10-07 (S3): accepted as-is.**
+- S5 Docker-host location for the context check — **resolved 2026-10-07
+  (S3): NAS, at deploy time** (Stage 5 of the deploy skill, where
+  `install_docker-image.sh` runs).
+
+## Stage log
+
+### S3 (2026-10-07) — proposal confirmed as-is
+
+User confirmed the exact proposal: apply items 1-3 byte-exact from
+`refs/pr/12`, manual merges 4-5 (CHANGELOG append to the existing
+`### Fixed` under `## [Unreleased]`; README hunk 2 only), skips as listed.
+R1 accepted as-is. NAS operational follow-up recorded: the NAS-side cron
+entry that launches the container (outside this repo) must gain
+`-v <REMOTE_PATH>/apps/.env:/apps/.env:ro` at the next Stage 5 deploy.
+S5 Docker host confirmed: NAS at deploy time (this dev machine has no
+docker).
+
+### S4 (2026-10-07) — selective integration executed
+
+Preflight re-verified on `dev` @ `bf1a4a4` (clean tree; +1 doc-only commit
+since review — pre-image checks re-run, all hold): PR head still
+`ac70217`, merge base `2f6952e`.
+
+- `.dockerignore`, `BillCollector.sh`, `tests/check_docker_context.py`
+  applied byte-exact from `refs/pr/12` (verified by diff); modes
+  644/755/644.
+- `CHANGELOG.md`: PR's two bullets appended to the existing `### Fixed`
+  under `## [Unreleased]` (verified byte-identical to the PR text).
+- `README.md`: hunk 2 inserted after `- \`cp .env.example .env\``
+  (verified byte-identical to the PR text); hunk 1 skipped (already on
+  dev).
+- Skipped: `CONTRIBUTING.md` (byte-identical on dev), `.kilo/*` /
+  `.private/sync_github.sh` / `.vscode/*` deletions, `Dockerfile_pw`.
+
+Working tree left dirty (uncommitted) for S5 validation of the exact
+content.

@@ -1,6 +1,7 @@
 # Plan: deployment process improvement - layer cache reuse on NAS builds
 
-> Status: PLANNED (2026-10-07) - verdict recorded; fixes not yet implemented.
+> Status: DONE (2026-10-07) - fixes 1 + 2 applied on `dev` and validated on
+> the NAS (user-confirmed). Fix 3 (digest pin) deferred, see below.
 
 ## Question
 
@@ -99,16 +100,46 @@ and a doc-only commit (with fix 1) is an all-`CACHED` build.
 Pin the base image by digest (`ubuntu:24.04@sha256:...`) so a base tag
 update can never silently force a full rebuild.
 
+## Implementation record (2026-10-07, on `dev`)
+
+- **Fix 1 - drop option (a) applied.** `--build-arg REVISION` removed from
+  `install_docker-image.sh`; `ARG REVISION` and the
+  `org.opencontainers.image.revision` LABEL line removed from the
+  `Dockerfile`. The `--metadata` alternative (option b) was **not** used: it
+  requires a recent docker CLI/buildx on the NAS (version unverified), and
+  the deployed commit is already recorded in every deploy log
+  (`deploy_remote.sh` prints `git log -1`), so the image label added no
+  traceability value. Revisit if the NAS docker version is confirmed
+  modern and the label is wanted back.
+- **Fix 2 - applied.** New `Dockerfile` step order:
+  `apt python3/pip` -> `COPY apps/requirements.txt` -> `pip3 install` ->
+  `playwright install` -> `apt fonts/libs` -> `COPY apps/.` -> `mkdir` +
+  `chown`. A code-only deploy now re-runs just the final `COPY` + `chown`;
+  a doc-only deploy (with fix 1) should be all-`CACHED`.
+- **Fix 3 - deferred.** No digest pin in this change: it is optional
+  hygiene, and pinning an unverified digest without a local Docker host to
+  test against is riskier than leaving `ubuntu:24.04` floating. Do it the
+  next time the base image is deliberately updated.
+
 ## Verification (on the NAS)
 
-1. Before the fix (reproduce): A/B two builds differing only in `REVISION` -
-   the second re-executes every `RUN` while `COPY`'s own inputs are
-   unchanged.
-2. After fix 1: build twice with identical args -> all steps `CACHED` on the
-   second build; a back-to-back deploy of the same commit is all `CACHED`.
-3. After fix 2: a code-only change re-runs only the final `COPY` + `chown`;
-   a requirements change re-runs `pip3 install` and later steps, but not
-   `apt-get` or `playwright install` when they are unchanged.
+> Validated (2026-10-07): user ran the NAS validation and confirmed it
+> passed. (The dev machine has no Docker; all build-behavior proof happened
+> on the NAS.)
+
+1. ~~Before the fix (reproduce): A/B two builds differing only in `REVISION`
+   - the second re-executes every `RUN` while `COPY`'s own inputs are
+   unchanged.~~ (superseded - the build arg no longer exists)
+2. **After fix 1** (user): on the NAS with the `dev` tree checked out
+   (`GIT_BRANCH=dev` or manual checkout), run `./install_docker-image.sh`
+   twice back-to-back (or `./deploy_remote.sh` twice) without any commit in
+   between -> the first build after the Dockerfile change is a full build,
+   the second must show **all steps `CACHED`** (only `FROM` resolves).
+3. **After fix 2** (user): make a code-only change under `apps/` (commit it,
+   re-deploy) -> only the final `COPY` + `chown` steps re-execute; a
+   requirements.txt change re-runs `pip3 install` and the steps after it
+   (`playwright install`, fonts `apt-get`, final `COPY` + `chown`), but not
+   the python3 `apt-get` step or the base image.
 
 ## Process integration
 

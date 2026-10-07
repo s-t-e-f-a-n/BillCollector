@@ -11,6 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Deploys now reuse the BuildKit layer cache: the changing `REVISION` build
+  arg (its value is part of the cache key of every `RUN` step, so it
+  invalidated the whole cache on every deploy) is gone from
+  `install_docker-image.sh`, and the `Dockerfile` installs the Python
+  dependencies and the Playwright browser before copying the application
+  code. A code-only deploy re-runs just the final `COPY` + `chown`; a
+  doc-only deploy builds all-`CACHED`.
 - The docker image now runs as a non-root user (UID/GID 1000, overridable via
   the `APP_UID`/`APP_GID` build args) with container hardening aligned to the
   flowcool fork: OCI image labels, `VOLUME /apps/Downloads`, dedicated `HOME`,
@@ -26,6 +33,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Legacy Selenium `Dockerfile`; `Dockerfile_pw` renamed to `Dockerfile` (the
   single Playwright/Chromium image).
+- The `org.opencontainers.image.revision` OCI image label (fed by the
+  `REVISION` build arg); the deployed commit is recorded in the deploy log
+  instead (`deploy_remote.sh` prints `git log -1`).
 
 ### Fixed
 

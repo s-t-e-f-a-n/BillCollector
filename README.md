@@ -322,6 +322,16 @@ python3 tests/check_docker_context.py
 
 Expected output: `Docker context: 19 private canaries excluded, 5 source files retained`. Useful options: `--dockerignore <path>` to check a different `.dockerignore` (e.g., a previous version as a negative control). Run this check whenever you change the `.dockerignore`, the `Dockerfile` or add new runtime artifacts.
 
+## Docker Layer Cache Reuse
+
+The `Dockerfile` orders the expensive, rarely-changing steps (python3/pip `apt` install, `pip3 install -r requirements.txt`, `playwright install --with-deps chromium ffmpeg`, the fonts `apt` install) **before** the application code is copied, and the build is deliberately given no build arg whose value changes on every deploy — a Dockerfile `ARG` value is part of the BuildKit cache key of every `RUN` step, so a per-commit value (like a git revision) would force a full rebuild on every deploy. The result:
+
+- Rebuilding the same tree (re-running `install_docker-image.sh` or `deploy_remote.sh` without a new commit) is an all-`CACHED` build.
+- A code-only change under `apps/` re-runs only the final `COPY` and `chown` steps.
+- A `requirements.txt` change re-runs `pip3 install` and the steps after it, but not the python3 `apt` step or the base image.
+
+The deployed commit is recorded in the deploy log (`deploy_remote.sh` prints `git log -1`) rather than as an image label.
+
 ## Development & Deployment
 
 BillCollector uses a trunk-based model with release tags:

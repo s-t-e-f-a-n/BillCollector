@@ -1,8 +1,8 @@
 # PR #12 Review — fix: exclude private runtime artifacts from Docker builds
 
-> Status: INTEGRATING (2026-10-07) — S3 confirmed as-is (R1 breaking change
-> accepted); S4 selective integration applied to the `dev` working tree
-> (uncommitted, awaiting S5 validation).
+> Status: VALIDATED (2026-10-07) — S5 local validation all green; the
+> BuildKit canary check is scheduled for the NAS at deploy Stage 5 (S3
+> decision). Working tree still uncommitted, awaiting S6/S7.
 
 Repo `s-t-e-f-a-n/BillCollector`, PR by **flowcool**, head `ac70217`
 (6 commits: 5 PR content + orphaned `38ff01b`), base `main` (`04b7525` at
@@ -156,17 +156,21 @@ no longer contains `apps/.env`).
    (If `apps/db/bc.db` is the 0-byte gitignored file: re-initialize the
    schema via the production `DatabaseManager` first — no repo impact, per
    the PR #11 precedent.)
-3. **On a Docker host with BuildKit** (risk R4):
-   `apps/.venv/bin/python tests/check_docker_context.py` → expect
-   `Docker context: 19 private canaries excluded, 5 source files retained`.
-   Negative control: same check against the previous 1-line `.dockerignore`
-   → `RuntimeError: Private runtime artifact entered build: apps/.env`
-   (or `apps/bc.log.1`).
+3. **On a Docker host with BuildKit** (risk R4 — NAS at deploy Stage 5,
+    per the S3 decision):
+    `apps/.venv/bin/python tests/check_docker_context.py` → expect
+    `Docker context: 19 private canaries excluded, 5 source files retained`.
+    Negative control: same check against the previous 1-line `.dockerignore`
+    → `RuntimeError: Dockerignore validation failed:` followed by one
+    `Private runtime artifact entered build: <path>` line per leaked canary
+    (e.g. `apps/.env`, `apps/bc.log.1`; aggregation per the S5 adaptation).
 4. ruff (`F821`, `E4/E7/E9`) + bandit on `tests/check_docker_context.py`
-   (and the changed shell file via `bash -n`) → nothing new beyond the known
-   baseline (B608 dynamic SQL table names, B104 UI bind). The check script
-   uses list-form `subprocess.run` (no B603); a B404-class flag on the
-   docker subprocess is expected and baseline-equivalent.
+    (and the changed shell file via `bash -n`) → nothing new beyond the known
+    baseline (B608 dynamic SQL table names, B104 UI bind). ruff/bandit are
+    not in `apps/.venv`; run them from a scratch venv (`python3 -m venv
+    /tmp/kilo/lint && pip install ruff bandit`). The check script uses
+    list-form `subprocess.run`; B404 + B603 (informational) on the docker
+    subprocess are expected and baseline-equivalent (verified in S5).
 5. No recipe/schema/Dockerfile changes in this PR → no CheckRecipe or image
    rebuild step beyond 3 (the image rebuild itself happens at the deploy
    stage, deploy skill).
@@ -218,3 +222,46 @@ since review — pre-image checks re-run, all hold): PR head still
 
 Working tree left dirty (uncommitted) for S5 validation of the exact
 content.
+
+### S5 (2026-10-07) — validation + one approved adaptation
+
+Ran from the repo root with `apps/.venv`, on the exact S4 working tree
+(`dev` @ `8f5061f` + the 5 dirty files; `apps/db/bc.db` 323 KB — no schema
+re-initialization needed):
+
+1. `bash -n BillCollector.sh` → OK.
+2. `apps/.venv/bin/python tests/run_regression.py --ini
+   tests/bc_regression.ini` → exit 0; 7 scenarios / 8 PDFs,
+   `VERDICT: PASS - all expectations matched` (testhappy x3 success,
+   testgraceful success-with-failed-step, testbadlogin / testempty /
+   testdlfail failed as expected; downloads exactly the 8 expected).
+3. BuildKit canary check → **not runnable here (no docker on this
+   machine, risk R4)**; scheduled for the NAS at deploy Stage 5 per the
+   S3 decision. Success output unchanged; the negative-control message is
+   now the aggregated form (see adaptation below).
+4. ruff 0.16.10 (`F821`, `E4/E7/E9` + `W291/W293`, `S105`, `S607` probes)
+   on `tests/check_docker_context.py` → all pass; bandit 1.9.4 → only
+   B404 + B603 (informational, baseline-equivalent per the validation
+   plan). ruff/bandit absent from `apps/.venv` and the system → run from
+   a scratch venv in `/tmp/kilo/lint`.
+
+**Approved adaptation (user-confirmed, maintainer-side):** a proposed
+"improved" `tests/check_docker_context.py` was reviewed empirically before
+use. Adopted (real value): `DOCKER_BUILDKIT=1` in the subprocess env (the
+local output exporter requires BuildKit; no longer depends on the daemon's
+default builder), `shutil.which("docker")` (resolves the S607/B607
+partial-executable-path flags), and failure aggregation (all violations
+reported, not just the first). Rejected with evidence: the S105-based
+`SENTINEL` → `CANARY_MARKER` rename (S105 is name-based; neither name
+triggers it — 0 hits on both versions), the S603 citation (S603 fires on
+both versions; it is a review hint, not resolvable via path resolution —
+the rule `which()` actually fixes is S607/B607), and 10 W293
+trailing-whitespace lines. The explanatory canary-group comment and the
+`SENTINEL` name were kept; the redundant `check=False` dropped. Net diff
+vs `refs/pr/12`: +`import os`, the two comment/env/which blocks, the
+aggregated `RuntimeError("Dockerignore validation failed:\n" + …)`.
+Behavior (19 excluded / 5 retained canaries, worst-case Dockerfile,
+assertions) is unchanged — PR intent preserved.
+
+All local S5 steps green → Status: VALIDATED. The 5 files remain
+uncommitted for S6/S7.

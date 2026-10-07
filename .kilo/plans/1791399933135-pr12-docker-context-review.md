@@ -1,8 +1,9 @@
 # PR #12 Review — fix: exclude private runtime artifacts from Docker builds
 
-> Status: VALIDATED (2026-10-07) — S5 local validation all green; the
-> BuildKit canary check is scheduled for the NAS at deploy Stage 5 (S3
-> decision). Working tree still uncommitted, awaiting S6/S7.
+> Status: DELIVERED (2026-10-07) — integrated on Gitea `dev` @ `e4705b5`,
+> promoted to Gitea `main` (ff-only), mirrored to GitHub `main` @ `ffb4a93`;
+> PR #12 closed without merge (comment 6046042925, closed
+> 2026-10-07T20:16:57Z).
 
 Repo `s-t-e-f-a-n/BillCollector`, PR by **flowcool**, head `ac70217`
 (6 commits: 5 PR content + orphaned `38ff01b`), base `main` (`04b7525` at
@@ -291,3 +292,41 @@ uncommitted for S6/S7.
   are pre-existing content untouched by this PR.
 - Gate: user confirmed all PR #12 documentation as final, including the
   new section.
+
+### S7 (2026-10-07) — commit + push (Gitea first), mirror, PR close
+
+1. dev-commits gate: three commits confirmed as proposed and created on
+   `dev`:
+   - `c3d0ef4` `fix: exclude private runtime artifacts from Docker builds`
+     (`.dockerignore`, `BillCollector.sh`)
+   - `9999d19` `test: add Docker build context canary check`
+     (`tests/check_docker_context.py`, with the S5 adaptation)
+   - `e4705b5` `doc: changelog and readme: docker context exclusion and
+     .env mount` (CHANGELOG bullets, README `.env` mount bullet + new
+     *Docker Build Context Check* section)
+   `git push origin dev` → Gitea `dev` @ `e4705b5`.
+2. Promotion gate (deploy Stage 2, no tag — not a release): `main`
+   ff-only `be3dbbc..e4705b5`, pushed; verified `git diff main dev`
+   empty.
+3. Mirror (deploy Stage 3): `bash .private/sync_github.sh` → GitHub
+   `main` @ `ffb4a93` (sanitized amend, hash differs by design). Public
+   gate verified: no `.kilo`/`.private`/`.vscode` in the top-level tree;
+   `.dockerignore` 19 lines, `tests/check_docker_context.py` (adapted
+   version), README section, and the ro mount all present on the public
+   tip. Side cleanup: removed one stale `sync_github.sh` worktree
+   (`elated-line` @ `be3dbbc`, leaked by the PR #11 mirror run).
+4. PR close gate (exact comment text user-confirmed verbatim):
+   `POST issues/12/comments` → comment id 6046042925 (mirror flow
+   explained, integrated content confirmed in place, two nits noted:
+   branch carried `Dockerfile_pw`, allowlist follow-up invited) +
+   `PATCH pulls/12 {"state":"closed"}` → closed without merge,
+   `merged: false`, closed 2026-10-07T20:16:57Z. The change reached
+   GitHub via the mirror, keeping public history canonical.
+   API note: the stored GitHub credential is `https://user:token@host`;
+   the Bearer token is the part after the last `:` (the first attempt
+   kept the username prefix and got a 401).
+
+Remaining (outside the PR workflow): the BuildKit canary check runs on
+the NAS at the next deploy Stage 5 (S3 decision), together with the
+image rebuild + smoke run and the NAS cron entry gaining the
+`-v <REMOTE_PATH>/apps/.env:/apps/.env:ro` mount (R1 follow-up).

@@ -26,7 +26,13 @@ if [[ -f .commit_id ]]; then
     echo "Commit-ID: $COMMIT_ID"
 fi
 
-docker run -v $SCRIPT_DIR/apps/Downloads:/apps/Downloads \
+if [[ ! -f "$SCRIPT_DIR/apps/.env" || ! -r "$SCRIPT_DIR/apps/.env" ]]; then
+    echo "Error: apps/.env must be a readable configuration file." >&2
+    exit 1
+fi
+
+docker run -v "$SCRIPT_DIR/apps/.env:/apps/.env:ro" \
+        -v $SCRIPT_DIR/apps/Downloads:/apps/Downloads \
         -v $SCRIPT_DIR/apps/db:/apps/db \
         --rm billcollector:latest \
         python3 ./BillCollector.py $1 $2

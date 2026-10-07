@@ -265,3 +265,29 @@ assertions) is unchanged — PR intent preserved.
 
 All local S5 steps green → Status: VALIDATED. The 5 files remain
 uncommitted for S6/S7.
+
+### S6 (2026-10-07) — documentation final (gate passed)
+
+- CHANGELOG `## [Unreleased]` / `### Fixed`: the PR's two bullets
+  (applied in S4, byte-identical to the PR text) confirmed as final.
+- README `.env` mount bullet (PR hunk 2, applied in S4) confirmed.
+- README (maintainer-side addition, gap identified by the user before the
+  S6 gate): new `## Docker Build Context Check` section after *Local
+  Regression Test Environment* + TOC entry. Documents
+  `tests/check_docker_context.py`: what it proves (worst-case
+  `FROM scratch` / `COPY . /` image from a synthetic scratch context, no
+  real checkout data, no registry access), the command
+  (`python3 tests/check_docker_context.py` from the repo root, on a
+  machine with Docker and BuildKit), the expected output (19 excluded /
+  5 retained), the `--dockerignore <path>` A/B negative control, and when
+  to run it (`.dockerignore` / `Dockerfile` / new artifact types). The PR
+  carried no README documentation for the check script although the
+  approved CHANGELOG entry references it as "the check" — the section
+  gives it a discoverable home next to its sibling `tests/run_regression.py`.
+- CONTRIBUTING.md: no change (PR copy byte-identical to dev; no
+  contributor rules changed).
+- Sanitization scan of all 5 changed files: no Gitea host, private paths,
+  or NAS details introduced; the "NAS"/DuckDNS hits in README/CHANGELOG
+  are pre-existing content untouched by this PR.
+- Gate: user confirmed all PR #12 documentation as final, including the
+  new section.

@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Review and integrate community pull requests for BillCollector (GitHub PRs against s-t-e-f-a-n/BillCollector). Seven user-gated stages, one per session: review, plan, propose or refuse, selective integration on Gitea dev, validate/refine, documentation, commit + push (Gitea first, then GitHub mirror) + PR close. Use for "review PR #N", "continue PR #N", "integrate PR #N", "refuse PR #N", "close PR #N".
+description: Review and integrate community pull requests for BillCollector (GitHub PRs against s-t-e-f-a-n/BillCollector). Seven user-gated stages, one per session: review, plan, propose or refuse, selective integration on Gitea dev, validate/refine (incl. user-gated deployment-process validation on the dev tree), documentation, commit + push (Gitea first, then GitHub mirror) + PR close. Use for "review PR #N", "continue PR #N", "integrate PR #N", "refuse PR #N", "close PR #N".
 ---
 
 # BillCollector PR Review (community PRs, Gitea-first integration)
@@ -25,6 +25,10 @@ confirmation.
   Gitea host, NAS details, or private paths.
 - Validation runs on the exact `dev` tree that will be promoted, from the
   repo root with `apps/.venv/bin/python`.
+- Deployment-process validation (image build + canary check + smoke run on
+  the exact `dev` tree, on a Docker-capable host) is user-confirmed in S5
+  before S7 may commit or push to `main`; a re-validation is required if the
+  tree moves after the confirmation.
 - Commits follow the dev-commits skill (one concern per commit); promotion
   and mirroring follow the deploy skill (ff-only; no tag unless a release is
   decided separately).
@@ -43,8 +47,10 @@ title:
 Sections: PR metadata (author, head hash, base, issue refs, local `dev` /
 `main` / `github/main` state at review time), Verdict, Verified facts, Code
 review findings, Risks, Integration plan (per file: apply / skip / manual +
-expected conflicts), Validation plan (commands + expected results), Out of
-scope, Open questions.
+expected conflicts), Validation plan (commands + expected results),
+Deployment validation (host, validated tree hash, build/canary/smoke results
+or the recorded skip + user-confirmation timestamp), Out of scope, Open
+questions.
 
 ## Stage router
 
@@ -135,15 +141,36 @@ From the repo root, with the venv, on the exact dev tree:
 - ruff (F821, E4/E7/E9) + bandit on the changed files -> nothing new beyond
   the known baseline (B608 dynamic SQL table names, B104 UI bind).
 - Scope adjustments: recipe-only PRs -> CheckRecipe/schema validation +
-  regression; Dockerfile/image changes -> rebuild `bash install_docker-image.sh`
-  + smoke run (deploy-skill invariant).
+  regression.
 - If the harness needs the `Service` table and `apps/db/bc.db` is a 0-byte
   gitignored file: re-initialize the schema via the production DatabaseManager
   (no repo impact).
 
+Deployment-process validation (dev basis, before any commit or push):
+
+- Trigger: the PR touches `Dockerfile`, `.dockerignore`, `BillCollector.sh`,
+  `install_docker-image.sh`, `deploy_remote.sh` or app runtime configuration
+  (INI keys, `.env` handling) -> run the full block; otherwise record
+  "not deployment-relevant" in the plan doc and skip it.
+- On a Docker-capable host (the NAS or an equivalent host with the same
+  Docker + BuildKit), from the exact dev tree:
+  - `bash -n` on every changed shell script.
+  - `bash install_docker-image.sh` (`SKIP_MOUNT_SETUP=1` on non-NAS hosts)
+    -> build succeeds.
+  - `python3 tests/check_docker_context.py` -> `Docker context: 19 private
+    canaries excluded, 5 source files retained` (+ optional negative control
+    against a previous `.dockerignore`).
+  - Smoke run: start the container the way the deploy runs it
+    (`BillCollector.sh` on the NAS), verify the service comes up, stop it.
+- Record host, validated tree hash, and every result in the plan doc's
+  Deployment validation section.
+- Gate: the user confirms the deployment validation result (or the recorded
+  skip) before S6/S7 proceed; S7 may not commit or push to `main` without it.
+
 On failure: diagnose, fix on `dev` (new dev-commits cycle after fixing),
 re-run; if a fix would materially change the PR's intent, go to the S3
-refusal branch. All green -> Status: VALIDATED.
+refusal branch. Code checks and deployment-process validation all green,
+user-confirmed -> Status: VALIDATED.
 
 ## S6 - Documentation (session: "continue PR #N")
 
@@ -156,6 +183,9 @@ Gate: user confirms the docs.
 
 ## S7 - Commit + push: Gitea first, then GitHub (session: "continue PR #N")
 
+0. Prerequisite: the plan doc records a user-confirmed Deployment validation
+   (S5) for the exact tree being promoted; if the tree moved after that
+   confirmation, re-run the S5 validation first.
 1. dev-commits skill: propose the commits (one concern each: code / test /
    doc), per-item confirmation, then `git push origin dev`.
 2. Promote (deploy skill Stage 2, user gate): checkout `main`, fetch,
@@ -188,3 +218,7 @@ Gate: user confirms the docs.
 - GitHub credential not API-usable -> report it; the user comments/closes in
   the web UI; never guess or retry with other tokens.
 - PR touches a shared interface without an agreed issue -> refusal branch.
+- Deployment validation host unavailable (no Docker on the dev machine) ->
+  run it on the NAS or another Docker-capable host with the same Docker +
+  BuildKit; never skip it silently - record host, reason and the user
+  confirmation in the plan doc.

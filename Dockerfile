@@ -4,14 +4,12 @@ ARG TARGETARCH
 ARG APP_UID=1000
 ARG APP_GID=1000
 ARG VERSION=dev
-ARG REVISION=unknown
 ARG SOURCE=https://github.com/s-t-e-f-a-n/BillCollector
 
 LABEL org.opencontainers.image.title="BillCollector" \
     org.opencontainers.image.description="Collect documents from web portals using Playwright recipes" \
     org.opencontainers.image.source="${SOURCE}" \
     org.opencontainers.image.version="${VERSION}" \
-    org.opencontainers.image.revision="${REVISION}" \
     org.opencontainers.image.licenses="MIT"
 
 # Set timezone and environment
@@ -29,8 +27,11 @@ RUN if [[ "${TARGETARCH:-amd64}" != "amd64" ]]; then \
         echo "BillCollector image builds for linux/amd64 only" >&2; exit 1; \
     fi && apt-get update && apt-get install -y python3 python3-pip
 
-# Install pip requirements, app and browser
-COPY --chown=${APP_UID}:${APP_GID} apps/. .
+# Install the Python dependencies and the browser BEFORE the application
+# code: BuildKit reuses every layer whose inputs and stage environment are
+# unchanged, so a code-only deploy re-runs only the final app COPY + chown
+# (seconds) instead of the network-bound pip/playwright steps.
+COPY apps/requirements.txt .
 RUN pip3 install -r requirements.txt --break-system-packages
 RUN python3 -m playwright install --with-deps chromium ffmpeg
 
@@ -44,6 +45,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfonts-cyrillic xfonts-scalable fonts-ipafont-gothic fonts-wqy-zenhei \
     fonts-tlwg-loma-otf fonts-ubuntu \
     && rm -rf /var/lib/apt/lists/*
+
+# Install the application
+COPY --chown=${APP_UID}:${APP_GID} apps/. .
 
 # Create the download folder and the app user's home, then hand ownership of
 # the whole /apps tree (app code, browser, downloads) and $HOME to the

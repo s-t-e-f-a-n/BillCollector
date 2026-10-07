@@ -99,12 +99,17 @@ if [ "$SETUP_MOUNTS" = "1" ]; then
     done
 fi
 
-# Build the single image; REVISION feeds the OCI image revision label, and
-# APP_UID/APP_GID keep the image's user in sync with the host-side chown.
-# The build context is the script's own directory, so the script works from
-# any working directory.
+# Build the single image; APP_UID/APP_GID keep the image's user in sync with
+# the host-side chown. The build context is the script's own directory, so
+# the script works from any working directory.
+#
+# There is deliberately NO REVISION build arg: a Dockerfile ARG value is part
+# of the BuildKit cache key of every RUN step, so a changing REVISION (every
+# deploy checks out a new commit) invalidated the whole layer cache and
+# forced the network-bound pip/playwright rebuild on every deploy. The
+# deployed commit is recorded in the deploy log (deploy_remote.sh prints
+# `git log -1`), so no image label is needed for traceability.
 build_image --build-arg APP_UID="$APP_UID" --build-arg APP_GID="$APP_GID" \
-    --build-arg REVISION="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)" \
     -t "$IMAGE_NAME" "$SCRIPT_DIR"
 
 if [ "$SETUP_MOUNTS" = "1" ]; then

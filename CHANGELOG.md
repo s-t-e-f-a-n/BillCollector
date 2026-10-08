@@ -39,6 +39,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Avoid recommended development packages in the initial Python APT install,
+  keeping DejaVu fonts explicit to preserve browser/UI font fallback.
+
 - Vault request diagnostics retain HTTP status and retry information without
   logging response bodies, request URLs or raw network exceptions. A locked or
   failing vault status is logged as its parsed state only.

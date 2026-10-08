@@ -64,6 +64,12 @@ With a document-processing document management system (DMS) such as Paperless ng
 > Make yourself familiar with the Playwright [Locator API](https://playwright.dev/python/docs/locators): BillCollector recipes are nothing but chains of locator calls and actions.  
 > `playwright codegen <url>` lets you walk through your web portal to record a draft of the procedure - don't forget to delete the cookies of that web portal to start with a clean session when training the procedure. `helpers/BillCollectorCreateRecipe_pw.py` can translate the codegen Python output into a BillCollector YAML recipe.
 
+### Contributors
+
+External contributions are welcome and credited:
+
+- [flowcool](https://github.com/flowcool) — secret-free vault request diagnostics (PR #11), Docker build context hardening that keeps private runtime artifacts out of the image (PR #12), and the vault transport: in-process DNS vetting with requests pinned to validated local targets (PR #13).
+
 ## Quick Start
 
 BillCollector requires the following services:

@@ -250,9 +250,7 @@ if __name__ == "__main__":
         service = sys.argv[idx + 1]
         del sys.argv[idx:idx + 2]
 
-    bc = defs(
-        os.getenv("VAULT_HOST"), 
-        os.getenv("BW_API_URL")) #, 
+    bc = defs(None, os.getenv("BW_API_URL"))
 
     if is_debug_session():
         # Debugging

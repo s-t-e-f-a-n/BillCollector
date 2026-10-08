@@ -21,11 +21,6 @@ if ! flock -n 9; then
     exit 1
 fi
 
-if [[ -f .commit_id ]]; then
-    COMMIT_ID=$(cat .commit_id)
-    echo "Commit-ID: $COMMIT_ID"
-fi
-
 if [[ ! -f "$SCRIPT_DIR/apps/.env" || ! -r "$SCRIPT_DIR/apps/.env" ]]; then
     echo "Error: apps/.env must be a readable configuration file." >&2
     exit 1

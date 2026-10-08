@@ -265,11 +265,19 @@ if __name__ == "__main__":
         if os.path.isfile(sys.argv[1]) == False:
             logger.error(f"File {sys.argv[1]} not found.")
             sys.exit(1)
+        # The optional 2nd positional argument is the debug switch and its
+        # value is honored: "debug"/"True"/"1" turn it on, "False"/"0"/"no"/
+        # "off" keep it off. The previous presence-only check forced debug on
+        # for any value, so the documented `BillCollector.sh <ini> False` run
+        # unexpectedly ran headed with debug logging.
         if len(sys.argv) == 2:
             bc.debug = False
         else:
-            bc.debug = True
-            logger.info("Debug mode enabled.")
+            bc.debug = sys.argv[2].strip().lower() in {"1", "true", "t", "yes", "y", "on", "debug"}
+            if bc.debug:
+                logger.info("Debug mode enabled.")
+            else:
+                logger.info(f"Debug mode off (switch: {sys.argv[2]}).")
         bc.fname = sys.argv[1]
 
     setup_logging(LOG_DEFAULT_FILE, debug=bc.debug)

@@ -1,0 +1,48 @@
+name: Synthetic regression
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "feature/playwright-**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mock-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/requirements.txt
+      - run: python -m pip install -r apps/requirements.txt
+      - run: python -m pip check
+      - run: python -m compileall -q apps tests
+      - run: bash -n BillCollector.sh
+      - run: python -m playwright install --with-deps chromium
+      - name: Run offline unit checks
+        run: |
+          python - <<'PY'
+          import sys, unittest
+          suite = unittest.defaultTestLoader.discover('tests')
+          count = suite.countTestCases()
+          print(f'Offline unit checks: {count} tests discovered')
+          if count == 0:
+              # Make an unexpectedly empty suite visible instead of silently green.
+              print('::warning title=No unit tests::tests/test*.py discovered no tests')
+          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
+          PY
+      - name: Run the published mock-portal scenarios with private fresh state
+        run: python tests/run_ci_regression.py

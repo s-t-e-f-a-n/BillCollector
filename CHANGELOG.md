@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Synthetic GitHub Actions regression: offline unit checks and the published
+  mock-portal scenarios run with fresh private DB/profile/download state,
+  without vault or provider credentials. `tests/run_ci_regression.py`
+  reproduces the same isolated run locally.
+
 ### Changed
 
 - Deploys now reuse the BuildKit layer cache: the changing `REVISION` build

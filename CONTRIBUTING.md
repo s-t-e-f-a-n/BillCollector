@@ -15,9 +15,9 @@ BillCollector is trunk-based with release tags:
 - **`main`** is the latest branch of the public repository: the state the
   project publishes. You branch from it and target your PRs at it.
 - **Release tags** (e.g. `v0.4`) mark validated releases.
-- There is **no CI pipeline yet**: changes are validated in the [local
-  regression test environment](README.md#local-regression-test-environment)
-  and in production runs before being integrated.
+- GitHub Actions runs offline unit checks and the published mock-portal
+  scenarios with fresh private state. It uses no vault or provider credentials.
+  Local and maintainer production validation remain separate requirements.
 
 Open an **issue** before starting a feature — and always before touching a
 shared interface (see [Shared interfaces](#shared-interfaces) below).
@@ -68,5 +68,11 @@ shared interface (see [Shared interfaces](#shared-interfaces) below).
 - Verify your change from the repository root:
 
   ```bash
-  apps/.venv/bin/python tests/run_regression.py --ini tests/bc_regression.ini
+  apps/.venv/bin/python tests/run_ci_regression.py
   ```
+
+The isolated runner copies tracked inputs plus untracked, non-ignored files,
+initializes an empty tracking database, and reuses browser binaries only.
+Chromium is taken from `PLAYWRIGHT_BROWSERS_PATH` when set, else from
+`apps/browser` (`install_local.sh`), else Playwright's default cache.
+The bundled mock recipes use loopback port 8787.

@@ -1,8 +1,12 @@
 # PR #13 Review — fix: pin vault API requests to validated local targets
 
-> Status: AWAITING-DECISION (2026-10-08) — S3 decision recorded: proposal
-> confirmed as-is, Q1 + Q5 accepted; NAS `.env` check pending (S7
-> prerequisite); S4 next.
+> Status: S4 + S5 (repo) COMPLETE (2026-10-08) — integration committed to
+> `dev` as 4 commits (`bd27259` fix, `b95b04b` test, `73c7143` doc,
+> `b36fbd9` refactor); full repo validation passed (20 + 11 unit OK, full
+> regression `VERDICT: PASS` exit 0, ruff/bandit clean of new findings).
+> Pending: S5 deployment validation (Docker build on a Docker-capable host /
+> the NAS) + user confirmation before S7 promotion. NAS `.env` check remains
+> an S7 prerequisite.
 
 Repo `s-t-e-f-a-n/BillCollector`, PR by **flowcool**, head `76a7b9e`
 (`76a7b9ed68a4dd2b10a60004780b0f6b1acdb07d`, 6 commits, branch
@@ -65,7 +69,79 @@ User confirmed the integration proposal (A–H, presented in S3) as-is:
   failed (ssh `publickey` denied in the agent session; deploy ssh works from
   the user's shell). User runs the read-only check:
   `ssh root@192.168.1.99 "grep -E '^(BW_API_URL|BW_API_HOST|VAULT_HOST)=' /srv/disk-by-label/Docker/docker-recipes/BillCollector/.env"`.
-  NAS readiness remains an S7 promotion prerequisite (operational).
+   NAS readiness remains an S7 promotion prerequisite (operational).
+
+## S4 Execution (2026-10-08)
+
+Applied on `dev` (from `a8f9e3f`) per the Integration plan; 4 commits:
+
+1. `bd27259` **fix: vault: pin API requests to vetted local targets** — new
+   `apps/vault_transport.py` (verbatim from `refs/pr/13`); manual merge of
+   `apps/BillCollector.py` (the 5 structural changes, PR-#11 sanitized
+   logging kept verbatim); `apps/requirements.txt` (drop `nslookup`).
+2. `b95b04b` **test: vault: add transport suite, pin --vault preflight** —
+   new `tests/test_vault_transport.py` (verbatim); `tests/run_regression.py`
+   (PR version; `vault_preflight` body pinned via `pinned_api_url`).
+3. `73c7143` **doc: vault: document pinned-HTTP transport contract** — new
+   `doc/vault_transport.md` (verbatim); `README.md` manual merge (`.env`-
+   variables hunk only; the CONTRIBUTING-pointer hunk is already on dev →
+   skipped as base-lag noise); `CHANGELOG.md` manual merge (the two PR bullets
+   appended to dev's existing `## [Unreleased]` `### Fixed`);
+   `apps/.env.example` (clean apply).
+4. `b36fbd9` **refactor: vault: drop dead VAULT_HOST config** — call site
+   `bc = defs(None, os.getenv("BW_API_URL"))` (dead `os.getenv("VAULT_HOST")`
+   read removed); `tests/run_regression.py` `vault_preflight` docstring +
+   `--vault` help text (VAULT_HOST removed).
+
+**Deviation from plan (recorded):** plan commit 4 said "dead `os.getenv` +
+`defs` param". Dropping the `defs.vault` param was **reverted**: the PR's own
+test `test_vault_transport.py:275` (`test_preflight_checks_api_not_remote_
+backend`) and dev's `test_vault_diagnostics.py:179` both construct `defs`
+with the 2-positional `(vault, api, …)` call — the `vault` arg is a sentinel
+proving the preflight vets `self.api`, not `self.vault`. Dropping the param
+broke both suites (1 error each, `got multiple values for argument 'fname'`).
+So the `defs.vault` param is **kept** and only the dead
+`os.getenv("VAULT_HOST")` read is removed (production now passes `None`). Net
+effect: `VAULT_HOST` is no longer read from the env, configured, or
+documented — the user-visible Q5 goal — while keeping 20 + 11 green.
+
+CONTRIBUTING.md confirmed byte-identical dev↔PR head (no-op, skipped). All 18
+deletion artifacts skipped. Pre-image byte-identity confirmed for the
+clean-apply files (`.env.example`, `requirements.txt`, `run_regression.py`).
+No drift: PR head `76a7b9e` = `refs/pr/13`.
+
+## S5 Validation Results (2026-10-08)
+
+Repo validation (venv `apps/.venv`, Python 3.12.3, exact 4-commit tree) — all
+pass:
+
+- `tests.test_vault_transport` → **20 OK**.
+- `tests.test_vault_diagnostics` → **11 OK** (forward-compat branches exercise
+  `vault_http_request`; guards the manual merge).
+- Full regression `tests/run_regression.py --ini tests/bc_regression.ini` →
+  **exit 0**, 7 pairs all OK, downloads = exactly the 8 expected files,
+  `VERDICT: PASS`.
+- `pip check` → no broken requirements (after the `nslookup` drop).
+- `py_compile` on the 4 changed `.py` files → clean.
+- ruff (`F821`, `E4/E7/E9`) on the changed files → the PR files
+  (`vault_transport.py`, `test_vault_transport.py`, `run_regression.py`) are
+  **all clean**; `BillCollector.py` shows only 14 pre-existing `E7xx` style
+  findings on unchanged lines (no `F821`); zero new findings from the merge.
+- bandit on the changed files → only pre-existing harness findings in
+  `run_regression.py` (`B404` subprocess import, `B603` Popen, `B310` urlopen
+  health check, `B608` dynamic SQL table name) — all on unchanged lines; zero
+  new findings from the merge.
+
+Environment note: `~/.cache/ms-playwright` was absent (Chromium not
+installed), so the full regression could not initially run. Installed Chromium
+via `apps/.venv/bin/python -m playwright install chromium` (system libs
+libnss3/libatk/libX11 already present) — the harness runs the production
+Playwright engine, so the browser is required.
+
+Deployment validation (Docker build) — **pending**: needs a Docker-capable
+host (the NAS) for `bash install_docker-image.sh` +
+`python3 tests/check_docker_context.py` + a `BillCollector.sh` smoke run;
+user confirmation required before S7.
 
 ## Verified facts
 

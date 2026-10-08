@@ -6,8 +6,8 @@
 > ruff/bandit clean of new findings), promoted to Gitea `main` = `c2b0825`,
 > GitHub mirror `main` = `50e69eb`, flowcool credit live (README + co-author
 > trailers). Remaining (user shell): S5 deployment validation + Stage 5 NAS
-> deploy (Q2 `.env` check first) and closing PR #13 in the web UI — see
-> S7 Delivery.
+> deploy (Q2 `.env` check first). PR #13 closed via API with the credit
+> comment — see S7 Delivery.
 
 Repo `s-t-e-f-a-n/BillCollector`, PR by **flowcool**, head `76a7b9e`
 (`76a7b9ed68a4dd2b10a60004780b0f6b1acdb07d`, 6 commits, branch
@@ -229,14 +229,16 @@ The four later dev commits also re-hashed (unchanged content):
      resolves only to local addresses`; an exit-1 preflight means the NAS
      `BW_API_URL` violates the new policy → update the NAS `.env` before the
      next production run (no rebuild needed).
-- **PR #13 close (user web UI)**: the stored GitHub credential is 401 on the
-  API (Q4); close as unmerged-integrated with the credit comment (draft
-  below).
+- **PR #13 close — DONE (2026-10-08, via API)**: the stored GitHub
+  credential worked on retry (the earlier 401 no longer reproduced; Q4
+  resolved). Credit comment posted
+  (https://github.com/s-t-e-f-a-n/BillCollector/pull/13#issuecomment-6067769137)
+  and the PR closed as **not merged** (manual integration into Gitea `main`).
 - Follow-up (user's call): after the NAS validation passes, consider
   switching the root `.env` to `GIT_BRANCH=main` (currently `dev`, used to
   run dev on the NAS).
 
-### Draft PR #13 close comment
+### PR #13 close comment (posted 2026-10-08)
 
 > Thanks @flowcool — integrated with maintainer-side changes, per the review:
 > - `vault_transport.py`, the 20-test suite, and the transport contract doc
@@ -340,10 +342,10 @@ The four later dev commits also re-hashed (unchanged content):
   `08463b0`; #15 `29cab23` vs `0bae9f4`) — combined proof is stale; S5
   re-proves on the exact `dev` tree. No ordering dependency: #13 lands
   independently (PR #11's tests pass in either merge order).
-- GitHub credential in `~/.git-credentials` is **not API-usable** (401
-  "Bad credentials" on `GET /pulls/13` with Bearer); PR metadata was fetched
-  from the public API unauthenticated. S7's comment/close will need a working
-  token or the user's web UI (deploy-skill fallback).
+- GitHub credential in `~/.git-credentials` was not API-usable on 2026-10-07
+  (401 "Bad credentials" on `GET /pulls/13` with Bearer); PR metadata was
+  fetched from the public API unauthenticated. On 2026-10-08 the same stored
+  credential worked (HTTP 200) — S7's comment + close ran via the API.
 
 ## Code review findings
 
@@ -533,7 +535,8 @@ The four later dev commits also re-hashed (unchanged content):
    production run exits 1 at the vault preflight.
 3. **No issue referenced** — accept as a fix without an issue (PR #12
    precedent) or ask the author to reference/follow up with an issue.
-4. **GitHub API credential unusable** (401) — S7's PR comment + close need a
-   working token or the user's web UI.
+4. ~~**GitHub API credential unusable**~~ (401) — RESOLVED (2026-10-08): the
+   stored credential worked on retry; the PR comment + close were executed
+   via the API.
 5. ~~**Optional nit cleanup**~~ — RESOLVED (S3, 2026-10-08): included as
    the fourth commit.

@@ -73,6 +73,10 @@ User confirmed the integration proposal (A–H, presented in S3) as-is:
 
 ## S4 Execution (2026-10-08)
 
+> The four commit hashes below were superseded by the contributor-credit
+> authorship rewrite (see Contributor Credit section): commits 1-3 carry
+> `Co-authored-by` trailers and new hashes; commit 4 is content-identical.
+
 Applied on `dev` (from `a8f9e3f`) per the Integration plan; 4 commits:
 
 1. `bd27259` **fix: vault: pin API requests to vetted local targets** — new
@@ -142,6 +146,53 @@ Deployment validation (Docker build) — **pending**: needs a Docker-capable
 host (the NAS) for `bash install_docker-image.sh` +
 `python3 tests/check_docker_context.py` + a `BillCollector.sh` smoke run;
 user confirmation required before S7.
+
+## Contributor Credit (S7 prep, 2026-10-08)
+
+User asked to honor flowcool as a contributor on the public GitHub repo (he is
+surfaced as a "first-time contributor" in the PR #13 overview). Chosen
+approach: **README credit + `Co-authored-by` trailers** (option 1, recommended;
+user confirmed).
+
+Rationale / facts established while deciding:
+- The GitHub mirror is Gitea `main`'s commit objects with only the tip
+  sanitized (`sync_github.sh` amends the tip to strip `.kilo`/`.vscode`/
+  `.private`); every other commit keeps its Gitea hash and author. So whatever
+  authorship lands on `main` is carried into the public history.
+- All Gitea commits are authored as `Stefan S <s-t-e-f-a-n@users.noreply.
+  github.com>`, so without action flowcool would never appear in GitHub's
+  contributors list (that list is derived from commit authors on `main`).
+- flowcool's real author identity on the PR commits is
+  `ouam <19570361+flowcool@users.noreply.github.com>` (the noreply email maps
+  to the `flowcool` profile). He also authored PR #11 and #12 (already on
+  `main`).
+
+Actions taken on `dev`:
+1. **README** (`52cc500` `doc: readme: credit flowcool as external contributor
+   (PRs #11-#13)`): new `### Contributors` subsection under `Contributing`
+   crediting [flowcool](https://github.com/flowcool) for PR #11 (secret-free
+   vault diagnostics), #12 (Docker build context hardening), and #13 (vault
+   transport).
+2. **`Co-authored-by` trailers** added to the three PR-derived integration
+   commits (the content is flowcool's, applied verbatim / manual-merged); the
+   fourth commit (`refactor: vault: drop dead VAULT_HOST config`) is maintainer
+   cleanup and stays maintainer-authored. This is a **dev history rewrite**
+   (force-push to Gitea `dev` only; the NAS tracks `main`/tags, unaffected).
+
+Old → new hashes (content identical; commits 1-3 gained a
+`Co-authored-by: ouam <19570361+flowcool@users.noreply.github.com>` trailer):
+
+| # | old   | new   | subject |
+|---|-------|-------|---------|
+| 1 | `bd27259` | `a42c2dd` | fix: vault: pin API requests to vetted local targets |
+| 2 | `b95b04b` | `e6a1005` | test: vault: add transport suite, pin --vault preflight |
+| 3 | `73c7143` | `ca18931` | doc: vault: document pinned-HTTP transport contract |
+| 4 | `b36fbd9` | `6f34cd6` | refactor: vault: drop dead VAULT_HOST config (no trailer) |
+
+The four later dev commits also re-hashed (unchanged content):
+`a57318b`→`d390526`, `b386712`→`07ff4d4`, `d4cf1b1`→`2594e03`,
+`b284737`→`33b76ea`, `16a3e25`→`15d91cf`, plus the new README commit
+`52cc500`.
 
 ## Verified facts
 

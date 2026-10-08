@@ -1,12 +1,13 @@
 # PR #13 Review — fix: pin vault API requests to validated local targets
 
-> Status: S4 + S5 (repo) COMPLETE (2026-10-08) — integration committed to
-> `dev` as 4 commits (`bd27259` fix, `b95b04b` test, `73c7143` doc,
-> `b36fbd9` refactor); full repo validation passed (20 + 11 unit OK, full
-> regression `VERDICT: PASS` exit 0, ruff/bandit clean of new findings).
-> Pending: S5 deployment validation (Docker build on a Docker-capable host /
-> the NAS) + user confirmation before S7 promotion. NAS `.env` check remains
-> an S7 prerequisite.
+> Status: DELIVERED (2026-10-08) — integrated to `dev` (4 commits, hashes
+> superseded by the credit rewrite, see S4 + Contributor Credit), repo
+> validation green (20 + 11 unit OK, full regression `VERDICT: PASS` exit 0,
+> ruff/bandit clean of new findings), promoted to Gitea `main` = `c2b0825`,
+> GitHub mirror `main` = `50e69eb`, flowcool credit live (README + co-author
+> trailers). Remaining (user shell): S5 deployment validation + Stage 5 NAS
+> deploy (Q2 `.env` check first) and closing PR #13 in the web UI — see
+> S7 Delivery.
 
 Repo `s-t-e-f-a-n/BillCollector`, PR by **flowcool**, head `76a7b9e`
 (`76a7b9ed68a4dd2b10a60004780b0f6b1acdb07d`, 6 commits, branch
@@ -193,6 +194,65 @@ The four later dev commits also re-hashed (unchanged content):
 `a57318b`→`d390526`, `b386712`→`07ff4d4`, `d4cf1b1`→`2594e03`,
 `b284737`→`33b76ea`, `16a3e25`→`15d91cf`, plus the new README commit
 `52cc500`.
+
+## S7 Delivery (2026-10-08)
+
+- **User confirmation for S7**: user instruction "proceed with PR#13"
+  (2026-10-08T19:34Z). Ordering note: S5 deployment validation and the S7
+  promotion ran **in parallel** instead of validation-first, because the NAS
+  deploys track `GIT_BRANCH=dev` (root `.env`): promoting `main` changes
+  nothing the NAS runs. The breaking-config exposure happens only at the next
+  NAS deploy, which the user times against the Q2 `.env` check.
+- **Stage 1 (pre-promotion)**: full regression on the promotion tree →
+  `VERDICT: PASS`, exit 0 (7 pairs, 8 downloads); re-validated after the
+  authorship rewrite (content-identical) and the two doc commits
+  (README + plan — neither reaches the image).
+- **Stage 2 (promote)**: ff-only `dev` → Gitea `main`: `b4dd3d9` →
+  `c2b0825`, pushed; `git diff main dev` empty at the promotion point.
+  Not a release: no tag, `## [Unreleased]` stays (finalized at tag time).
+- **Stage 3 (GitHub mirror)**: `sync_github.sh` (no tag): public main
+  `b62821b` → `50e69eb` (sanitized tip of `c2b0825`). Verified: public root
+  listing has no `.kilo`/`.private`/`.vscode` (and no `.commit_id`/
+  `.gitattributes` after the cleanup); README Contributors section public;
+  `Co-authored-by` trailer present in public commit `a42c2dd`.
+- **Contributor credit (live)**: flowcool credited in the public README
+  (PRs #11-#13); co-author on public commits `a42c2dd` (transport),
+  `e6a1005` (test suite), `ca18931` (transport contract doc).
+- **Stage 5 (NAS deploy) + S5 deployment validation — pending (user shell;
+  agent session has no NAS ssh key)**:
+  1. Q2 check: `ssh root@192.168.1.99 "grep -E '^(BW_API_URL|BW_API_HOST|VAULT_HOST)=' /srv/disk-by-label/Docker/docker-recipes/BillCollector/.env"`
+  2. Dev host: `./deploy_remote.sh` (`GIT_BRANCH=dev` → fetches `c2b0825`,
+     builds the image on the NAS).
+  3. NAS: `python3 tests/check_docker_context.py` → expect `Docker context:
+     19 private canaries excluded, 5 source files retained`.
+  4. NAS smoke (`BillCollector.sh`): look for the info line `Vault API
+     resolves only to local addresses`; an exit-1 preflight means the NAS
+     `BW_API_URL` violates the new policy → update the NAS `.env` before the
+     next production run (no rebuild needed).
+- **PR #13 close (user web UI)**: the stored GitHub credential is 401 on the
+  API (Q4); close as unmerged-integrated with the credit comment (draft
+  below).
+- Follow-up (user's call): after the NAS validation passes, consider
+  switching the root `.env` to `GIT_BRANCH=main` (currently `dev`, used to
+  run dev on the NAS).
+
+### Draft PR #13 close comment
+
+> Thanks @flowcool — integrated with maintainer-side changes, per the review:
+> - `vault_transport.py`, the 20-test suite, and the transport contract doc
+>   landed verbatim as `a42c2dd`, `e6a1005`, `ca18931` (you are listed as
+>   co-author on all three).
+> - The `BillCollector.py` merge kept the PR #11 sanitized diagnostics
+>   logging: the PR base predates #11, so a byte-for-byte apply would have
+>   reintroduced the unsanitized log lines.
+> - The stale `VAULT_HOST` config was dropped as a follow-up cleanup
+>   (`6f34cd6`).
+> - Full regression on the integrated tree: `VERDICT: PASS` (7 pairs, 8
+>   downloads); `ruff`/`bandit` clean of new findings.
+> You are also credited in the README Contributors section. The in-process DNS
+> vetting is a clear step up over the old `nslookup` check — thanks for the
+> rigorous work.
+
 
 ## Verified facts
 

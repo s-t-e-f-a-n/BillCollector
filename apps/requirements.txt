@@ -32,7 +32,6 @@ markdown2==2.5.5
 MarkupSafe==3.0.3
 multidict==6.9.1
 nicegui==3.17.1
-nslookup==1.9.0
 orjson==3.12.0
 playwright==1.63.0
 propcache==0.5.4

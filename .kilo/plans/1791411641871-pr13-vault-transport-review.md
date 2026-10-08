@@ -1,7 +1,8 @@
 # PR #13 Review — fix: pin vault API requests to validated local targets
 
-> Status: AWAITING-DECISION (2026-10-08) — S2 verdict written: approve with
-> maintainer changes; user decision on the open questions pending before S3.
+> Status: AWAITING-DECISION (2026-10-08) — S3 decision recorded: proposal
+> confirmed as-is, Q1 + Q5 accepted; NAS `.env` check pending (S7
+> prerequisite); S4 next.
 
 Repo `s-t-e-f-a-n/BillCollector`, PR by **flowcool**, head `76a7b9e`
 (`76a7b9ed68a4dd2b10a60004780b0f6b1acdb07d`, 6 commits, branch
@@ -44,6 +45,27 @@ interface → minor gap); the PR body's combined multi-PR proof used stale
 heads (S5 re-proves on the exact `dev` tree). The six log regressions are
 base-lag artifacts of the pre-#11 tip, not author intent — refusal is not
 warranted.
+
+## S3 Decision (2026-10-08)
+
+User confirmed the integration proposal (A–H, presented in S3) as-is:
+
+- **Q1 accepted** — the breaking config change ships: `BW_API_URL` plain-HTTP,
+  loopback/private-only; `VAULT_HOST` unused.
+- **Q5 accepted** — the stale-`VAULT_HOST` cleanup ships as the fourth commit
+  (`refactor: vault: drop dead VAULT_HOST config`: dead `os.getenv` + `defs`
+  param, `vault_preflight` docstring, `--vault` help text).
+- Commits: 1 `fix: vault: pin API requests to vetted local targets`,
+  2 `test: vault: add transport suite, pin --vault preflight`,
+  3 `doc: vault: document pinned-HTTP transport contract`,
+  4 `refactor: vault: drop dead VAULT_HOST config`.
+- **Q2 partial** — local dev host `apps/.env` verified:
+  `BW_API_URL=http://solg.fritz.box:8087` resolves to `192.168.1.99` (private,
+  plain HTTP) → passes the new policy. The NAS `.env` check from the dev host
+  failed (ssh `publickey` denied in the agent session; deploy ssh works from
+  the user's shell). User runs the read-only check:
+  `ssh root@192.168.1.99 "grep -E '^(BW_API_URL|BW_API_HOST|VAULT_HOST)=' /srv/disk-by-label/Docker/docker-recipes/BillCollector/.env"`.
+  NAS readiness remains an S7 promotion prerequisite (operational).
 
 ## Verified facts
 
@@ -316,17 +338,15 @@ warranted.
 
 ## Open questions
 
-1. **Breaking change acceptance** — `VAULT_HOST` becomes unused and
-   `BW_API_URL` must be plain-HTTP, private-only (HTTPS and public targets
-   refused). Maintainer decision at the S2/S3 gate.
-2. **Deployment `.env` readiness** — does the current `BW_API_URL` (local
-   dev host and NAS) resolve only to loopback/private? If not, the
-   `.env` must be updated (LAN IP / private name) before or together with
-   promotion, or the next production run exits 1 at the vault preflight.
+1. ~~**Breaking change acceptance**~~ — RESOLVED (S3, 2026-10-08): accepted.
+2. **Deployment `.env` readiness** — local dev host verified OK (see S3
+   Decision); NAS check pending — user runs the read-only ssh grep above;
+   if the NAS `BW_API_URL` does not resolve only to loopback/private, the
+   NAS `.env` must be updated before the S7 promotion, or the next
+   production run exits 1 at the vault preflight.
 3. **No issue referenced** — accept as a fix without an issue (PR #12
    precedent) or ask the author to reference/follow up with an issue.
 4. **GitHub API credential unusable** (401) — S7's PR comment + close need a
    working token or the user's web UI.
-5. **Optional nit cleanup** — apply the maintainer-side stale-`VAULT_HOST`
-   cleanup (Integration plan step 7) as part of this integration, or leave
-   it.
+5. ~~**Optional nit cleanup**~~ — RESOLVED (S3, 2026-10-08): included as
+   the fourth commit.

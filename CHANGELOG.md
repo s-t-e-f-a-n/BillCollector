@@ -39,6 +39,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Validate and pin the actual local vault API target, bypass ambient proxies and
+  refuse redirects while preserving request retries, safe diagnostics and TOTP handling.
+- **Breaking:** `BW_API_URL` must be a plain-HTTP URL resolving only to loopback or
+  private addresses; HTTPS and public targets are refused. `VAULT_HOST` is no
+  longer used. See [doc/vault_transport.md](doc/vault_transport.md).
+
 - Vault request diagnostics retain HTTP status and retry information without
   logging response bodies, request URLs or raw network exceptions. A locked or
   failing vault status is logged as its parsed state only.

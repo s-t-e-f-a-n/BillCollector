@@ -91,22 +91,23 @@ def vault_preflight():
     from dotenv import load_dotenv
 
     load_dotenv(os.path.join(APPS_DIR, ".env"))
-    vault_host = os.getenv("VAULT_HOST")
     api = os.getenv("BW_API_URL")
-    if not vault_host or not api:
-        print("Error: --vault requires VAULT_HOST and BW_API_URL in apps/.env.")
+    if not api:
+        print("Error: --vault requires BW_API_URL in apps/.env.")
         sys.exit(4)
 
     from BillCollector import (
         bitwarden_api_check_status,
-        is_domain_local_ip,
         is_json_property_value,
         post_json,
     )
 
-    ip = is_domain_local_ip(vault_host)
-    if not ip:
-        print(f"Error: {vault_host} does not resolve to a local IP.")
+    from vault_transport import VaultTransportError, pinned_api_url
+
+    try:
+        pinned_api_url(api)
+    except VaultTransportError:
+        print("Error: vault API does not resolve only to local HTTP addresses.")
         sys.exit(4)
     try:
         ret, status = bitwarden_api_check_status(api)

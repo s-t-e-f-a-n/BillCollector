@@ -47,6 +47,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-tlwg-loma-otf fonts-ubuntu \
     && rm -rf /var/lib/apt/lists/*
 
+# Validate installed dependencies before removing build-only Python installers.
+# Keep runtime libraries and headed/debug browser support intact.
+RUN python3 -m pip check && apt-get purge -y python3-pip python3-wheel
+
 # Install the application
 COPY --chown=${APP_UID}:${APP_GID} apps/. .
 

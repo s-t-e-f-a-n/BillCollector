@@ -157,6 +157,10 @@ Now that we have done a good job installing all the prerequisites, we are focusi
 
 5. Let your server's cron call your BillCollector periodically (e.g., bi-monthly) by calling `</path/to/your/billcollector-git-clone-folder/BillCollector.sh bc_default.ini`.
 
+Python dependencies are validated during the image build. The final container
+does not include `pip` or `wheel`; update `apps/requirements.txt` and rebuild the
+image when changing dependencies. Local virtual environments keep their installers.
+
 ### Manual Run UI
 
 Besides cron, BillCollector ships with a minimal web UI for manual runs. From the `apps` directory run:

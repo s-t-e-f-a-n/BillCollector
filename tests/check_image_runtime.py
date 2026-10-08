@@ -98,7 +98,7 @@ def main():
     for key in list(os.environ):
         if key.startswith(("BW_", "VAULT_", "BILLCOLLECTOR_")):
             del os.environ[key]
-    subprocess.run([sys.executable, "-m", "pip", "check"], check=True)
+    # Dependency consistency is checked during the build, before pip is removed.
     check_browser(headless=True)
     check_headed_browser()
     with tempfile.TemporaryDirectory(prefix="billcollector-image-") as directory:

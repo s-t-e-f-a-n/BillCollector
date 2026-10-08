@@ -41,6 +41,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Avoid recommended development packages in the initial Python APT install,
   keeping DejaVu fonts explicit to preserve browser/UI font fallback.
+- Check Python dependencies at build time and remove pip/wheel installers from
+  the final image while preserving local virtual environments.
 
 - Vault request diagnostics retain HTTP status and retry information without
   logging response bodies, request URLs or raw network exceptions. A locked or

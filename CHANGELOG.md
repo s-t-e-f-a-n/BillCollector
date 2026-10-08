@@ -39,6 +39,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Breaking:** the Docker wrapper refuses root invocation and requires the
+  chosen non-root operator to own or have ACL/group access to its runtime files.
+- Keep application source/browser binaries root-owned and writable runtime
+  paths separate in the existing non-root image. Map the invoking operator
+  and supplementary groups in the Docker wrapper, preserve readonly dotenv
+  configuration, and forward all CLI arguments. Existing bind permissions
+  require operator-managed migration; see [doc/nonroot_runtime.md](doc/nonroot_runtime.md).
+
 - Vault request diagnostics retain HTTP status and retry information without
   logging response bodies, request URLs or raw network exceptions. A locked or
   failing vault status is logged as its parsed state only.

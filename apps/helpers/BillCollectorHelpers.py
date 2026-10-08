@@ -20,14 +20,15 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))          
 DOWNLOAD_DIR = os.path.join(APP_DIR, "Downloads")                                           # Directory for downloaded files
 INI_DEFAULT_FILE = os.path.join(APP_DIR, "bc_default.ini")                                  # Default INI file
 INI_DEFAULT_TEST_FILE = os.path.join(APP_DIR, "bc_test.ini")                                # Test INI file
-LOG_DEFAULT_FILE = os.path.join(APP_DIR, "bc.log")                                          # Default log file
+LOG_DEFAULT_FILE = os.getenv("BILLCOLLECTOR_LOG_FILE") or os.path.join(APP_DIR, "bc.log")
 
 RECIPES_PLAYWRIGHT_DIR = os.path.join(APP_DIR, "recipes_playwright")                        # Directory for recipes
 RECIPES_PLAYWRIGHT_SCHEMA_FILE = os.path.join(RECIPES_PLAYWRIGHT_DIR, "recipe-pw-schema.yaml")  # Schema file for Playwright recipes
 RECIPES_PLAYWRIGHT_PREFIX = "recipe-pw__"                                                   # Prefix for Playwright recipes
 RECIPES_PLAYWRIGHT_CODE_DIR = os.path.join(RECIPES_PLAYWRIGHT_DIR, ".code")                  # Directory for Playwright python code 
 CHROMIUM_PLAYWRIGHT_DIR = os.path.join(APP_DIR, "browser")                                  # Directory for Chromium Playwright
-CHROMIUM_PLAYWRIGHT_PROFILE = os.path.join(CHROMIUM_PLAYWRIGHT_DIR, "profile")              # Directory for Chromium Playwright profile
+CHROMIUM_PLAYWRIGHT_PROFILE = (os.getenv("BILLCOLLECTOR_PROFILE_DIR") or
+                               os.path.join(CHROMIUM_PLAYWRIGHT_DIR, "profile"))
 
 os.environ["PLAYWRIGHT_BROWSERS_PATH"] = CHROMIUM_PLAYWRIGHT_DIR                            # Set environment variable for Playwright browsers path
 
@@ -35,7 +36,7 @@ DB_DIR = os.path.join(APP_DIR, "db")                                            
 DB_FILE = os.path.join(DB_DIR, "bc.db")                                                     # Database file
 os.makedirs(DB_DIR, exist_ok=True)
 
-LOCK_FILE = os.path.join(APP_DIR, ".bc.lock")                                               # Run lock file (flock)
+LOCK_FILE = os.getenv("BILLCOLLECTOR_LOCK_FILE") or os.path.join(APP_DIR, ".bc.lock")
 
 # Reject a second concurrent run (overlapping cron starts, UI run + debug
 # session, two manual runs). The lock is a non-blocking exclusive flock on

@@ -20,6 +20,9 @@ WORKDIR /apps
 
 # Set environment variables
 ENV PLAYWRIGHT_BROWSERS_PATH=/apps/browser
+ENV BILLCOLLECTOR_PROFILE_DIR=/apps/runtime/profile
+ENV BILLCOLLECTOR_LOG_FILE=/apps/db/bc.log
+ENV BILLCOLLECTOR_LOCK_FILE=/apps/db/.bc.lock
 
 # Install Python3 (the image builds for linux/amd64 only)
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -47,12 +50,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the application
-COPY --chown=${APP_UID}:${APP_GID} apps/. .
+COPY apps/. .
 
-# Create the download folder and the app user's home, then hand ownership of
-# the whole /apps tree (app code, browser, downloads) and $HOME to the
-# non-root app user
-RUN mkdir -p /apps/Downloads "$HOME" && chown -R ${APP_UID}:${APP_GID} /apps "$HOME"
+# Keep application code and browser binaries root-owned. Only runtime paths
+# and HOME belong to the configured non-root identity.
+RUN rm -rf /apps/runtime /apps/db /apps/Downloads \
+    && chmod -R go-w /apps \
+    && install -d -m 0700 -o ${APP_UID} -g ${APP_GID} \
+       /apps/runtime /apps/db /apps/Downloads "$HOME"
 
 # Run as the non-root app user (numeric, no user account needed)
 USER ${APP_UID}:${APP_GID}

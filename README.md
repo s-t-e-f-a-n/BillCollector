@@ -153,7 +153,7 @@ Now that we have done a good job installing all the prerequisites, we are focusi
 
 3. Create a `.env` file in the repository folder from the template `.env.example` and set `CONSUMER_DIR` to your `Paperless-ngx` instance's consumption folder and `DB_DIR` to the database folder inside it (the installation script reads both; the soft links are created automatically).
 
-4. On your Linux console enter `./install_docker-image.sh` which builds the docker image `billcollector:latest` and sets the soft links to the inbox of your `Paperless-ngx` to let BillCollector collect bills periodically. The image runs as a non-root user (UID/GID 1000, overridable at build time with the `APP_UID`/`APP_GID` build args).
+4. On your Linux console enter `./install_docker-image.sh` which builds the docker image `billcollector:latest` and sets the soft links to the inbox of your `Paperless-ngx` to let BillCollector collect bills periodically. The image runs as a non-root user (UID/GID 1000, overridable at build time with the `APP_UID`/`APP_GID` build args). Application code and browser binaries stay root-owned; the wrapper maps the invoking non-root operator and supplementary groups. See [non-root runtime and bind permissions](doc/nonroot_runtime.md).
 
 5. Let your server's cron call your BillCollector periodically (e.g., bi-monthly) by calling `</path/to/your/billcollector-git-clone-folder/BillCollector.sh bc_default.ini`.
 

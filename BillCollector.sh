@@ -42,11 +42,6 @@ if ! flock -n 9; then
     exit 1
 fi
 
-if [[ -f .commit_id ]]; then
-    COMMIT_ID=$(cat .commit_id)
-    echo "Commit-ID: $COMMIT_ID"
-fi
-
 RUN_GROUPS="$(id -G)" || exit 1
 read -r -a GROUP_IDS <<< "$RUN_GROUPS"
 GROUP_ARGS=()

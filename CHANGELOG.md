@@ -36,6 +36,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The `org.opencontainers.image.revision` OCI image label (fed by the
   `REVISION` build arg); the deployed commit is recorded in the deploy log
   instead (`deploy_remote.sh` prints `git log -1`).
+- The inert `.commit_id` file, its `.gitattributes` `export-subst` hook, and
+  the `Commit-ID` print block in `BillCollector.sh`. The substitution only ran
+  on `git archive`, which the deploy never uses (it fetches + resets), so the
+  committed value was always stale; the deployed commit stays visible in the
+  deploy log.
+- `doc/TODO.txt` (stale scratch notes).
 
 ### Fixed
 
@@ -58,6 +64,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Breaking:** the image no longer contains `apps/.env`. `BillCollector.sh`
   mounts it read-only at `/apps/.env`; a direct `docker run`, compose file or
   scheduler must add the same mount.
+- Validate and pin the actual local vault API target, bypass ambient proxies and
+  refuse redirects while preserving the existing request retries and TOTP handling.
+- **Breaking:** `BW_API_URL` must be a plain-HTTP URL resolving only to loopback or
+  private addresses; HTTPS and public targets are refused. `VAULT_HOST` is no
+  longer used. See [doc/vault_transport.md](doc/vault_transport.md).
+- The CLI debug switch (`BillCollector.py` 2nd positional argument) now honors
+  its value: `debug`/`True`/`1` turn debug mode on, `False`/`0`/`no`/`off` keep
+  it off. The previous presence-only check forced debug on for any value, so the
+  documented `BillCollector.sh <ini> False` smoke run unexpectedly ran headed
+  with debug logging.
 
 ## [v0.4] - 2026-10-02
 

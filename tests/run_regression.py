@@ -85,28 +85,29 @@ def acquire_guard_lock():
 
 def vault_preflight():
     """Once-per-run vault checks mirroring WebRetriDoc
-    (BillCollector.py:194-211): .env loaded, VAULT_HOST resolves to a local
-    IP, the Bitwarden API answers success=true and is unlocked, sync works.
-    Any failure exits 4. Returns the BW API base URL."""
+    (BillCollector.py:152-176): .env loaded, BW_API_URL resolves only to
+    local HTTP addresses, the Bitwarden API answers success=true and is
+    unlocked, sync works. Any failure exits 4. Returns the BW API base URL."""
     from dotenv import load_dotenv
 
     load_dotenv(os.path.join(APPS_DIR, ".env"))
-    vault_host = os.getenv("VAULT_HOST")
     api = os.getenv("BW_API_URL")
-    if not vault_host or not api:
-        print("Error: --vault requires VAULT_HOST and BW_API_URL in apps/.env.")
+    if not api:
+        print("Error: --vault requires BW_API_URL in apps/.env.")
         sys.exit(4)
 
     from BillCollector import (
         bitwarden_api_check_status,
-        is_domain_local_ip,
         is_json_property_value,
         post_json,
     )
 
-    ip = is_domain_local_ip(vault_host)
-    if not ip:
-        print(f"Error: {vault_host} does not resolve to a local IP.")
+    from vault_transport import VaultTransportError, pinned_api_url
+
+    try:
+        pinned_api_url(api)
+    except VaultTransportError:
+        print("Error: vault API does not resolve only to local HTTP addresses.")
         sys.exit(4)
     try:
         ret, status = bitwarden_api_check_status(api)
@@ -318,7 +319,7 @@ def main():
                         help=f"mock portal port (default {PORT_DEFAULT})")
     parser.add_argument("--vault", action="store_true",
                         help="fetch credentials, URL and TOTP from the real "
-                             "Vaultwarden (VAULT_HOST / BW_API_URL in apps/.env) "
+                             "Vaultwarden (BW_API_URL in apps/.env) "
                              "instead of scenarios.py (dev host only)")
     args = parser.parse_args()
     if args.vault and args.port != PORT_DEFAULT:

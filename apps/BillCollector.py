@@ -5,7 +5,6 @@ import os
 import sys
 from dotenv import load_dotenv
 import re
-from nslookup import Nslookup
 import time
 import logging
 import requests
@@ -14,6 +13,7 @@ import configparser
 from flatten_json import flatten
 
 from BillCollectorServices_pw import retrieve_from_service_with_playwright
+from vault_transport import VaultTransportError, pinned_api_url, vault_http_request
 from helpers import *
 
 logger = logging.getLogger(__name__)
@@ -26,46 +26,6 @@ def extract_strings(line):
         within_bracket = match.group(2).split(', ')
         return before_bracket, within_bracket
     return line.strip(), []
-
-def extract_ip(string):
-    # Regex for IP addresses
-    ip_pattern = re.compile(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b')
-    match = ip_pattern.search(string)
-    if match:
-        return match.group()
-    return None
-
-def is_local_ip(ip):
-    # Local IP ranges
-    local_ip_ranges = [
-        re.compile(r'^10\.'),  # 10.0.0.0 - 10.255.255.255
-        re.compile(r'^172\.(1[6-9]|2[0-9]|3[0-1])\.'),  # 172.16.0.0 - 172.31.255.255
-        re.compile(r'^192\.168\.'),  # 192.168.0.0 - 192.168.255.255
-    ]
-    for pattern in local_ip_ranges:
-        if pattern.match(ip):
-            return True
-    return False
-
-# Check DNS for domain is directing to local IP
-def is_domain_local_ip(domain, try_count=3):
-    dns_query = Nslookup()
-    for attempt in range(1, try_count + 1):
-        try:
-            ips_record = dns_query.dns_lookup(domain)
-            ip = extract_ip(' '.join(ips_record.answer))
-            if ip:
-                if is_local_ip(ip):
-                    return ip
-                else:
-                    logger.error("No local IP address.")
-                    return False
-            else:
-                logger.warning(f"No IP address received on attempt {attempt}.")
-        except Exception as e:
-            logger.warning(f"DNS Exception on attempt {attempt}: {e}")
-        finally:
-            time.sleep(1)
 
 # --- Vaultwarden API client ---
 # Every request carries an explicit timeout and is retried up to
@@ -88,7 +48,9 @@ class VaultAPIError(Exception):
 def vault_request(method, url, payload=None):
     for attempt in range(1, VAULT_MAX_ATTEMPTS + 1):
         try:
-            response = requests.request(method, url, json=payload, timeout=VAULT_TIMEOUT)
+            response = vault_http_request(method, url, payload, VAULT_TIMEOUT)
+        except VaultTransportError as e:
+            raise VaultAPIError(str(e)) from None
         except requests.exceptions.RequestException as e:
             # Exceptions can include the request URL, credentials or a response
             # body. Keep only bounded diagnostics (the class name) from this credential service.
@@ -190,11 +152,13 @@ class defs:
 
 def WebRetriDoc(self, type=None, service=None):
 
-    # Check if <domain> is resolvable and directs to a local IP address
-    ip = is_domain_local_ip(self.vault)
-    if not ip:
+    # Vet the actual API endpoint, not the Cloud or Vaultwarden server behind it.
+    try:
+        pinned_api_url(self.api, VAULT_MAX_ATTEMPTS, VAULT_RETRY_BACKOFF)
+    except VaultTransportError as e:
+        logger.error(str(e))
         sys.exit(1)
-    logger.info(f"{self.vault} is resolvable and directs to local IP {ip}")
+    logger.info("Vault API resolves only to local addresses")
 
     # Check if Bitarden API at <bw_api_url> responds with success=true
     ret, status = bitwarden_api_check_status(self.api)
@@ -286,9 +250,7 @@ if __name__ == "__main__":
         service = sys.argv[idx + 1]
         del sys.argv[idx:idx + 2]
 
-    bc = defs(
-        os.getenv("VAULT_HOST"), 
-        os.getenv("BW_API_URL")) #, 
+    bc = defs(None, os.getenv("BW_API_URL"))
 
     if is_debug_session():
         # Debugging
@@ -303,11 +265,19 @@ if __name__ == "__main__":
         if os.path.isfile(sys.argv[1]) == False:
             logger.error(f"File {sys.argv[1]} not found.")
             sys.exit(1)
+        # The optional 2nd positional argument is the debug switch and its
+        # value is honored: "debug"/"True"/"1" turn it on, "False"/"0"/"no"/
+        # "off" keep it off. The previous presence-only check forced debug on
+        # for any value, so the documented `BillCollector.sh <ini> False` run
+        # unexpectedly ran headed with debug logging.
         if len(sys.argv) == 2:
             bc.debug = False
         else:
-            bc.debug = True
-            logger.info("Debug mode enabled.")
+            bc.debug = sys.argv[2].strip().lower() in {"1", "true", "t", "yes", "y", "on", "debug"}
+            if bc.debug:
+                logger.info("Debug mode enabled.")
+            else:
+                logger.info(f"Debug mode off (switch: {sys.argv[2]}).")
         bc.fname = sys.argv[1]
 
     setup_logging(LOG_DEFAULT_FILE, debug=bc.debug)

@@ -50,6 +50,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Breaking:** the image no longer contains `apps/.env`. `BillCollector.sh`
   mounts it read-only at `/apps/.env`; a direct `docker run`, compose file or
   scheduler must add the same mount.
+- Validate and pin the actual local vault API target, bypass ambient proxies and
+  refuse redirects while preserving the existing request retries and TOTP handling.
+- **Breaking:** `BW_API_URL` must be a plain-HTTP URL resolving only to loopback or
+  private addresses; HTTPS and public targets are refused. `VAULT_HOST` is no
+  longer used. See [doc/vault_transport.md](doc/vault_transport.md).
 
 ## [v0.4] - 2026-10-02
 

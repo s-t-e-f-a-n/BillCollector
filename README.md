@@ -180,8 +180,9 @@ First and once, for the basic configuration you need to adapt the `.env` file lo
   at the next run without a rebuild; INI files and recipes are still baked into
   the image and need step 3 again.
 - define the .env-variables:
-  - `VAULT_HOST=<hostname of your vault e.g., vault.my-domain.duckdns.org>`
-  - `BW_API_URL=<http/https-URL of the bitwarden API e.g., http://<local-ip>:8087>`
+  - `BW_API_URL=<http-URL of your local bw serve API e.g., http://<local-ip>:8087>`; it must resolve only to loopback/private addresses, HTTPS is refused
+  - `BW_API_HOST=127.0.0.1:8087` (optional): Host header for a `bw serve` in another container
+  - `VAULT_HOST` is no longer used, see [doc/vault_transport.md](doc/vault_transport.md)
 
 ### Local Development & Debugging
 

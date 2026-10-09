@@ -75,6 +75,16 @@ def env(name: str, default=None):
     """Read an environment variable (call :func:`load_env` first at startup)."""
     return os.environ.get(name, default)
 
+def chromium_args() -> list[str]:
+    """Additional Chromium launch arguments, space-separated, from BC_CHROMIUM_ARGS.
+
+    Host-specific launch workaround only — leave unset for stock behavior;
+    example: ``--disable-software-rasterizer`` on GPU-less WSL2 hosts where the
+    renderer produces no frames during the process cold phase (Playwright
+    actionability timeouts).
+    """
+    return os.environ.get("BC_CHROMIUM_ARGS", "").split()
+
 
 def recipe_path_for(service: str) -> Path:
     """Path of the per-service recipe file, e.g. recipe-pw__winsim.yaml."""

@@ -9,6 +9,7 @@ import json
 from datetime import datetime
 from playwright.sync_api import Playwright, sync_playwright, Route, Request, Page
 from helpers import *
+from billcollector.config import chromium_args
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ def InitBrowser(p, bcs):
             user_data_dir=CHROMIUM_PLAYWRIGHT_PROFILE,
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
                      (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            args=chromium_args(),
             )
     except Exception as e:
         logger.error(f"Error: {e}")

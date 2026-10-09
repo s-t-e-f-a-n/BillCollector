@@ -150,7 +150,7 @@ class Database:
 
         Imported tasks are created disabled (decision 7: "disabled until
         confirmed in the UI") with a default monthly cron. Runs only when the
-        Task table is still empty; returns the number of tasks created.
+        Task table is still empty; duplicate (service, user) pairs across files are imported only once. Returns the number of tasks created.
         """
         if self.conn.execute("SELECT COUNT(*) c FROM Task").fetchone()["c"]:
             return 0
@@ -167,6 +167,8 @@ class Database:
                 users = ([u.strip() for u in users_raw.split(",") if u.strip()]
                          if users_raw.strip() else [""])
                 for user in users:
+                    if self.get_task_by_service_user(service, user) is not None:
+                        continue
                     self.create_task(
                         service, user,
                         recipe_file=str(config.recipe_path_for(service)),

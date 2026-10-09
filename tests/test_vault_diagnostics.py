@@ -16,6 +16,7 @@ from unittest.mock import call, patch
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
+vault = importlib.import_module("billcollector.vault")
 collector = importlib.import_module("BillCollector")
 
 
@@ -24,16 +25,12 @@ class VaultDiagnosticsTests(unittest.TestCase):
     url = "http://127.0.0.1:8087/object/item/SYNTHETIC_SENSITIVE_VALUE"
 
     def mock_request(self, **kwargs):
-        # Also exercise the same diagnostics after the transport PR #13 lands
-        # (it routes requests through vault_http_request).
-        if hasattr(collector, "vault_http_request"):
-            return patch.object(collector, "vault_http_request", **kwargs)
-        return patch.object(collector.requests, "request", **kwargs)
+        # The vault client routes every request through vault_http_request
+        # (transport PR #13); patch it where the client resolves the name.
+        return patch.object(vault, "vault_http_request", **kwargs)
 
     def expected_call(self, method, payload):
-        if hasattr(collector, "vault_http_request"):
-            return call(method, self.url, payload, collector.VAULT_TIMEOUT)
-        return call(method, self.url, json=payload, timeout=collector.VAULT_TIMEOUT)
+        return call(method, self.url, payload, vault.VAULT_TIMEOUT)
 
     def response(self, status, body=None):
         return SimpleNamespace(status_code=status, text=body or self.marker)
@@ -72,7 +69,7 @@ class VaultDiagnosticsTests(unittest.TestCase):
                         with patch.object(sys, "stdout", console):
                             helpers.setup_logging(str(logfile), debug=debug)
                             url = f"http://127.0.0.1:{server.server_port}/object/item/{self.marker}"
-                            response = collector.vault_request("GET", url)
+                            response = vault.vault_request("GET", url)
                             self.assertEqual(response.status_code, 200)
                             logging.getLogger("synthetic.application").info("safe application event")
                         for handler in root.handlers:
@@ -97,26 +94,26 @@ class VaultDiagnosticsTests(unittest.TestCase):
         for status in (400, 401, 403, 404, 429):
             with self.subTest(status=status), \
                     self.mock_request( return_value=self.response(status)) as request, \
-                    patch.object(collector.time, "sleep") as sleep, \
-                    self.assertLogs(collector.logger, level="DEBUG") as logs:
-                with self.assertRaises(SystemExit) as exit_result:
-                    collector.get_json(self.url)
-                self.assertEqual(exit_result.exception.code, 1)
+                    patch.object(vault.time, "sleep") as sleep, \
+                    self.assertLogs(vault.logger, level="DEBUG") as logs:
+                with self.assertRaises(vault.VaultAPIError) as error:
+                    vault.get_json(self.url)
+                self.assertEqual(error.exception.status, status)
                 self.assertIn(str(status), self.assert_safe(logs))
                 self.assertEqual(request.call_args_list, [self.expected_call("GET", None)])
                 sleep.assert_not_called()
             with self.mock_request( return_value=self.response(status)):
-                with self.assertRaises(collector.VaultAPIError) as error:
-                    collector.vault_request("GET", self.url)
+                with self.assertRaises(vault.VaultAPIError) as error:
+                    vault.vault_request("GET", self.url)
                 self.assertEqual(error.exception.status, status)
                 self.assertNotIn(self.marker, str(error.exception))
 
     def test_5xx_retries_without_response_body_or_url(self):
         with self.mock_request( return_value=self.response(503)) as request, \
-                patch.object(collector.time, "sleep") as sleep, \
-                self.assertLogs(collector.logger, level="DEBUG") as logs:
-            with self.assertRaises(collector.VaultAPIError) as error:
-                collector.vault_request("GET", self.url)
+                patch.object(vault.time, "sleep") as sleep, \
+                self.assertLogs(vault.logger, level="DEBUG") as logs:
+            with self.assertRaises(vault.VaultAPIError) as error:
+                vault.vault_request("GET", self.url)
             diagnostic = self.assert_safe(logs, error.exception)
             self.assertIn("server error 503", diagnostic)
             self.assertIn("Attempt 3/3", diagnostic)
@@ -129,10 +126,10 @@ class VaultDiagnosticsTests(unittest.TestCase):
                                requests.exceptions.RequestException):
             with self.subTest(exception=exception_type.__name__), \
                     self.mock_request( side_effect=exception_type(self.url)) as request, \
-                    patch.object(collector.time, "sleep") as sleep, \
-                    self.assertLogs(collector.logger, level="DEBUG") as logs:
-                with self.assertRaises(collector.VaultAPIError) as error:
-                    collector.vault_request("GET", self.url)
+                    patch.object(vault.time, "sleep") as sleep, \
+                    self.assertLogs(vault.logger, level="DEBUG") as logs:
+                with self.assertRaises(vault.VaultAPIError) as error:
+                    vault.vault_request("GET", self.url)
                 diagnostic = self.assert_safe(logs, error.exception)
                 self.assertIn(f"network error ({exception_type.__name__})", diagnostic)
                 self.assertEqual(request.call_count, 3)
@@ -143,36 +140,36 @@ class VaultDiagnosticsTests(unittest.TestCase):
         payload = {"synthetic": self.marker}
         with self.mock_request( side_effect=[
                 requests.exceptions.Timeout(self.marker), self.response(502), success]) as request, \
-                patch.object(collector.time, "sleep") as sleep, \
-                self.assertLogs(collector.logger, level="DEBUG") as logs:
-            self.assertIs(collector.vault_request("POST", self.url, payload), success)
+                patch.object(vault.time, "sleep") as sleep, \
+                self.assertLogs(vault.logger, level="DEBUG") as logs:
+            self.assertIs(vault.vault_request("POST", self.url, payload), success)
             self.assert_safe(logs)
             self.assertEqual(request.call_args_list, [self.expected_call("POST", payload)] * 3)
             self.assertEqual(sleep.call_args_list, [call(2), call(4)])
 
     def test_expected_no_totp_still_returns_none(self):
         with self.mock_request( return_value=self.response(400)) as request, \
-                patch.object(collector.time, "sleep") as sleep, \
-                self.assertLogs(collector.logger, level="DEBUG") as logs:
-            self.assertIsNone(collector.get_totp(self.url))
+                patch.object(vault.time, "sleep") as sleep, \
+                self.assertLogs(vault.logger, level="DEBUG") as logs:
+            self.assertIsNone(vault.get_totp(self.url))
             self.assertIn("No TOTP", self.assert_safe(logs))
             self.assertEqual(request.call_count, 1)
             sleep.assert_not_called()
 
-    def test_other_totp_errors_still_exit_one(self):
+    def test_other_totp_errors_raise_with_status(self):
         with self.mock_request( return_value=self.response(403)), \
-                self.assertLogs(collector.logger, level="DEBUG") as logs:
-            with self.assertRaises(SystemExit) as exit_result:
-                collector.get_totp(self.url)
-            self.assertEqual(exit_result.exception.code, 1)
+                self.assertLogs(vault.logger, level="DEBUG") as logs:
+            with self.assertRaises(vault.VaultAPIError) as error:
+                vault.get_totp(self.url)
+            self.assertEqual(error.exception.status, 403)
             self.assertIn("403", self.assert_safe(logs))
 
     def test_status_check_does_not_dump_successful_body_at_debug_level(self):
         body = json.dumps({"success": True, "data": {"template": {"status": "unlocked"}},
                            "synthetic": self.marker})
         with self.mock_request( return_value=self.response(200, body)), \
-                self.assertLogs(collector.logger, level="DEBUG") as logs:
-            self.assertEqual(collector.bitwarden_api_check_status(self.url), (True, "unlocked"))
+                self.assertLogs(vault.logger, level="DEBUG") as logs:
+            self.assertEqual(vault.bitwarden_api_check_status(self.url), (True, "unlocked"))
             self.assert_safe(logs)
 
     def test_locked_or_failed_status_is_logged_before_exit(self):
@@ -193,8 +190,8 @@ class VaultDiagnosticsTests(unittest.TestCase):
         for status in (403, 202):
             with self.subTest(status=status), \
                     self.mock_request( return_value=self.response(status)), \
-                    self.assertLogs(collector.logger, level="DEBUG") as logs:
-                self.assertFalse(collector.post_json(self.url, {"synthetic": self.marker}))
+                    self.assertLogs(vault.logger, level="DEBUG") as logs:
+                self.assertFalse(vault.post_json(self.url, {"synthetic": self.marker}))
                 self.assertIn(str(status), self.assert_safe(logs))
 
     def test_successful_get_and_post_still_return_payload(self):
@@ -202,9 +199,9 @@ class VaultDiagnosticsTests(unittest.TestCase):
         response = self.response(200, json.dumps(body))
         response.json = lambda: body
         with self.mock_request( return_value=response):
-            self.assertEqual(json.loads(collector.get_json(self.url)), body)
-            with self.assertLogs(collector.logger, level="DEBUG") as logs:
-                self.assertEqual(json.loads(collector.post_json(self.url, body)), body)
+            self.assertEqual(json.loads(vault.get_json(self.url)), body)
+            with self.assertLogs(vault.logger, level="DEBUG") as logs:
+                self.assertEqual(json.loads(vault.post_json(self.url, body)), body)
                 self.assert_safe(logs)
 
 

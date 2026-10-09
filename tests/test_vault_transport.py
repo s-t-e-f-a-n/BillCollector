@@ -18,6 +18,7 @@ from urllib3.exceptions import MaxRetryError, NewConnectionError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 transport = importlib.import_module("vault_transport")
+vault = importlib.import_module("billcollector.vault")
 collector = importlib.import_module("BillCollector")
 
 
@@ -71,12 +72,12 @@ class VaultTransportTests(unittest.TestCase):
                         socket.gaierror(socket.EAI_AGAIN, "SYNTHETIC_PRIVATE_MARKER"), dns("127.0.0.1")]) as resolve, \
                     patch.object(transport.time, "sleep") as sleep, \
                     patch.object(transport.requests, "Session") as factory, \
-                    (self.assertLogs(collector.logger) if not preflight else nullcontext()):
+                    (self.assertLogs(vault.logger) if not preflight else nullcontext()):
                 factory.return_value.__enter__.return_value.request.return_value = success
                 if preflight:
                     self.assertEqual(transport.pinned_api_url(self.url)[0], self.url.replace("bw.local", "127.0.0.1"))
                 else:
-                    self.assertIs(collector.vault_request("GET", self.url), success)
+                    self.assertIs(vault.vault_request("GET", self.url), success)
                 self.assertEqual(resolve.call_count, 2)
                 sleep.assert_called_once_with(2)
 
@@ -86,10 +87,10 @@ class VaultTransportTests(unittest.TestCase):
             with self.subTest(errno=errno), \
                     patch.object(transport.socket, "getaddrinfo", side_effect=[
                         socket.gaierror(errno, "SYNTHETIC_PRIVATE_MARKER"), dns("127.0.0.1")]) as resolve, \
-                    patch.object(collector.time, "sleep") as sleep, \
-                    patch.object(transport.requests, "Session") as factory, self.assertLogs(collector.logger):
+                    patch.object(vault.time, "sleep") as sleep, \
+                    patch.object(transport.requests, "Session") as factory, self.assertLogs(vault.logger):
                 factory.return_value.__enter__.return_value.request.return_value = success
-                self.assertIs(collector.vault_request("GET", self.url), success)
+                self.assertIs(vault.vault_request("GET", self.url), success)
                 self.assertEqual(resolve.call_count, 2)
                 sleep.assert_called_once_with(2)
 
@@ -104,9 +105,9 @@ class VaultTransportTests(unittest.TestCase):
 
     def test_dns_failure_exhausts_only_three_attempts(self):
         with patch.object(transport.socket, "getaddrinfo", side_effect=socket.gaierror(socket.EAI_AGAIN, "private")) as resolve, \
-                patch.object(transport.time, "sleep") as sleep, self.assertLogs(collector.logger):
-            with self.assertRaises(collector.VaultAPIError):
-                collector.vault_request("GET", self.url)
+                patch.object(transport.time, "sleep") as sleep, self.assertLogs(vault.logger):
+            with self.assertRaises(vault.VaultAPIError):
+                vault.vault_request("GET", self.url)
             self.assertEqual(resolve.call_count, 3)
             self.assertEqual(sleep.call_args_list, [call(2), call(4)])
 
@@ -230,9 +231,9 @@ class VaultTransportTests(unittest.TestCase):
         with patch.dict(os.environ, {"BW_API_HOST": ""}), \
                 patch.object(transport.socket, "getaddrinfo", return_value=dns("127.0.0.1")), \
                 patch.object(transport.requests, "Session", return_value=session), \
-                patch.object(collector.time, "sleep") as sleep:
-            with self.assertRaises(collector.VaultAPIError) as error:
-                collector.vault_request("GET", self.url)
+                patch.object(vault.time, "sleep") as sleep:
+            with self.assertRaises(vault.VaultAPIError) as error:
+                vault.vault_request("GET", self.url)
             self.assertIn("redirects", str(error.exception))
             self.assertEqual(session.request.call_count, 1)
             sleep.assert_not_called()
@@ -253,22 +254,22 @@ class VaultTransportTests(unittest.TestCase):
 
     def test_retry_timeout_backoff_and_success_are_preserved(self):
         success = SimpleNamespace(status_code=200, text="synthetic response")
-        with patch.object(collector, "vault_http_request", side_effect=[
+        with patch.object(vault, "vault_http_request", side_effect=[
                 requests.exceptions.Timeout("synthetic"), SimpleNamespace(status_code=503, text="synthetic"), success]) as request, \
-                patch.object(collector.time, "sleep") as sleep, self.assertLogs(collector.logger):
-            self.assertIs(collector.vault_request("GET", self.url), success)
+                patch.object(vault.time, "sleep") as sleep, self.assertLogs(vault.logger):
+            self.assertIs(vault.vault_request("GET", self.url), success)
             self.assertEqual(request.call_args_list, [call("GET", self.url, None, 10)] * 3)
             self.assertEqual(sleep.call_args_list, [call(2), call(4)])
 
     def test_optional_totp_and_final_4xx_are_preserved(self):
-        with patch.object(collector, "vault_http_request", return_value=SimpleNamespace(status_code=400, text="synthetic")) as request, \
-                patch.object(collector.time, "sleep") as sleep, self.assertLogs(collector.logger):
-            self.assertIsNone(collector.get_totp(self.url))
+        with patch.object(vault, "vault_http_request", return_value=SimpleNamespace(status_code=400, text="synthetic")) as request, \
+                patch.object(vault.time, "sleep") as sleep, self.assertLogs(vault.logger):
+            self.assertIsNone(vault.get_totp(self.url))
             request.assert_called_once()
             sleep.assert_not_called()
-        with patch.object(collector, "vault_http_request", return_value=SimpleNamespace(status_code=403, text="synthetic")):
-            with self.assertRaises(collector.VaultAPIError) as error:
-                collector.vault_request("GET", self.url)
+        with patch.object(vault, "vault_http_request", return_value=SimpleNamespace(status_code=403, text="synthetic")):
+            with self.assertRaises(vault.VaultAPIError) as error:
+                vault.vault_request("GET", self.url)
             self.assertEqual(error.exception.status, 403)
 
     def test_preflight_checks_api_not_remote_backend(self):

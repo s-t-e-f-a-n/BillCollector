@@ -8,6 +8,7 @@ tests; the stack tests use the real binaries when the host has them and
 stubbed children otherwise.
 """
 
+import os
 import shutil
 import sys
 import tempfile
@@ -147,9 +148,9 @@ class DisplayStackTests(DisplayTestBase):
         spawned = []
         real_spawn = display._spawn
 
-        def recording_spawn(binary, *args):
+        def recording_spawn(binary, *args, env=None):
             spawned.append(args)
-            return real_spawn(binary, *args)
+            return real_spawn(binary, *args, env=env)
 
         with mock.patch.object(display, "_wait_for_x_display"), \
                 mock.patch.object(display, "_spawn", recording_spawn):
@@ -163,13 +164,46 @@ class DisplayStackTests(DisplayTestBase):
             finally:
                 display.stop_display_stack(children)
 
+    def test_stack_children_get_a_wayland_free_env(self):
+        # WSLg sessions export WAYLAND_DISPLAY and x11vnc refuses to
+        # start against it, so no child may inherit the variable.
+        spawned = []
+        real_spawn = display._spawn
+
+        def recording_spawn(binary, *args, env=None):
+            spawned.append((binary, dict(env) if env is not None else None))
+            return real_spawn(binary, *args, env=env)
+
+        old = os.environ.get("WAYLAND_DISPLAY")
+        os.environ["WAYLAND_DISPLAY"] = "wayland-0"
+        try:
+            with mock.patch.object(display, "_wait_for_x_display"), \
+                    mock.patch.object(display, "_spawn", recording_spawn):
+                children = display.start_display_stack(
+                    99, websockify_port=6080,
+                    binaries=self._stub_binaries())
+                try:
+                    self.assertEqual(len(spawned), 3)
+                    for binary, env in spawned:
+                        self.assertIsNotNone(env, str(binary))
+                        self.assertNotIn("WAYLAND_DISPLAY", env, str(binary))
+                        self.assertEqual(env.get("XDG_SESSION_TYPE"), "x11",
+                                         str(binary))
+                finally:
+                    display.stop_display_stack(children)
+        finally:
+            if old is None:
+                os.environ.pop("WAYLAND_DISPLAY", None)
+            else:
+                os.environ["WAYLAND_DISPLAY"] = old
+
     def test_start_rolls_back_when_a_binary_is_missing(self):
         stub = _stub_script(self.tmp)
         spawned = []
         real_spawn = display._spawn
 
-        def recording_spawn(binary, *args):
-            proc = real_spawn(binary, *args)
+        def recording_spawn(binary, *args, env=None):
+            proc = real_spawn(binary, *args, env=env)
             spawned.append(proc)
             return proc
 

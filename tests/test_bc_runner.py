@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 """Unit tests for the runner's retry/graceful decision logic, the C5.4/C5.5
-pause wiring, and the C5.6 terminal results (no vault, no browser, no
-network)."""
+pause wiring, the C5.6 terminal results, and the C6.3 per-run display
+lifecycle wiring (no vault, no browser, no network; the display stack is
+stubbed, the allocation/release lockfile registry is real)."""
 
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -17,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError  # noqa: E402
 
-from billcollector import config, pause, runner  # noqa: E402
+from billcollector import config, display, pause, runner  # noqa: E402
 from billcollector.control import ControlClient  # noqa: E402
 from billcollector.db import Database  # noqa: E402
 from billcollector.runner import (  # noqa: E402
@@ -159,6 +162,11 @@ class _FakePage:
     def inner_text(self, selector):
         return "fake body"
 
+    def goto(self, url, **kwargs):
+        # The C6.3 lifecycle recipe uses a goto step that succeeds on the
+        # fake page (the C5.6 outcome recipe's click must keep failing).
+        return self
+
     def evaluate(self, script):
         if "MutationObserver" in script:
             return True
@@ -224,9 +232,13 @@ class RunTaskOutcomeTests(unittest.TestCase):
         self._old_db_file = config.DB_FILE
         self._old_run_dir = config.RUN_DIR
         self._old_profile_root = config.PROFILE_ROOT
+        self._old_display_dir = config.DISPLAY_DIR
+        self._old_display_env = os.environ.get("DISPLAY")
         config.DB_FILE = self.tmp / "bc.db"
         config.RUN_DIR = self.tmp / "runs"
         config.PROFILE_ROOT = self.tmp / "profiles"
+        config.DISPLAY_DIR = self.tmp / "displays"
+        config.DISPLAY_DIR.mkdir(parents=True)
         self.db = Database(self.tmp / "bc.db")
         self.task_id = self.db.create_task("svc", "u1")
         # No ntfy network access from the unit tests.
@@ -236,6 +248,11 @@ class RunTaskOutcomeTests(unittest.TestCase):
         config.DB_FILE = self._old_db_file
         config.RUN_DIR = self._old_run_dir
         config.PROFILE_ROOT = self._old_profile_root
+        config.DISPLAY_DIR = self._old_display_dir
+        if self._old_display_env is None:
+            os.environ.pop("DISPLAY", None)
+        else:
+            os.environ["DISPLAY"] = self._old_display_env
         self.db.close()
         self._tmp.cleanup()
 
@@ -248,7 +265,9 @@ class RunTaskOutcomeTests(unittest.TestCase):
                                                 "password": "p",
                                                 "otp": "o"}), \
                 mock.patch.object(runner, "sync_playwright",
-                                  return_value=_FakePlaywrightManager()):
+                                  return_value=_FakePlaywrightManager()), \
+                mock.patch.object(display, "start_display_stack",
+                                  return_value=[]):
             return runner.run_task(self.task_id)
 
     def test_cancelled_run_ends_cancelled(self):
@@ -311,6 +330,178 @@ class RunTaskOutcomeTests(unittest.TestCase):
         self.assertTrue((profile_dir / "Default" / "Preferences").exists())
         self.assertFalse(history.exists())
         self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
+
+
+class _LaunchDisplayManager:
+    """Like _FakePlaywrightManager, but also captures the DISPLAY env var at
+    browser-launch time (where the real launch_persistent_context reads it)."""
+
+    def __init__(self):
+        self.display_at_launch = None
+
+    def __enter__(self):
+        self.display_at_launch = os.environ.get("DISPLAY")
+        chromium = mock.Mock()
+        chromium.launch_persistent_context.return_value = _FakeContext()
+        self.playwright = mock.Mock(chromium=chromium)
+        return self.playwright
+
+    def __exit__(self, *exc):
+        return False
+
+
+class DisplayLifecycleTests(unittest.TestCase):
+    """C6.3: the runner owns the per-run display lifecycle: it allocates a
+    display before the Run row (the row records display/novnc_port), starts
+    the display stack and points DISPLAY at it for the headful browser
+    launch, and reaps the stack + releases the claim in the run teardown.
+
+    The display stack is stubbed (start returns a scripted child list; the
+    real stop_display_stack reaps it); the allocation/release lockfile
+    registry and the whole run_task path (step loop included) run for real
+    against a fake browser whose goto step succeeds (no pause, no network)."""
+
+    RECIPE = {
+        "services": [{
+            "serviceName": "svc",
+            "steps": [
+                {"step": 1, "description": "Goto the portal",
+                 "methods": [{"method": "goto",
+                              "arguments": [{"url": "http://127.0.0.1:8787/svc/"}]}]},
+            ],
+        }]
+    }
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self._old_db_file = config.DB_FILE
+        self._old_run_dir = config.RUN_DIR
+        self._old_profile_root = config.PROFILE_ROOT
+        self._old_display_dir = config.DISPLAY_DIR
+        self._old_display_env = os.environ.get("DISPLAY")
+        config.DB_FILE = self.tmp / "bc.db"
+        config.RUN_DIR = self.tmp / "runs"
+        config.PROFILE_ROOT = self.tmp / "profiles"
+        config.DISPLAY_DIR = self.tmp / "displays"
+        config.DISPLAY_DIR.mkdir(parents=True)
+        self.db = Database(self.tmp / "bc.db")
+        self.task_id = self.db.create_task("svc", "u1")
+        self.db.set_setting("ntfy_topic", "")
+
+    def tearDown(self):
+        config.DB_FILE = self._old_db_file
+        config.RUN_DIR = self._old_run_dir
+        config.PROFILE_ROOT = self._old_profile_root
+        config.DISPLAY_DIR = self._old_display_dir
+        if self._old_display_env is None:
+            os.environ.pop("DISPLAY", None)
+        else:
+            os.environ["DISPLAY"] = self._old_display_env
+        self.db.close()
+        self._tmp.cleanup()
+
+    def _run_task(self, manager=None):
+        manager = manager or _LaunchDisplayManager()
+        with mock.patch.object(runner, "CheckRecipe", return_value=self.RECIPE), \
+                mock.patch.object(runner, "_vault_preflight",
+                                  return_value={"user": "u1",
+                                                "password": "p",
+                                                "otp": "o"}), \
+                mock.patch.object(runner, "sync_playwright",
+                                  return_value=manager):
+            return runner.run_task(self.task_id)
+
+    def _sleep_child(self):
+        """A real child standing in for the display stack (start is stubbed;
+        the real stop_display_stack must reap it in the run teardown)."""
+        child = subprocess.Popen(["sleep", "60"])
+        self.addCleanup(
+            lambda: child.kill() if child.poll() is None else None)
+        return child
+
+    def test_run_task_records_the_display_on_the_run_row(self):
+        with mock.patch.object(display, "start_display_stack",
+                               return_value=[]) as start:
+            exit_code = self._run_task()
+        # No download in the recipe: the run fails by the legacy success
+        # contract, but the run row and the lifecycle are fully exercised.
+        self.assertEqual(exit_code, 1)
+        run = self.db.get_run(1)
+        self.assertEqual(run["display"], 99)
+        self.assertEqual(run["novnc_port"], 6080)
+        start.assert_called_once_with(99, rfb_auth_file=None)
+
+    def test_browser_launch_points_display_at_the_allocated_display(self):
+        manager = _LaunchDisplayManager()
+        with mock.patch.object(display, "start_display_stack",
+                               return_value=[]):
+            self._run_task(manager=manager)
+        self.assertEqual(manager.display_at_launch, ":99")
+
+    def test_run_task_starts_and_reaps_the_display_stack(self):
+        child = self._sleep_child()
+        with mock.patch.object(display, "start_display_stack",
+                               return_value=[child]):
+            self._run_task()
+        # The real stop_display_stack reaped the stack child in teardown.
+        self.assertIsNotNone(child.poll())
+        # And the display claim was released with the run.
+        self.assertFalse((config.DISPLAY_DIR / ":99.lock").exists())
+
+    def test_run_task_honors_the_display_settings(self):
+        self.db.set_setting("display_start", "130")
+        self.db.set_setting("display_count", "4")
+        manager = _LaunchDisplayManager()
+        with mock.patch.object(display, "start_display_stack",
+                               return_value=[]) as start:
+            self._run_task(manager=manager)
+        run = self.db.get_run(1)
+        self.assertEqual(run["display"], 130)
+        self.assertEqual(run["novnc_port"], 6080)
+        start.assert_called_once_with(130, rfb_auth_file=None)
+        self.assertEqual(manager.display_at_launch, ":130")
+
+    def test_run_task_fails_without_creating_a_run_when_no_display_is_free(self):
+        self.db.set_setting("display_count", "0")
+        with mock.patch.object(display, "start_display_stack") as start:
+            exit_code = self._run_task()
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(self.db.list_runs(), [])
+        start.assert_not_called()
+
+    def test_run_task_fails_and_releases_the_claim_when_the_stack_fails(self):
+        with mock.patch.object(
+                display, "start_display_stack",
+                side_effect=display.DisplayError("no Xvfb binary")):
+            exit_code = self._run_task()
+        self.assertEqual(exit_code, 1)
+        run = self.db.get_run(1)
+        self.assertEqual(run["result"], "failure")
+        self.assertEqual(run["display"], 99)
+        self.assertIsNotNone(run["ended_at"])
+        self.assertFalse((config.DISPLAY_DIR / ":99.lock").exists())
+        self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
+
+    def test_run_task_writes_the_rfb_auth_when_vnc_password_is_set(self):
+        self.db.set_setting("vnc_password", "secret")
+        with mock.patch.object(display, "write_rfb_auth") as write, \
+                mock.patch.object(display, "start_display_stack",
+                                  return_value=[]) as start:
+            self._run_task()
+        self.assertEqual(write.call_count, 1)
+        path = write.call_args[0][0]
+        self.assertEqual(path, config.RUN_DIR / "1" / "vnc.rfbauth")
+        self.assertEqual(write.call_args[0][1], "secret")
+        start.assert_called_once_with(99, rfb_auth_file=path)
+
+    def test_run_task_defaults_to_no_vnc_auth(self):
+        with mock.patch.object(display, "write_rfb_auth") as write, \
+                mock.patch.object(display, "start_display_stack",
+                                  return_value=[]) as start:
+            self._run_task()
+        write.assert_not_called()
+        start.assert_called_once_with(99, rfb_auth_file=None)
 
 
 class _UntilLocator:

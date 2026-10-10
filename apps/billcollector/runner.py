@@ -8,10 +8,19 @@ status must be ``unlocked``), fetches the task's portal credentials, runs the
 task's recipe with a persistent per-task browser profile, and records the
 Run, PageStatus and Download rows.
 
+Stuck runs pause instead of aborting (M1 chunk C5): a non-graceful step
+that still fails after ``MAX_STEP_ATTEMPTS`` attempts (or a failed download)
+pauses the run via :mod:`billcollector.pause` (machine-readable context,
+versioned control socket, ntfy); a resume re-executes the step, a cancel ends
+the run with result=cancelled, a deadline timeout with
+result=needs_attention. Graceful steps are single-attempt and never pause.
+A ``wait_user`` step (C5.5, decision 19) pauses before execution
+(reason=wait_user) and completes on resume - it is consumed, not
+re-executed; an optional ``until`` locator must be visible before the step
+completes, bounded by the pause deadline (a missed deadline re-pauses with
+the same prompt).
+
 Deliberate chunk boundaries (later milestone chunks):
-- No pause subsystem yet (C5): a non-graceful step that still fails after
-  ``MAX_STEP_ATTEMPTS`` attempts aborts the run with result=failure.
-  Graceful steps are single-attempt (one recorded failure, run continues).
 - No display management yet (C6): the browser is headful and needs DISPLAY
   from the environment (validation runs under ``xvfb-run -a``).
 """
@@ -19,13 +28,16 @@ Deliberate chunk boundaries (later milestone chunks):
 import json
 import logging
 import sys
+from datetime import datetime
 
 from helpers import CheckRecipe, ServiceObj, VARIABLE_MAP
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 from . import config, downloads
 from .db import Database, now
 from .pagestate import PageState
+from .pause import pause_loop
 from .vault import (
     VAULT_MAX_ATTEMPTS,
     VAULT_RETRY_BACKOFF,
@@ -55,17 +67,36 @@ class StepAbortError(Exception):
         self.page_state = page_state
 
 
+class PauseOutcomeAbort(Exception):
+    """A paused run was terminated by its outcome (cancel or timeout).
+
+    Carries the terminal outcome that maps to the Run.result value
+    (``cancelled`` / ``needs_attention``); the browser is closed by the
+    normal run teardown."""
+
+    def __init__(self, outcome):
+        super().__init__(f"pause outcome: {outcome}")
+        self.outcome = outcome
+
+
 def step_attempts(graceful: bool) -> int:
     """Attempt budget of one step: graceful steps are single-attempt,
     non-graceful steps re-execute the full method chain up to 3 times."""
     return 1 if graceful else MAX_STEP_ATTEMPTS
 
 
-def run_result(aborted: bool, files_downloaded: list) -> str:
+def run_result(aborted: bool, files_downloaded: list, pause_outcome=None) -> str:
     """Terminal Run.result of a finished run.
 
-    Mirrors the legacy success contract: success requires a completed run
-    (no abort) with at least one successfully downloaded file."""
+    A pause outcome is terminal in itself: cancel -> ``cancelled``,
+    timeout -> ``needs_attention`` (decision: the operator can retry a
+    timed-out run manually later). Otherwise the legacy success contract:
+    success requires a completed run (no abort) with at least one
+    successfully downloaded file."""
+    if pause_outcome == "cancel":
+        return "cancelled"
+    if pause_outcome == "timeout":
+        return "needs_attention"
     if aborted:
         return "failure"
     if not files_downloaded:
@@ -125,6 +156,11 @@ class _RunContext:
         self.bcs.api_url = api_url
         self.bcs.vault_item_name = f"{task['service']} {task['user']}".strip()
         self.bcs.otp_fallback = credentials["otp"]
+        # Pause state (C5): the pause loop and the Copilot context handler
+        # read these off the context.
+        self.pause_count = 0
+        self.last_pause_context = None
+        self.last_pause_deadline = None
 
 
 def _ensure_logging():
@@ -211,6 +247,44 @@ def _launch_browser(ctx, p):
     ctx.bcs.page = ctx.page  # the step loop dispatches methods on bcs.page
 
 
+def transform_step_to_json(step):
+    """Transforms a step object into JSON with locators and actions.
+
+    Module-level (used by the step loop and by the pause context, which
+    needs the failing step's locator-action JSON)."""
+    if not isinstance(step, dict) or "methods" not in step:
+        raise ValueError("Invalid step format: Expected a dictionary with a 'methods' key.")
+
+    transformed_step = {
+        "description": step.get("description", ""),
+        "locators": [],
+        "actions": []
+    }
+
+    for method_entry in step["methods"]:
+        method_name = method_entry.get("method")
+        arguments = method_entry.get("arguments", [])
+
+        if not method_name:
+            continue  # Skip invalid methods
+
+        # Categorize as locator or action (just a simple heuristic based on action names)
+        if method_name in ["click", "fill", "expect_download", "goto", "close", "content_frame", "first"]:
+            transformed_step["actions"] = transformed_step.get("actions", [])
+            transformed_step["actions"].append({
+                "action": method_name,
+                "arguments": {k: v for arg in arguments for k, v in arg.items()}
+            })
+        else:  # all other methods are considered locators
+            transformed_step["locators"] = transformed_step.get("locators", [])
+            transformed_step["locators"].append({
+                "locator": method_name,
+                "arguments": {k: v for arg in arguments for k, v in arg.items()}
+            })
+
+    return json.dumps(transformed_step, separators=(",", ":"))
+
+
 def _process_step(bcs, step):
     """Process a step by executing its method chain (legacy ``process_step``).
 
@@ -235,40 +309,6 @@ def _process_step(bcs, step):
             return [process_argument(item, bcs) for item in arg]
         else:
             return arg
-
-    def transform_step_to_json(step):
-        """Transforms a step object into JSON with locators and actions."""
-        if not isinstance(step, dict) or "methods" not in step:
-            raise ValueError("Invalid step format: Expected a dictionary with a 'methods' key.")
-
-        transformed_step = {
-            "description": step.get("description", ""),
-            "locators": [],
-            "actions": []
-        }
-
-        for method_entry in step["methods"]:
-            method_name = method_entry.get("method")
-            arguments = method_entry.get("arguments", [])
-
-            if not method_name:
-                continue  # Skip invalid methods
-
-            # Categorize as locator or action (just a simple heuristic based on action names)
-            if method_name in ["click", "fill", "expect_download", "goto", "close", "content_frame", "first"]:
-                transformed_step["actions"] = transformed_step.get("actions", [])
-                transformed_step["actions"].append({
-                    "action": method_name,
-                    "arguments": {k: v for arg in arguments for k, v in arg.items()}
-                })
-            else:  # all other methods are considered locators
-                transformed_step["locators"] = transformed_step.get("locators", [])
-                transformed_step["locators"].append({
-                    "locator": method_name,
-                    "arguments": {k: v for arg in arguments for k, v in arg.items()}
-                })
-
-        return json.dumps(transformed_step, separators=(",", ":"))
 
     if not isinstance(step, dict) or "methods" not in step:
         raise ValueError("Invalid step format: Expected a dictionary with a 'methods' key.")
@@ -439,6 +479,151 @@ def _execute_step(ctx, step, parent_step=None):
     return state
 
 
+def _step_prompt(step, what):
+    """Human-readable pause prompt generated from the step description."""
+    step_number = step.get("step", 0)
+    description = step.get("description", "") or "(no description)"
+    return f"Step {step_number}: {description} - {what}"
+
+
+def _wait_user_method(step):
+    """The ``wait_user`` method entry of a step (C5.5), or None when the
+    step has no wait_user (the normal step path)."""
+    for method_entry in step.get("methods", []):
+        if isinstance(method_entry, dict) and method_entry.get("method") == "wait_user":
+            return method_entry
+    return None
+
+
+def _wait_user_args(step, method):
+    """(prompt, until) of a wait_user method entry.
+
+    The prompt falls back to the generated step prompt (a wait_user without
+    an explicit prompt still pauses with something the operator can act on);
+    until defaults to None (complete immediately on resume)."""
+    prompt = None
+    until = None
+    for arg in method.get("arguments", []) or []:
+        if isinstance(arg, dict):
+            if "prompt" in arg:
+                prompt = arg["prompt"]
+            if "until" in arg:
+                until = arg["until"]
+    if prompt is None:
+        prompt = _step_prompt(step, "waiting for the operator")
+    return prompt, until
+
+
+# The until-locator mapping (C5.5): the first key present in the until dict
+# selects the Playwright locator method; the whole dict is passed through as
+# keyword arguments (same shape as the recipe's locator methods, e.g.
+# {"role": "link", "name": "My account"}).
+_UNTIL_LOCATOR_KEYS = (
+    ("role", "get_by_role"),
+    ("test_id", "get_by_test_id"),
+    ("placeholder", "get_by_placeholder"),
+    ("label", "get_by_label"),
+    ("text", "get_by_text"),
+    ("selector", "locator"),
+)
+
+
+def _locator_for(page, until):
+    """Build a Playwright locator from a wait_user ``until`` dict.
+
+    Raises ValueError when the dict does not map to a known locator method -
+    a recipe authoring error that must surface before the operator is asked."""
+    if not isinstance(until, dict):
+        raise ValueError(f"wait_user 'until' must be a locator dict, got: {until!r}")
+    for key, method_name in _UNTIL_LOCATOR_KEYS:
+        if key in until:
+            method = getattr(page, method_name, None)
+            if method is None:
+                raise ValueError(f"no {method_name!r} locator method on the page")
+            return method(**until)
+    raise ValueError(
+        f"wait_user 'until' has no recognized locator key: {sorted(until)}")
+
+
+def _execute_wait_user_step(ctx, step, method):
+    """C5.5: a wait_user step pauses before execution (reason=wait_user) and
+    completes on resume - it is consumed, not re-executed (decision 19: a
+    consumed CAPTCHA code cannot be re-entered). With an ``until`` locator
+    the step completes only once the locator is visible, bounded by the pause
+    deadline; a missed deadline re-pauses with the same prompt. Cancel and
+    timeout abort the run with their terminal outcome."""
+    prompt, until = _wait_user_args(step, method)
+    try:
+        until_locator = None if until is None else _locator_for(ctx.page, until)
+    except ValueError as e:
+        raise StepAbortError(
+            f"Step {step.get('step', 0)} has an invalid wait_user 'until': {e}")
+    while True:
+        outcome = pause_loop(ctx, "wait_user", prompt,
+                             transform_step_to_json(step), None)
+        if outcome != "resume":
+            raise PauseOutcomeAbort(outcome)
+        if until_locator is None:
+            break
+        # The until check is bounded by the (fresh) pause deadline of the
+        # pause that was just resumed.
+        remaining_ms = max(
+            (ctx.last_pause_deadline - datetime.now()).total_seconds() * 1000, 0)
+        try:
+            until_locator.wait_for(state="visible", timeout=remaining_ms)
+        except PlaywrightTimeoutError:
+            continue  # deadline exceeded: re-pause with the same prompt
+        break
+    state = PageState(ctx.bcs.service, step.get("step", 0), ctx.page)
+    state.set_locator_action(transform_step_to_json(step))
+    state.set_error({})  # completed: no error, like a clean step success
+    _record_step(ctx, state, step)
+    return state
+
+
+def _execute_step_with_pause(ctx, step):
+    """Execute one top-level step under the C5 pause loop.
+
+    A non-graceful step that exhausts its attempts (StepAbortError) pauses
+    the run (reason=step_failed): a resume re-executes the step from the
+    beginning with a fresh attempt budget; cancel and timeout abort the run
+    with their terminal outcome. Graceful steps never pause (their failure
+    is recorded and the run continues)."""
+    while True:
+        try:
+            return _execute_step(ctx, step)
+        except StepAbortError as e:
+            if e.page_state is not None:
+                step_action_json = e.page_state.locator_action
+                error = e.page_state.error_status
+            else:
+                step_action_json = transform_step_to_json(step)
+                error = str(e)
+            prompt = _step_prompt(step, f"failed after {MAX_STEP_ATTEMPTS} attempts. "
+                                       "Fix the page (or repair the recipe), then resume.")
+            outcome = pause_loop(ctx, "step_failed", prompt, step_action_json, error)
+            if outcome == "resume":
+                continue
+            raise PauseOutcomeAbort(outcome) from e
+
+
+def _handle_download_with_pause(ctx, step):
+    """The expect_download handler under the C5 pause loop
+    (reason=download_failed); a resume retries the download."""
+    while True:
+        try:
+            _handle_download(ctx, step)
+            return
+        except StepAbortError as e:
+            prompt = _step_prompt(step, "the download failed. "
+                                       "Fix the page (or repair the recipe), then resume.")
+            outcome = pause_loop(ctx, "download_failed", prompt,
+                                 transform_step_to_json(step), str(e))
+            if outcome == "resume":
+                continue
+            raise PauseOutcomeAbort(outcome) from e
+
+
 def _handle_download(ctx, step):
     """Nested-step expect_download handling (legacy semantics) with download
     tracking: every downloaded file goes through downloads.track_download
@@ -474,26 +659,38 @@ def _handle_download(ctx, step):
 def _run_recipe(ctx, recipe):
     """Run the recipe's step loop in a headful persistent browser context.
 
-    Returns (files_downloaded, aborted). Every started run leaves the browser
-    closed, even on abort."""
+    Returns (files_downloaded, aborted, pause_outcome); pause_outcome is
+    None or the terminal outcome of a cancel/timeout pause (C5.4). Every
+    started run leaves the browser closed, even on abort."""
     files_downloaded = []
     aborted = False
+    pause_outcome = None
     with sync_playwright() as p:
         try:
             _launch_browser(ctx, p)
         except Exception as e:
             logger.exception(f"Browser launch failed: {e}")
-            return files_downloaded, True
+            return files_downloaded, True, None
         try:
             services = recipe.get("services", [])
             for service in services:
                 service_name = service.get("serviceName")
                 logger.info(f"Processing Service: {service_name} for {ctx.bcs.usr}.")
                 for step in sorted(service.get("steps", []), key=lambda x: x.get("step", 0)):
-                    step_state = _execute_step(ctx, step)
+                    wait_method = _wait_user_method(step)
+                    if wait_method is not None:
+                        # C5.5: a wait_user step pauses before execution and
+                        # completes on resume (consumed, not re-executed).
+                        _execute_wait_user_step(ctx, step, wait_method)
+                        continue
+                    step_state = _execute_step_with_pause(ctx, step)
                     # Check if the step expects a download
                     if check_parameter_in_json(step_state.locator_action, {"action": "expect_download"}):
-                        _handle_download(ctx, step)
+                        _handle_download_with_pause(ctx, step)
+        except PauseOutcomeAbort as e:
+            aborted = True
+            pause_outcome = e.outcome
+            logger.error(f"Run aborted by pause outcome: {e.outcome}")
         except StepAbortError as e:
             aborted = True
             logger.error(f"Run aborted: {e}")
@@ -507,7 +704,7 @@ def _run_recipe(ctx, recipe):
                 except Exception:
                     pass
     files_downloaded = ctx.files_downloaded
-    return files_downloaded, aborted
+    return files_downloaded, aborted, pause_outcome
 
 
 def run_task(task_id: int, debug: bool = False) -> int:
@@ -538,8 +735,8 @@ def run_task(task_id: int, debug: bool = False) -> int:
         try:
             credentials = _vault_preflight(task)
             ctx = _RunContext(task, run_id, db, debug, credentials, api_url)
-            files, aborted = _run_recipe(ctx, recipe)
-            result = run_result(aborted, files)
+            files, aborted, pause_outcome = _run_recipe(ctx, recipe)
+            result = run_result(aborted, files, pause_outcome)
         except (VaultAPIError, VaultTransportError) as e:
             # A vault-preflight failure: one clear stderr line, distinct from
             # a step failure (which the step loop logs on stdout).
@@ -551,6 +748,11 @@ def run_task(task_id: int, debug: bool = False) -> int:
             # vault preflight or an unexpected error stopped the run before
             # the step loop ran.
             db.update_run(run_id, result=result, ended_at=now())
+            # A finished run releases the task: the 'waiting' status set by
+            # a pause is terminal here (resume, cancel and timeout all end
+            # the run), so the task goes back to idle and the scheduler's
+            # row lock can claim it again.
+            db.set_task_status(task_id, "idle")
         if result == "success":
             logger.info(f"Task {task_id} run {run_id} finished with downloaded file(s) {files}.")
             return 0

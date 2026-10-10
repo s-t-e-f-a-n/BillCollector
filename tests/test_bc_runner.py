@@ -428,6 +428,9 @@ class DisplayLifecycleTests(unittest.TestCase):
         # contract, but the run row and the lifecycle are fully exercised.
         self.assertEqual(exit_code, 1)
         run = self.db.get_run(1)
+        # The row records the runner process' pid so the orchestrator
+        # (C7.2) can match the spawned subprocess to the row it created.
+        self.assertEqual(run["pid"], os.getpid())
         self.assertEqual(run["display"], 99)
         self.assertEqual(run["novnc_port"], 6080)
         start.assert_called_once_with(99, rfb_auth_file=None)

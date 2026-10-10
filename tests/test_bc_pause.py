@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Unit tests for the runner's pause subsystem (M1 chunk C5.1-C5.3).
+"""Unit tests for the runner's pause subsystem (M1 chunk C5).
 
 Covers the pause context builder, the Run/task persist, the deadline math,
 the coordinate-based Copilot action handlers, and the waiting loop (resume /
@@ -16,6 +16,7 @@ import time
 import unittest
 from datetime import datetime
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
@@ -338,6 +339,47 @@ class WaitingLoopTests(PauseTestBase):
         thread.join(timeout=20)
         self.assertFalse(thread.is_alive())
         self.assertEqual(outcome["value"], "timeout")
+
+    def test_pause_deadline_is_persisted_from_the_setting(self):
+        # C5.6: the pause deadline comes from pause_deadline_seconds and is
+        # persisted on the Run row (the waiting loop and the context both
+        # read it back from there).
+        self.db.set_setting("pause_deadline_seconds", "90")
+        thread, outcome = self._run_pause(
+            reason="step_failed", prompt="p", step_action_json=None, error="e")
+        sock_path = self._wait_for_socket()
+        ControlClient(sock_path).request("resume")
+        thread.join(timeout=10)
+        self.assertFalse(thread.is_alive())
+        run = self.db.get_run(self.run_id)
+        remaining = (pause.parse_ts(run["pause_deadline_at"])
+                     - datetime.now()).total_seconds()
+        self.assertGreaterEqual(remaining, 85)
+        self.assertLessEqual(remaining, 95)
+        self.assertEqual(
+            pause.parse_ts(
+                json.loads(run["pause_context"])["deadline_at"]),
+            pause.parse_ts(run["pause_deadline_at"]))
+
+    def test_ntfy_is_pushed_on_every_pause(self):
+        # C5.6: every pause (not just the first) pushes the ntfy deep link.
+        with mock.patch.object(pause.notify, "notify_pause",
+                               return_value=True) as ntfy:
+            for _ in range(2):
+                thread, outcome = self._run_pause(
+                    reason="step_failed", prompt="p",
+                    step_action_json=None, error="e")
+                sock_path = self._wait_for_socket()
+                ControlClient(sock_path).request("cancel")
+                thread.join(timeout=10)
+                self.assertFalse(thread.is_alive())
+                self.assertEqual(outcome["value"], "cancel")
+        self.assertEqual(ntfy.call_count, 2)
+        for call in ntfy.call_args_list:
+            db_arg, run_arg, task_arg = call.args
+            self.assertIs(db_arg, self.db)
+            self.assertEqual(run_arg["id"], self.run_id)
+            self.assertEqual(task_arg["id"], 1)
 
     def test_second_pause_increments_the_pause_counter(self):
         thread, outcome = self._run_pause(

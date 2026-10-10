@@ -678,6 +678,34 @@ download tracked; `testwaituser` — `wait_user` pause/resume (complete-on-resum
 semantics; `until` check when given); profile accumulation verifiable (cookie banner
 only on the 1st run).
 
+**Status (2026-10-10, M1 item 3a — runner chunks C1–C4):** the standalone task executor
+(`runner.py`, uncommitted on `dev` with `cli.py` + `tests/test_bc_runner.py`) is implemented
+and validated on the dev host against the mock portal + the real LAN Vaultwarden, in an
+isolated `BC_*` env (scratch DB/profiles/downloads; real vault + real mock).
+
+- Unit: full suite green (`unittest discover -s tests` — 48 tests incl. `test_bc_runner.py`
+  retry/graceful decision + run-result contract, and `test_bc_downloads.py` sha256 dedup
+  via a stubbed download).
+- E2E run 1 (fresh profile): `testhappy`/`user1` → exit 0, `Run.result=success`, 2 tracked
+  `Download` rows, 19 `PageStatus` rows, step screenshots on disk (`data/runs/<id>/`).
+- E2E run 2 (warm profile): persistent-profile behavior proven — consent banner absent,
+  graceful step 2 ("Reject") recorded as the single error row, run continues; login re-runs.
+- **Known blocker (environment, not runner logic):** the Chromium 153 (`chromium-1243`)
+  browser process crashes deterministically at the step-15 invoice-PDF download when the
+  profile has prior-run state (SIGTRAP CHECK, then SIGSEGV NULL deref @0x1; crashpad
+  stacks in the run logs). Fresh-profile downloads are fine; `--disable-gpu` does not
+  mitigate; a `GpuControl.CreateCommandBuffer` transient failure precedes the crash under
+  xvfb (WSLg `:0` was dead — weston rdp-backend segfault loop — so both attempts used the
+  documented `xvfb-run -a` path). The batch engine never hits this (profile wiped per
+  run); it is specific to the new persistent-profile path. Cross-run sha256 dedup is
+  unit-verified; its E2E re-check is pending a stable browser/display environment.
+  Evidence kept at `/tmp/bc-runner-e2e-attempt1/` and `/tmp/bc-runner-e2e-attempt2/`
+  (run logs, scratch DB, screenshots) until `/tmp` is cleared.
+- Remaining M1 chunks: C5 pause subsystem (3× retry → `waiting` + versioned control
+  socket + ntfy deep link + `wait_user(prompt[, until])`), C6 display allocation
+  (Xvfb/x11vnc/websockify per run), C7 orchestrator (APScheduler, spawn/monitor, stdout
+  streaming, orphan cleanup). M2 UI pages follow.
+
 ### M2 — UI core
 
 1. Login + session cookie (bcrypt), auth middleware

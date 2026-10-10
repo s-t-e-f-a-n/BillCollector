@@ -690,17 +690,48 @@ isolated `BC_*` env (scratch DB/profiles/downloads; real vault + real mock).
   `Download` rows, 19 `PageStatus` rows, step screenshots on disk (`data/runs/<id>/`).
 - E2E run 2 (warm profile): persistent-profile behavior proven — consent banner absent,
   graceful step 2 ("Reject") recorded as the single error row, run continues; login re-runs.
-- **Known blocker (environment, not runner logic):** the Chromium 153 (`chromium-1243`)
-  browser process crashes deterministically at the step-15 invoice-PDF download when the
-  profile has prior-run state (SIGTRAP CHECK, then SIGSEGV NULL deref @0x1; crashpad
-  stacks in the run logs). Fresh-profile downloads are fine; `--disable-gpu` does not
-  mitigate; a `GpuControl.CreateCommandBuffer` transient failure precedes the crash under
-  xvfb (WSLg `:0` was dead — weston rdp-backend segfault loop — so both attempts used the
-  documented `xvfb-run -a` path). The batch engine never hits this (profile wiped per
-  run); it is specific to the new persistent-profile path. Cross-run sha256 dedup is
-  unit-verified; its E2E re-check is pending a stable browser/display environment.
-  Evidence kept at `/tmp/bc-runner-e2e-attempt1/` and `/tmp/bc-runner-e2e-attempt2/`
-  (run logs, scratch DB, screenshots) until `/tmp` is cleared.
+- **RESOLVED — Chromium warm-profile download crash (2026-10-10):** the Chromium 153
+  (`chromium-1243`) browser-process crash at the step-15 invoice-PDF download on a warm
+  profile was root-caused and fixed in the runner (full investigation:
+  `.kilo/plans/1791620921558-chromium-warm-profile-crash.md`).
+  - **Trigger (bisection):** a persistent profile carrying BOTH `Default/History`
+    (browsing-history SQLite) AND the network service's `Default/shared_proto_db`
+    deterministically SEGVs in the browser process (`Received signal 11
+    SEGV_MAPERR 000000000090`, ~50 ms after the first download click). Neither file
+    alone, and no other warm state (Preferences, Cookies, Cache, GPU caches,
+    blob_storage, Code Cache, …), triggers it. Re-captured stack: `chrome+0x6a9abc2` /
+    `chrome+0xb760493` (top frames; stripped binary, offsets only — the 38-frame stack
+    was at `/tmp/warm-dl-bisect/crash-stack.txt`, volatile).
+  - **Fix:** `runner._clear_stale_history()` (apps/billcollector/runner.py,
+    called from `_launch_browser`) deletes `Default/History` + `Default/History-journal`
+    before each launch (no-op for fresh profiles; logs what it removed). Cookies,
+    login and Preferences are untouched; headed display behavior preserved (WSL2
+    cold-frame fix unaffected). Launch-arg mitigations all failed
+    (`--in-process-gpu`, `--disk-cache-size=0`, `--disable-gpu`,
+    `download.path()`+copy); only headless passed but would regress the headed
+    display contract. The crash is upstream Chromium issue
+    https://issues.chromium.org/issues/556160935 ([M152 regression] browser
+    process crash after setDownloadBehavior with a persistent profile that
+    has download history; upstream fix CL 8378127 targets M154) — our
+    Linux/Playwright datapoint (chromium-1243, WSLg, deterministic) matches it.
+  - **Re-validation** (`/tmp/bc-runner-e2e-attempt4/`, WSLg `:0`): run 1 (fresh)
+    exit 0, `Run.result=success`, 2 Download rows; run 2 (warm) exit 0,
+    `Run.result=success`, wipe logged, downloads tracked as duplicates (cross-run
+    sha256 dedup `dup_of=1/2`), consent banner absent, no unexpected errors.
+    Unit suite 48/48 green.
+  - **Repro recipe** (if `/tmp` was wiped): mock portal via a scratch venv
+    (uvicorn + fastapi + jinja2 + **python-multipart** — login 500s without it):
+    `python3 -m venv /tmp/bc-probe-venv && /tmp/bc-probe-venv/bin/pip install
+    uvicorn fastapi jinja2 python-multipart`, then from repo root
+    `/tmp/bc-probe-venv/bin/python -m tests.mock_portal --port 8787`. Warm crash
+    probe: `DEBUG="pw:browser pw:api" DISPLAY=:0 timeout 180
+    apps/.venv/bin/python /tmp/warm-dl-bisect/probe_matrix.py <warm-profile>
+    <out-dir> B` (interface `PROFILE OUT TAG [extra launch args]`; crash text
+    lands in the browser-stderr log).
+  - The fix also protects the Docker/NAS deployment (the C6 Xvfb display path uses
+    the same persistent-profile code). The original "file an upstream report"
+    follow-up is superseded — the crash is already reported (issue 556160935)
+    and fixed upstream (CL 8378127, M154).
 - Remaining M1 chunks: C5 pause subsystem (3× retry → `waiting` + versioned control
   socket + ntfy deep link + `wait_user(prompt[, until])`), C6 display allocation
   (Xvfb/x11vnc/websockify per run), C7 orchestrator (APScheduler, spawn/monitor, stdout

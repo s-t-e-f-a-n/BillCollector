@@ -751,16 +751,20 @@ history wipe. **Not built yet:** the runner's pause wiring (it still aborts with
 `result=failure` on a 3× step failure), the display lifecycle, `scheduler.py`,
 `orchestrator.py`.
 
-**Progress (2026-10-10, updated after C5.6 landed):** C5.1–C5.6 are
+**Progress (2026-10-10, updated after C6.3 landed):** C5.1–C5.6 are
 done — `pause.py` (context builder, Copilot handlers, waiting loop) + `tests/test_bc_pause.py`
 + the `db.py` `check_same_thread=False` fix, the runner's step-loop pause wiring
 (C5.4, E2E-verified on the mock portal — see its bullet below), the `wait_user`
 step (C5.5, unit-tested in `tests/test_bc_runner.py` `WaitUserTests` + E2E-verified on
 the mock portal — see its bullet below), and the C5.6 terminal-results/deadline/ntfy
-verification (unit-only — see its bullet below); the full unit suite (93 tests) is
-green. C5.1–C5.5 are committed + pushed to origin/dev (with the
-`tests/scenarios.py` Layer B TOTP secrets); the C5.6 tests are in the working tree.
-C6 (per-run display lifecycle) is the next sub-step. The `*Done*` markers in this
+verification (unit-only — see its bullet below). C6.1/C6.2 (display allocation +
+stack: `display.py` + `tests/test_bc_display.py`) are committed; C6.3 (runner
+integration: `runner.py` + `DisplayLifecycleTests`, E2E-verified — see its bullet
+below) and C6.4 (Dockerfile apt deps) are in the working tree, uncommitted.
+The full unit suite (120 tests) is green. C5.1–C5.5 and C6.1/C6.2 are committed
++ pushed to origin/dev (with the `tests/scenarios.py` Layer B TOTP secrets); the
+C5.6 tests are in the working tree. C7 (orchestrator + scheduler) is the next
+sub-step. The `*Done*` markers in this
 drafted section are the plan template, not status — remove them as each sub-step
 actually lands. E2E prerequisite:
 the three Layer B vault items (`testautopause user1`, `testwaituser user1`,
@@ -899,20 +903,72 @@ fresh session resumes at the first sub-step that is not yet committed.
   atomic lockfile `<data>/displays/:N.lock` (`O_EXCL`); websockify port =
   `6080 + (N - display_start)`; `release_display(n)` removes the lock. *Verify:* unit
   test — two allocations are distinct; release +   re-allocate succeeds.
+  *Done (2026-10-10):* `display.py` — `allocate_display(db) -> (n, websockify_port)`
+  scans the configured range (Settings table, defaults `99`/`16`) and claims with an
+  `O_EXCL` lockfile `<data>/displays/:N.lock` recording the claiming pid;
+  `release_display` is the pid-checked unlink (a foreign or vanished lock is left in
+  place); `remove_display_lock` is the force variant for C7.4's stale-lock cleanup.
+  Unit: `tests/test_bc_display.py` `AllocateDisplayTests` — distinct allocations,
+  release + re-allocate, idempotent release, foreign-lock protection, forced removal,
+  settings-honored range, exhausted range raises (claim kept), no-db defaults, port
+  math. Full unit suite green.
 - **C6.2 Display stack children.** `display.py` `start_display_stack(n, rfb_auth_file)` /
   `stop_display_stack(...)`: spawn `Xvfb :N`, `x11vnc -display :N -rfbport 5900+N
   [-rfbauth <file>]`, `websockify 6080+(N-start) 127.0.0.1:5900+N` as children; stop
   terminates + reaps (kill if needed). rfbauth: a per-run file from a settings value
   (default empty → localhost-only, no auth). *Verify:* unit test (real `Xvfb` if present
   on the host, else stubbed) — start, assert the children are alive; stop, assert reaped.
+  *Done (2026-10-10):* `display.py` — `start_display_stack` spawns `Xvfb :N`
+  (1280x1024x24, waits for the `/tmp/.X11-unix/X<N>` socket, 10 s timeout) +
+  `x11vnc -display :N -rfbport 5900+N -localhost` (`-rfbauth <per-run file>` only when
+  one is given, else `-nopw`) + `websockify <6080+N-start> 127.0.0.1:5900+N`
+  (`--web /usr/share/novnc` when the apt novnc client is present); all children in own
+  sessions with stdio to devnull; a partial start tears down the started children and
+  raises `DisplayError`; `stop_display_stack` SIGTERMs then reaps (SIGKILL fallback,
+  5 s each); `write_rfb_auth` creates the per-run auth file via
+  `x11vnc -storepasswd` (`<run>/vnc.rfbauth`, deleted with the run's artifacts). Unit:
+  `tests/test_bc_display.py` `DisplayStackTests` — stubbed stack alive + reaped,
+  default websockify port from the range start, missing-binary rollback (started
+  children reaped), missing-auth-file rejected before any spawn, per-run auth path,
+  real-stack + real-auth tests `skipUnless` the binaries (skipped when written — the
+  dev host had Xvfb only; as of the C6.3 E2E it has the full stack and they run for
+  real — see the C6.3 marker). Full unit suite green.
 - **C6.3 Runner integration.** In the runner: allocate the display, start the stack, set
   `os.environ["DISPLAY"] = ":N"` before `launch_persistent_context`, record
   `Run.display`/`novnc_port`; in `finally` stop the stack + release the display.
   *Verify:* E2E — run a task **without** `xvfb-run`; assert `Run.display` is set, Xvfb is
   started and reaped,   and the browser launches headful on `:N`.
+  *Done (2026-10-10):* runner integration in `runner.py` `run_task` (working tree,
+  uncommitted): `allocate_display(db)` before the Run row (the row records `display` +
+  `novnc_port`), `_start_display_stack` (per-run rfb auth file only when the
+  `vnc_password` setting is non-empty), `os.environ["DISPLAY"] = ":N"` before
+  `launch_persistent_context`, and in `finally` `stop_display_stack` +
+  `release_display`; an allocation or stack failure exits 1 with one clear stderr line
+  (like a vault-preflight failure). Unit: `tests/test_bc_runner.py`
+  `DisplayLifecycleTests` — a real `run_task` against a fake browser whose goto step
+  succeeds: the Run row records display/novnc_port, DISPLAY is `:99` at browser-launch
+  time, the (stubbed) stack is started + reaped, the lock is released, and the
+  allocation/stack failure paths exit 1 with the claim released. E2E on the mock portal
+  (scratch `BC_*` env `/tmp/bc-c63-verify/`, real LAN vault, **no xvfb-run**, DISPLAY
+  unset from the runner's env): `testhappy/user1` → `Run.result=success` (exit 0),
+  `Run.display=99` + `novnc_port=6080` recorded; mid-run: Xvfb :99 + x11vnc
+  (rfbport 5999) + websockify (port 6080) all alive, `:99.lock` present,
+  `/tmp/.X11-unix/X99` present, the noVNC channel on :6080 serves the web client;
+  post-run: all three children reaped, the X99 socket + lockfile gone (WSLg's `:0`
+  socket intact), 2 downloads tracked (sha256, files on disk), and the step
+  screenshots + rendered element rects prove the headful browser ran on :99. The E2E
+  found and fixed a WSLg defect in `display.py`: x11vnc 0.9.16 refuses to start when
+  `WAYLAND_DISPLAY` is set ("Wayland display server detected ... Exiting"), so the
+  stack children now spawn with a sanitized env (`_stack_env`: `WAYLAND_DISPLAY`
+  stripped, `XDG_SESSION_TYPE=x11`) — unit-tested in
+  `test_stack_children_get_a_wayland_free_env`. Full unit suite 120/120 green.
 - **C6.4 Image apt deps.** Add `git`, `x11vnc`, `websockify`, `novnc` to the `Dockerfile`
   apt list (M1 item 3). *Verify:* the apt list is correct;   (optional) build + assert the
   binaries exist.
+  *Done (2026-10-10, working tree, uncommitted):* `Dockerfile` apt list += `git`,
+  `x11vnc`, `websockify`, `novnc` (with the per-run display-stack comment); the apt list
+  is correct — the same four packages provide the stack the C6.3 E2E verified on the
+  dev host. The optional image-build binary assertion is deferred to the NAS deploy.
 
 #### C7 — Orchestrator + scheduler (`orchestrator.py`, `scheduler.py`)
 

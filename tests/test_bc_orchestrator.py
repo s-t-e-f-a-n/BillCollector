@@ -29,6 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
+from billcollector import config  # noqa: E402
 from billcollector.db import Database  # noqa: E402
 from billcollector.orchestrator import Orchestrator  # noqa: E402
 
@@ -93,6 +94,11 @@ class OrchestratorTestBase(unittest.TestCase):
         self.apps = Path(__file__).resolve().parents[1] / "apps"
         self.db_file = self.tmp / "bc.db"
         self.markers = self.tmp / "markers.txt"
+        # The orchestrator streams each run's stdout to <data>/logs/run-<id>.log
+        # (C7.3); point LOG_DIR at the temp dir so tests never write into the
+        # repo's apps/data.
+        self._old_log_dir = config.LOG_DIR
+        config.LOG_DIR = self.tmp / "logs"
         self.db = Database(self.db_file)
         self.stub = self.tmp / "stub_runner.py"
         self.stub.write_text(STUB_RUNNER, encoding="utf-8")
@@ -102,6 +108,7 @@ class OrchestratorTestBase(unittest.TestCase):
 
     def tearDown(self):
         self.db.close()
+        config.LOG_DIR = self._old_log_dir
         self._tmp.cleanup()
 
     def _make_env(self, mode="ok", sleep=0.0):
@@ -210,6 +217,43 @@ class SpawnFailureTests(OrchestratorTestBase):
         self.assertIsNone(asyncio.run(orch.start_run(task_id)))
         self.assertEqual(self.db.list_runs(task_id), [])
         self.assertEqual(self.db.get_task(task_id)["status"], "idle")
+
+
+class RunLogTests(OrchestratorTestBase):
+    """C7.3: the runner subprocess' stdout is streamed line by line into the
+    per-run log file <data>/logs/run-<id>.log (the M2 ui.log push reads the
+    same file)."""
+
+    def test_stdout_before_and_after_the_run_row_lands_in_the_log_file(self):
+        # 'fail' prints one line before it creates the Run row (buffered) and
+        # the traceback lines after it: both must reach the log file, in order.
+        task_id = self.db.create_task("svc", "u1", enabled=True)
+        exit_code = asyncio.run(self._orch(mode="fail").start_run(task_id))
+        self.assertEqual(exit_code, 1)
+        run = self.db.list_runs(task_id)[0]
+        self.assertIsNotNone(run["log_path"])
+        log = Path(run["log_path"])
+        self.assertEqual(log.name, f"run-{run['id']}.log")
+        self.assertTrue(log.is_relative_to(self.tmp))
+        text = log.read_text(encoding="utf-8")
+        self.assertIn(f"stub runner for task {task_id} (mode=fail)", text)
+        self.assertIn("Traceback (most recent call last):", text)
+        self.assertIn("RuntimeError: stub runner failure", text)
+        # The pre-row line (buffered) precedes the post-row traceback.
+        self.assertLess(text.index("stub runner for task"), text.index("Traceback"))
+
+    def test_clean_run_writes_its_per_run_log_file(self):
+        # 'ok' prints only the pre-row line: the file is still written once the
+        # Run row is discovered after the process has fully exited.
+        task_id = self.db.create_task("svc", "u1", enabled=True)
+        exit_code = asyncio.run(self.orch.start_run(task_id))
+        self.assertEqual(exit_code, 0)
+        run = self.db.list_runs(task_id)[0]
+        self.assertIsNotNone(run["log_path"])
+        log = Path(run["log_path"])
+        self.assertEqual(log.name, f"run-{run['id']}.log")
+        self.assertIn(f"stub runner for task {task_id} (mode=ok)",
+                      log.read_text(encoding="utf-8"))
 
 
 class ConcurrencyTests(OrchestratorTestBase):

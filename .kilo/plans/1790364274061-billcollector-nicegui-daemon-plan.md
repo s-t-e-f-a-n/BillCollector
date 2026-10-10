@@ -732,10 +732,196 @@ isolated `BC_*` env (scratch DB/profiles/downloads; real vault + real mock).
     the same persistent-profile code). The original "file an upstream report"
     follow-up is superseded — the crash is already reported (issue 556160935)
     and fixed upstream (CL 8378127, M154).
-- Remaining M1 chunks: C5 pause subsystem (3× retry → `waiting` + versioned control
-  socket + ntfy deep link + `wait_user(prompt[, until])`), C6 display allocation
-  (Xvfb/x11vnc/websockify per run), C7 orchestrator (APScheduler, spawn/monitor, stdout
-  streaming, orphan cleanup). M2 UI pages follow.
+- Remaining M1 chunks: **C5.6, C6, C7** — detailed, resumable execution plan in the
+  next section (C5.1–C5.5 are built, unit-tested and E2E-verified; see there). M2 UI
+  pages follow.
+
+### M1 — remaining chunks: detailed execution plan (C5 → C6 → C7)
+
+**Verified current state (2026-10-10, `dev`):** the C5 building blocks exist and are
+unit-tested — `control.py` (v1 protocol; `ControlServer` polled from the runner main
+thread, `ControlClient` for UI/tests), `notify.py` (`notify_pause` → ntfy deep link),
+`db.py` (Run `pause_reason`/`pause_prompt`/`pause_context`/`pause_deadline_at`,
+`claim_task_run`, `list_waiting_runs`, `list_active_runs`), `config.py`
+(`pause_deadline_seconds=1800`, `max_concurrency=1`, `display_start=99`,
+`display_count=16`, `ntfy_topic`, `ui_base_url`), `pagestate.py` (bounding-box `rect` on
+every scanned element). `runner.py` has the step loop, 3× retry (`MAX_STEP_ATTEMPTS`),
+graceful single-attempt, download tracking, the persistent profile, and the warm-profile
+history wipe. **Not built yet:** the runner's pause wiring (it still aborts with
+`result=failure` on a 3× step failure), the display lifecycle, `scheduler.py`,
+`orchestrator.py`.
+
+**Progress (2026-10-10, updated after this section was first drafted):** C5.1–C5.5 are
+done — `pause.py` (context builder, Copilot handlers, waiting loop) + `tests/test_bc_pause.py`
++ the `db.py` `check_same_thread=False` fix, the runner's step-loop pause wiring
+(C5.4, E2E-verified on the mock portal — see its bullet below), and the `wait_user`
+step (C5.5, unit-tested in `tests/test_bc_runner.py` `WaitUserTests` + E2E-verified on
+the mock portal — see its bullet below); the full unit suite (83 tests) is green.
+**Uncommitted** (with the `tests/scenarios.py` Layer B TOTP secrets). C5.6 is the next
+sub-step. The `*Done*` markers in this drafted section are the plan template, not
+status — remove them as each sub-step actually lands. E2E prerequisite:
+the three Layer B vault items (`testautopause user1`, `testwaituser user1`,
+`testcaptchadrag user1`) were created in the LAN Vaultwarden on 2026-10-10 (same pattern
+as the seven Layer A items, 2026-10-01; TOTP secrets added to `tests/scenarios.py`,
+round-trip + TOTP-endpoint acceptance verified).
+
+**Decisions locked for these chunks:**
+- **Terminal `Run.result` for a paused run (user-confirmed 2026-10-10):** timeout →
+  `needs_attention` (the operator can manually retry later; it is also the hook for the
+  future AI extension), cancel → `cancelled`. Both are new distinct values. `run_result()`
+  stays `success`/`failure` for the normal path; pause outcomes set their own value.
+- **Copilot actions are coordinate-based:** `click`/`fill`/`drag` resolve element `n`
+  from a fresh `pagestate` scan and act on the element's `rect` center via `page.mouse` /
+  `page.keyboard` (not locator-based) — uniform across buttons, textboxes and slider
+  CAPTCHAs, and it matches the numbered overlay the operator is looking at.
+- **Display ownership:** the **runner** allocates the display and owns the
+  Xvfb/x11vnc/websockify child lifecycle, so the standalone `python -m billcollector run
+  <task_id>` works with no orchestrator. The C7 orchestrator only spawns the runner and
+  reads `Run.display`/`novnc_port` for noVNC. This resolves the architecture line
+  "orchestrator allocates display" in favor of runner-owned allocation (required by the
+  standalone run path that the M1 validation uses).
+
+**How to proceed (context-window-sized, resumable units):** implement the sub-steps in
+order; each is independently committable and ends with the full unit suite green
+(`python -m unittest discover -s tests` from the repo root) plus its own verification. A
+fresh session resumes at the first sub-step that is not yet committed.
+
+#### C5 — Pause subsystem (wire the built infra into `runner.py`)
+
+- **C5.1 Pause context builder.** A `runner.py` helper (or new `pause.py`)
+  `_build_pause_context(ctx, reason, prompt, step, error) -> dict` producing the
+  machine-readable payload: `reason` (`step_failed`|`wait_user`|`download_failed`),
+  `prompt`, `url`, `page_title`, `error`, `step` (the failing step's locator-action
+  JSON), `screenshot` (fresh PNG path + base64), `elements[]` (numbered `n`, role, name,
+  `rect`, locator, actionTypes, optional url — from `pagestate`), `page_text` (visible
+  text, ≈20 KB cap), `deadline_at`. Plus `_persist_pause(db, run_id, ...)` writing the
+  Run pause columns and flipping the run to waiting. *Verify:* unit test with a stub
+  page (fake `evaluate`/`screenshot`) asserting the payload shape + the Run row update.
+  *Done:* context builder + persist unit-tested.
+- **C5.2 Copilot action handlers.** Coordinate-based handlers over `ctx.page`:
+  `screenshot` (→ base64), `elements` (→ numbered scan), `context` (→ payload),
+  `click{n}` (rect-center `mouse.click`), `fill{n,text}` (center click to focus +
+  `keyboard.type`), `press{key}` (`keyboard.press`), `drag{n,dx,dy}` (`mouse.move` to
+  center → `down` → `move(+dx,+dy, steps)` → `up`). *Verify:* unit test with a fake page
+  capturing mouse/keyboard calls; each action resolves element `n` and issues the right
+  call. *Done:* all seven handlers unit-tested.
+- **C5.3 Waiting loop.** `_pause(ctx, reason, prompt, step, error) -> outcome` that:
+  builds + persists the context, pushes ntfy (`notify_pause`), starts a `ControlServer`
+  with the C5.2 handlers, then loops `poll()` (≈1 s) checking `resume_requested` /
+  `cancel_requested` / the deadline (`now >= pause_deadline_at`); returns
+  `resume`|`cancel`|`timeout`; closes the server. *Verify:* unit test with a real
+  `ControlServer` on a temp socket + `ControlClient`: start the pause, issue
+  screenshot/elements, send `resume`, assert the outcome + the Run row. *Done:* waiting
+  loop unit-tested (resume/cancel/timeout paths).
+- **C5.4 Step-loop wiring (step_failed / download_failed).** In `_run_recipe`, wrap each
+  top-level step (and its `expect_download`) in a pause loop: on `StepAbortError` (3×
+  exhausted) → `_pause(...)`; on `resume` re-execute the step; on `cancel` → abort with
+  `result=cancelled`; on `timeout` → close the context, `result=needs_attention`.
+  Graceful steps never pause (single-attempt, record, continue). *Verify:* E2E on the
+  mock portal — `testautopause` pauses at the "Verified" step, a control-socket test
+  client clicks "I am not a robot", resumes, the step re-executes, the download is
+  tracked (the M1 exit scenario). *Done (2026-10-10):* step loop wired in `runner.py`
+  (`_execute_step_with_pause` / `_handle_download_with_pause` / `PauseOutcomeAbort`;
+  a finished run also releases the Task to `idle`, so a resumed/cancelled/timed-out
+  pause cannot wedge the scheduler's row lock). E2E verified on the mock portal
+  (scratch `BC_*` env `/tmp/bc-c54-e2e/`, real LAN vault + mock at 127.0.0.1:8787,
+  WSLg `:0`): step 11 ("Verified") failed 3× (30 s timeout each) → paused
+  `reason=step_failed` with the full machine-readable context (prompt, url, title,
+  step JSON, numbered elements with bounding boxes, page_text, deadline,
+  `pause_1.png`); the control-socket client fetched `context` + `elements`, clicked
+  element 1 ("I am not a robot"), the fresh scan showed the button replaced by
+  "Verified", `resume` → step 11 re-executed clean → `Run.result=success` (exit 0),
+  one tracked download (`invoice_autopause_user1_1.pdf`, sha256, not a duplicate),
+  17 `PageStatus` rows (incl. step-11 error row + clean row), Task back to `idle`,
+  socket file removed; ntfy push skipped (scratch topic empty — the push itself is
+  unit-tested in C5.3). Unit suite 73/73 green.
+- **C5.5 `wait_user(prompt[, until])`.** Intercept `wait_user` in the step loop
+  (step-level): a step whose methods include `wait_user` enters
+  `_pause(reason=wait_user, prompt=...)` before execution; on `resume` the step
+  **completes** (consumed, not re-executed). With `until`: first build a Playwright
+  locator from the `until` dict and `wait_for(visible, timeout=remaining deadline)`
+  (found → complete; timeout → re-pause with the same prompt). *Verify:* E2E —
+  `testwaituser` pauses at step 11 with the prompt, the control client fills the
+  6-digit code + clicks "Verify",   resumes, the step completes, the download is tracked.
+  *Done (2026-10-10):* implemented in `runner.py` (`_wait_user_method` /
+  `_wait_user_args` / `_locator_for` / `_execute_wait_user_step`, intercepted in the
+  `_run_recipe` step loop). Unit: `tests/test_bc_runner.py` `WaitUserTests` —
+  method detection, prompt/until extraction + fallback prompt, the until-locator
+  mapping (all six locator keys + rejection of unrecognized dicts), resume-completes
+  (single clean PageStatus row, `pause_loop` called once with reason=wait_user and no
+  error), `until` visible → complete, `until` timeout → re-pause with the same prompt
+  (pause called twice, step still completes once), cancel aborts before completion,
+  invalid `until` aborts before any pause. E2E on the mock portal (scratch `BC_*` env
+  `/tmp/bc-c55-e2e/`, real LAN vault + mock at 127.0.0.1:8787, WSLg `:0`): run paused
+  at step 11 with `reason=wait_user` and the recipe's exact prompt, on the
+  `/waituser/verify` page (context: prompt, url, title, wait_user step JSON, no
+  error, numbered elements incl. the code input + Verify button, `pause_1.png`);
+  the control-socket client read the displayed 6-digit code from the context's
+  `page_text`, `fill`-ed it into the code input and `click`-ed "Verify", the fresh
+  scan showed the verify form replaced by the dashboard; `resume` → the step
+  completed (one clean step-11 PageStatus row, consumed not re-executed) → the
+  remaining steps verified the action → `Run.result=success` (exit 0), one tracked
+  download (`invoice_waituser_user1_1.pdf`, sha256, not a duplicate), 16
+  `PageStatus` rows (15 steps + nested 14_1), Task back to `idle`, socket file
+  removed; ntfy push skipped (scratch topic empty — the push itself is unit-tested
+  in C5.3). Unit suite 83/83 green.
+- **C5.6 Terminal results + deadline + ntfy.** Ensure `cancel`→`cancelled`,
+  `timeout`→`needs_attention` (deadline from `pause_deadline_seconds`), ntfy pushed on
+  every pause, and the profile preserved on timeout. *Verify:* unit test for the deadline
+  math; a test that a cancelled run ends `cancelled` and a (short-deadline) timed-out run
+  ends `needs_attention`.
+
+#### C6 — Per-run display lifecycle (runner-owned)
+
+- **C6.1 Display allocation.** `display.py` `allocate_display() -> (n, websockify_port)`:
+  scan `display_start..display_start+display_count-1`, claim a free display with an
+  atomic lockfile `<data>/displays/:N.lock` (`O_EXCL`); websockify port =
+  `6080 + (N - display_start)`; `release_display(n)` removes the lock. *Verify:* unit
+  test — two allocations are distinct; release +   re-allocate succeeds.
+- **C6.2 Display stack children.** `display.py` `start_display_stack(n, rfb_auth_file)` /
+  `stop_display_stack(...)`: spawn `Xvfb :N`, `x11vnc -display :N -rfbport 5900+N
+  [-rfbauth <file>]`, `websockify 6080+(N-start) 127.0.0.1:5900+N` as children; stop
+  terminates + reaps (kill if needed). rfbauth: a per-run file from a settings value
+  (default empty → localhost-only, no auth). *Verify:* unit test (real `Xvfb` if present
+  on the host, else stubbed) — start, assert the children are alive; stop, assert reaped.
+- **C6.3 Runner integration.** In the runner: allocate the display, start the stack, set
+  `os.environ["DISPLAY"] = ":N"` before `launch_persistent_context`, record
+  `Run.display`/`novnc_port`; in `finally` stop the stack + release the display.
+  *Verify:* E2E — run a task **without** `xvfb-run`; assert `Run.display` is set, Xvfb is
+  started and reaped,   and the browser launches headful on `:N`.
+- **C6.4 Image apt deps.** Add `git`, `x11vnc`, `websockify`, `novnc` to the `Dockerfile`
+  apt list (M1 item 3). *Verify:* the apt list is correct;   (optional) build + assert the
+  binaries exist.
+
+#### C7 — Orchestrator + scheduler (`orchestrator.py`, `scheduler.py`)
+
+- **C7.1 APScheduler.** `scheduler.py`: an `AsyncIOScheduler` with a SQLAlchemy jobstore
+  on `bc.db`; one cron job per enabled Task (from `Task.cron`); add/update/remove on
+  task change; re-sync all jobs from the Task table on startup. *Verify:* unit test — a
+  task with a cron produces   a job; disabling the task removes it.
+- **C7.2 Orchestrator spawn/monitor.** `orchestrator.py` `start_run(task_id)`: claim the
+  task (DB row lock via `claim_task_run`), acquire the global semaphore
+  (`max_concurrency`), spawn `python -m billcollector run <task_id>` as a subprocess,
+  monitor it, and on exit finalize the Run (exit code → result; non-zero → tail the
+  traceback into `Run.notes`). The runner owns the display (C6). *Verify:* unit test —
+  `start_run` spawns a (stub or real) runner, monitors the exit, finalizes the Run.
+- **C7.3 stdout streaming.** Stream the runner subprocess stdout line-by-line into
+  `<data>/logs/run-<id>.log` (the `ui.log` push is M2). *Verify:* unit test — the spawned
+  process' stdout lands in the log file.
+- **C7.4 Orphan cleanup + shutdown.** On startup: mark leftover active runs whose PID is
+  dead as `interrupted` (and free their displays). On shutdown (SIGTERM): terminate child
+  runners, mark their runs `interrupted`. *Verify:* unit test — a fake active Run with a
+  dead PID is marked `interrupted` by cleanup.
+- **C7.5 Wire into `serve`.** In `ui/app.py` startup: start the scheduler + orphan
+  cleanup; on shutdown: stop the scheduler + terminate runners. *Verify:* start `serve` →
+  scheduler running + `/_alive`   ok; SIGTERM → runners terminated.
+- **C7.6 M1 exit validation.** Full M1 exit on the mock portal: `testautopause` (3× →
+  `waiting` → resume via the control socket → download) + `testwaituser` (wait_user
+  pause/resume); persistent-profile accumulation (banner only on run 1).
+
+**M1 exit (unchanged):** the daemon runs tasks on schedule; on the mock portal,
+`testautopause` and `testwaituser` pass via the control socket; profile accumulation is
+verifiable. Then M2 (UI core).
 
 ### M2 — UI core
 

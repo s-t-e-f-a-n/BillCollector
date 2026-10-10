@@ -17,6 +17,9 @@ daemon (decision locked in the M1 chunk plan).
 
 import logging
 import os
+import shutil
+import subprocess
+import time
 from pathlib import Path
 
 from . import config
@@ -24,6 +27,12 @@ from . import config
 logger = logging.getLogger("billcollector.display")
 
 WEBSOCKIFY_BASE_PORT = 6080  # websockify port = 6080 + (display - display_start)
+VNC_BASE_PORT = 5900         # x11vnc RFB port = 5900 + display
+XVFB_DEFAULT_SCREEN = "1280x1024x24"
+NOVNC_WEB_DIR = Path("/usr/share/novnc")  # apt novnc web client (vnc.html)
+X_SOCKET_DIR = Path("/tmp/.X11-unix")
+XVFB_READY_TIMEOUT = 10.0
+_STOP_TIMEOUT = 5.0
 
 
 class DisplayError(Exception):
@@ -117,3 +126,134 @@ def remove_display_lock(display, display_dir=None):
         lock.unlink()
     except FileNotFoundError:
         pass
+
+
+def rfb_auth_file_for(run_id):
+    """Per-run x11vnc auth file (deleted with the run's artifacts)."""
+    return config.RUN_DIR / str(run_id) / "vnc.rfbauth"
+
+
+def write_rfb_auth(path, password):
+    """Create the x11vnc auth file for a password (``x11vnc -storepasswd``).
+
+    Raises DisplayError when x11vnc is missing or refuses the password."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        proc = subprocess.run(
+            ["x11vnc", "-storepasswd", password, str(path)],
+            capture_output=True, text=True, timeout=15)
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as e:
+        raise DisplayError(f"could not create the VNC auth file: {e}") from e
+    if proc.returncode != 0:
+        raise DisplayError(f"x11vnc -storepasswd failed: "
+                           f"{proc.stderr.strip() or proc.stdout.strip()}")
+    return path
+
+
+def _spawn(binary, *args):
+    """Start one display-stack child (own session, stdio to devnull).
+
+    Raises DisplayError when the binary is missing or the spawn fails."""
+    try:
+        return subprocess.Popen(
+            [str(binary), *[str(a) for a in args]],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, start_new_session=True)
+    except FileNotFoundError as e:
+        raise DisplayError(
+            f"display binary not found: {e.filename} "
+            f"(install the display stack: apt install x11vnc websockify novnc)"
+        ) from e
+    except OSError as e:
+        raise DisplayError(f"could not start {binary}: {e}") from e
+
+
+def _wait_for_x_display(display, timeout=XVFB_READY_TIMEOUT):
+    """Wait for the X server socket of a display (Xvfb startup)."""
+    socket_path = X_SOCKET_DIR / f"X{display}"
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if socket_path.exists():
+            return
+        time.sleep(0.05)
+    raise DisplayError(
+        f"Xvfb :{display} did not create {socket_path} within {int(timeout)}s")
+
+
+def start_display_stack(display, rfb_auth_file=None, websockify_port=None,
+                        binaries=None):
+    """Spawn the per-run display stack for one display:
+
+    - ``Xvfb :N`` (the virtual screen, default 1280x1024x24),
+    - ``x11vnc -display :N -rfbport 5900+N -localhost`` - password auth
+      only when an rfb auth file is given (default: localhost-only, no
+      auth; the setting is empty by default),
+    - ``websockify <port> 127.0.0.1:5900+N`` - the noVNC channel, serving
+      the noVNC web client when the apt ``novnc`` package is present.
+
+    ``binaries`` may override the binary per role ({"Xvfb", "x11vnc",
+    "websockify"}) for tests. Returns the list of child Popen objects
+    (stop_display_stack reaps them); a partially started stack is torn
+    down and DisplayError is raised."""
+    bins = {"Xvfb": "Xvfb", "x11vnc": "x11vnc", "websockify": "websockify"}
+    if binaries:
+        bins.update(binaries)
+    if rfb_auth_file is not None and not Path(rfb_auth_file).exists():
+        raise DisplayError(f"VNC auth file missing: {rfb_auth_file}")
+    if websockify_port is None:
+        websockify_port = websockify_port_for(
+            display, int(config.DEFAULT_SETTINGS["display_start"]))
+
+    children = []
+    try:
+        xvfb = _spawn(bins["Xvfb"], f":{display}", "-screen", "0",
+                      XVFB_DEFAULT_SCREEN)
+        children.append(xvfb)
+        if xvfb.poll() is not None:
+            raise DisplayError(
+                f"Xvfb :{display} exited immediately (rc={xvfb.returncode})")
+        _wait_for_x_display(display)
+
+        vnc_args = ["-display", f":{display}", "-rfbport",
+                    VNC_BASE_PORT + display, "-localhost"]
+        if rfb_auth_file is not None:
+            vnc_args += ["-rfbauth", str(rfb_auth_file)]
+        else:
+            vnc_args += ["-nopw"]
+        children.append(_spawn(bins["x11vnc"], *vnc_args))
+
+        ws_args = [websockify_port, f"127.0.0.1:{VNC_BASE_PORT + display}"]
+        if NOVNC_WEB_DIR.is_dir():
+            ws_args = ["--web", str(NOVNC_WEB_DIR), *ws_args]
+        children.append(_spawn(bins["websockify"], *ws_args))
+        logger.info(
+            f"Display stack started for :{display} (x11vnc port "
+            f"{VNC_BASE_PORT + display}, websockify port {websockify_port})")
+        return children
+    except Exception:
+        stop_display_stack(children)
+        raise
+
+
+def stop_display_stack(children):
+    """Terminate and reap the display-stack children (SIGKILL when they
+    ignore SIGTERM). Tolerates already-dead children."""
+    for proc in reversed(children or []):
+        if proc.poll() is None:
+            proc.terminate()
+    for proc in children or []:
+        try:
+            proc.wait(timeout=_STOP_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            logger.warning(f"Display child {proc.pid} ignored SIGTERM; killing")
+            proc.kill()
+            try:
+                proc.wait(timeout=_STOP_TIMEOUT)
+            except subprocess.TimeoutExpired:
+                logger.error(f"Display child {proc.pid} could not be reaped")
+
+
+def binaries_present():
+    """True when the whole display stack is installed on this host."""
+    return all(shutil.which(b) for b in ("Xvfb", "x11vnc", "websockify"))

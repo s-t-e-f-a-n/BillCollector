@@ -22,6 +22,7 @@ exit). Stub modes (env ``ORCH_TEST_MODE``):
 
 import asyncio
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -275,6 +276,108 @@ class ConcurrencyTests(OrchestratorTestBase):
         # max_concurrency defaults to 1: the second run starts only after
         # the first has finished.
         self.assertTrue(start1 < end1 < start2 or start2 < end2 < start1)
+
+
+class OrphanCleanupTests(OrchestratorTestBase):
+    """C7.4: the startup cleanup marks leftover active runs whose pid is
+    dead as interrupted (and frees their displays)."""
+
+    def setUp(self):
+        super().setUp()
+        # The cleanup force-removes stale display lockfiles under
+        # config.DISPLAY_DIR; redirect it like LOG_DIR so tests never
+        # touch the repo's apps/data.
+        self._old_display_dir = config.DISPLAY_DIR
+        config.DISPLAY_DIR = self.tmp / "displays"
+        config.DISPLAY_DIR.mkdir(parents=True)
+
+    def tearDown(self):
+        config.DISPLAY_DIR = self._old_display_dir
+        super().tearDown()
+
+    @staticmethod
+    def _dead_pid() -> int:
+        """A pid that is guaranteed to be dead (a spawned, reaped process)."""
+        proc = subprocess.Popen([sys.executable, "-c", "pass"])
+        proc.wait()
+        return proc.pid
+
+    def test_active_run_with_dead_pid_is_marked_interrupted(self):
+        task_id = self.db.create_task("svc", "u1", enabled=True)
+        run_id = self.db.create_run(task_id, pid=self._dead_pid())
+        self.db.set_task_status(task_id, "running")
+        self.assertEqual(self.orch.cleanup_orphans(), 1)
+        run = self.db.get_run(run_id)
+        self.assertEqual(run["result"], "interrupted")
+        self.assertIsNotNone(run["ended_at"])
+        # The killed runner's teardown never ran: the task is released.
+        self.assertEqual(self.db.get_task(task_id)["status"], "idle")
+
+    def test_active_run_with_a_live_pid_is_left_alone(self):
+        # A still-alive orphaned runner finalizes the row itself.
+        task_id = self.db.create_task("svc", "u1", enabled=True)
+        run_id = self.db.create_run(task_id, pid=os.getpid())
+        self.db.set_task_status(task_id, "running")
+        self.assertEqual(self.orch.cleanup_orphans(), 0)
+        self.assertIsNone(self.db.get_run(run_id)["result"])
+        self.assertEqual(self.db.get_task(task_id)["status"], "running")
+
+    def test_active_run_without_a_pid_is_marked_interrupted(self):
+        # A row without a pid can never be a live run.
+        task_id = self.db.create_task("svc", "u1")
+        run_id = self.db.create_run(task_id)
+        self.assertEqual(self.orch.cleanup_orphans(), 1)
+        self.assertEqual(self.db.get_run(run_id)["result"], "interrupted")
+
+    def test_orphan_display_lock_is_removed(self):
+        task_id = self.db.create_task("svc", "u1")
+        run_id = self.db.create_run(task_id, pid=self._dead_pid(), display=99)
+        lock = config.DISPLAY_DIR / ":99.lock"
+        lock.write_text("424242\n", encoding="utf-8")
+        self.assertEqual(self.orch.cleanup_orphans(), 1)
+        self.assertFalse(lock.exists())
+        self.assertEqual(self.db.get_run(run_id)["result"], "interrupted")
+
+    def test_finalized_runs_are_left_alone(self):
+        task_id = self.db.create_task("svc", "u1")
+        run_id = self.db.create_run(task_id, pid=self._dead_pid())
+        self.db.update_run(run_id, result="success",
+                           ended_at="2026-10-10 10:00:00")
+        self.assertEqual(self.db.get_task(task_id)["status"], "idle")
+        self.assertEqual(self.orch.cleanup_orphans(), 0)
+        self.assertEqual(self.db.get_run(run_id)["result"], "success")
+
+
+class ShutdownTests(OrchestratorTestBase):
+    """C7.4: shutdown terminates the live runner subprocesses and marks
+    their runs interrupted."""
+
+    def test_shutdown_terminates_the_runner_and_interrupts_the_run(self):
+        task_id = self.db.create_task("svc", "u1", enabled=True)
+        orch = self._orch(mode="crash", sleep=30.0)  # a long-running run
+
+        async def scenario():
+            monitor = asyncio.create_task(orch.start_run(task_id))
+            # Wait for the stub runner to have created its Run row (it
+            # then sleeps without finalizing, like a long-running run).
+            for _ in range(200):
+                if self.db.list_runs(task_id):
+                    break
+                await asyncio.sleep(0.05)
+            await orch.shutdown()
+            await monitor
+            return orch.processes
+
+        self.assertEqual(asyncio.run(scenario()), {})
+        run = self.db.list_runs(task_id)[0]
+        self.assertEqual(run["result"], "interrupted")
+        self.assertIsNotNone(run["ended_at"])
+        # The killed runner's teardown never ran: the task is released.
+        self.assertEqual(self.db.get_task(task_id)["status"], "idle")
+
+    def test_shutdown_without_live_runners_is_a_noop(self):
+        asyncio.run(self.orch.shutdown())
+        self.assertEqual(self.orch.processes, {})
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 Subcommands:
 - ``serve``: start the NiceGUI daemon (M1 skeleton: placeholder index only)
-- ``run``: execute a single task run (M1 item 3, stub until the runner lands)
+- ``run``: execute a single task run (sync Playwright step loop)
 """
 
 import argparse
@@ -62,12 +62,9 @@ def main(argv=None) -> int:
         return 0
 
     if args.command == "run":
+        # Lazy import: Playwright is only needed when actually running a task.
         from . import runner
 
-        try:
-            return runner.run_task(args.task_id, args.debug)
-        except NotImplementedError:
-            print("runner not yet implemented", file=sys.stderr)
-            return 2
+        return runner.run_task(args.task_id, args.debug)
 
     return 2  # unreachable: subcommand dispatch is exhaustive

@@ -151,13 +151,28 @@ def write_rfb_auth(path, password):
     return path
 
 
-def _spawn(binary, *args):
-    """Start one display-stack child (own session, stdio to devnull).
+def _stack_env():
+    """Environment for the display-stack children.
+
+    WSL2+WSLg sessions export ``WAYLAND_DISPLAY``, and x11vnc (0.9.16)
+    refuses to start against it ("Wayland display server detected").
+    The stack only ever talks to X11 (the run's Xvfb), so the variable
+    is stripped and the session type pinned to x11 for every child."""
+    env = dict(os.environ)
+    env.pop("WAYLAND_DISPLAY", None)
+    env["XDG_SESSION_TYPE"] = "x11"
+    return env
+
+
+def _spawn(binary, *args, env=None):
+    """Start one display-stack child (own session, stdio to devnull,
+    wayland-free env).
 
     Raises DisplayError when the binary is missing or the spawn fails."""
     try:
         return subprocess.Popen(
             [str(binary), *[str(a) for a in args]],
+            env=env if env is not None else _stack_env(),
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL, start_new_session=True)
     except FileNotFoundError as e:
@@ -205,10 +220,11 @@ def start_display_stack(display, rfb_auth_file=None, websockify_port=None,
         websockify_port = websockify_port_for(
             display, int(config.DEFAULT_SETTINGS["display_start"]))
 
+    env = _stack_env()
     children = []
     try:
         xvfb = _spawn(bins["Xvfb"], f":{display}", "-screen", "0",
-                      XVFB_DEFAULT_SCREEN)
+                      XVFB_DEFAULT_SCREEN, env=env)
         children.append(xvfb)
         if xvfb.poll() is not None:
             raise DisplayError(
@@ -221,12 +237,12 @@ def start_display_stack(display, rfb_auth_file=None, websockify_port=None,
             vnc_args += ["-rfbauth", str(rfb_auth_file)]
         else:
             vnc_args += ["-nopw"]
-        children.append(_spawn(bins["x11vnc"], *vnc_args))
+        children.append(_spawn(bins["x11vnc"], *vnc_args, env=env))
 
         ws_args = [websockify_port, f"127.0.0.1:{VNC_BASE_PORT + display}"]
         if NOVNC_WEB_DIR.is_dir():
             ws_args = ["--web", str(NOVNC_WEB_DIR), *ws_args]
-        children.append(_spawn(bins["websockify"], *ws_args))
+        children.append(_spawn(bins["websockify"], *ws_args, env=env))
         logger.info(
             f"Display stack started for :{display} (x11vnc port "
             f"{VNC_BASE_PORT + display}, websockify port {websockify_port})")

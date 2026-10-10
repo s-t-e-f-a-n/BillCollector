@@ -757,7 +757,10 @@ def run_task(task_id: int, debug: bool = False) -> int:
                   file=sys.stderr)
             return 1
 
-        run_id = db.create_run(task_id, display=display_number,
+        # The row records this process' pid so the orchestrator (C7.2) can
+        # match the spawned subprocess to the row it created, and the
+        # startup orphan cleanup (C7.4) can check whether the pid is alive.
+        run_id = db.create_run(task_id, pid=os.getpid(), display=display_number,
                                novnc_port=websockify_port)
         result = "failure"
         files = []

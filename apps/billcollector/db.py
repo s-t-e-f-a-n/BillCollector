@@ -197,6 +197,15 @@ class Database:
     def get_run(self, run_id):
         return self.conn.execute("SELECT * FROM Run WHERE id=?", (run_id,)).fetchone()
 
+    def get_run_for_pid(self, task_id, pid):
+        """Latest Run row of a task created by the given pid.
+
+        The orchestrator matches the runner subprocess it spawned (whose pid
+        it knows) to the Run row the runner itself created."""
+        return self.conn.execute(
+            "SELECT * FROM Run WHERE task_id=? AND pid=? ORDER BY id DESC LIMIT 1",
+            (task_id, pid)).fetchone()
+
     def update_run(self, run_id, **fields):
         if not fields:
             return

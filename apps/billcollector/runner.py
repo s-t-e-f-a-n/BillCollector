@@ -20,13 +20,16 @@ re-executed; an optional ``until`` locator must be visible before the step
 completes, bounded by the pause deadline (a missed deadline re-pauses with
 the same prompt).
 
-Deliberate chunk boundaries (later milestone chunks):
-- No display management yet (C6): the browser is headful and needs DISPLAY
-  from the environment (validation runs under ``xvfb-run -a``).
+The per-run display lifecycle is runner-owned (C6): the run allocates a
+display from the configured range (lockfile registry), starts the
+Xvfb/x11vnc/websockify child stack, points DISPLAY at that display for the
+headful browser launch, records ``Run.display`` / ``Run.novnc_port``, and
+reaps the stack + releases the claim in the run teardown.
 """
 
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 
@@ -34,7 +37,7 @@ from helpers import CheckRecipe, ServiceObj, VARIABLE_MAP
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
-from . import config, downloads
+from . import config, display, downloads
 from .db import Database, now
 from .pagestate import PageState
 from .pause import pause_loop
@@ -189,6 +192,21 @@ def _vault_preflight(task):
     return fetch_credentials(api_url, task["service"], task["user"])
 
 
+def _start_display_stack(db, run_id, display_number):
+    """Start the run's Xvfb/x11vnc/websockify stack (C6.2) and return its
+    child Popen list (the run teardown reaps it).
+
+    The per-run VNC auth file is created only when the ``vnc_password``
+    setting is non-empty (default: empty -> localhost-only x11vnc, no
+    auth). Raises DisplayError when the stack cannot start."""
+    password = db.get_setting("vnc_password")
+    rfb_auth = None
+    if password is not None and str(password).strip():
+        rfb_auth = display.rfb_auth_file_for(run_id)
+        display.write_rfb_auth(rfb_auth, str(password).strip())
+    return display.start_display_stack(display_number, rfb_auth_file=rfb_auth)
+
+
 def _ensure_pdf_preference(profile_dir):
     """Create the profile's Default/Preferences with the PDF-external
     preference when missing - the legacy ``init_browser_profile`` preference
@@ -233,8 +251,8 @@ def _clear_stale_history(profile_dir):
 
 
 def _launch_browser(ctx, p):
-    """Launch the persistent per-task browser context (headful; DISPLAY must
-    come from the environment) and open the run's page."""
+    """Launch the persistent per-task browser context (headful on the run's
+    allocated display, C6) and open the run's page."""
     profile_dir = config.profile_dir_for(ctx.task["service"], ctx.task["user"])
     _ensure_pdf_preference(profile_dir)
     _clear_stale_history(profile_dir)
@@ -711,7 +729,7 @@ def run_task(task_id: int, debug: bool = False) -> int:
     """Execute one task run (sync Playwright step loop).
 
     Returns the process exit code: 0 on success, 1 on a run failure
-    (vault preflight, recipe error, or step failure)."""
+    (display, vault preflight, recipe error, or step failure)."""
     config.load_env()
     _ensure_logging()
 
@@ -728,11 +746,26 @@ def run_task(task_id: int, debug: bool = False) -> int:
             print(f"runner: recipe {recipe_file} not found or invalid", file=sys.stderr)
             return 1
 
-        run_id = db.create_run(task_id)
+        # C6: the runner owns the per-run display: claim a display from the
+        # configured range before the Run row exists (the row records it),
+        # start the Xvfb/x11vnc/websockify stack, and point DISPLAY at it
+        # for the headful browser launch.
+        try:
+            display_number, websockify_port = display.allocate_display(db)
+        except display.DisplayError as e:
+            print(f"runner: cannot allocate a display for task {task_id}: {e}",
+                  file=sys.stderr)
+            return 1
+
+        run_id = db.create_run(task_id, display=display_number,
+                               novnc_port=websockify_port)
         result = "failure"
         files = []
         api_url = config.env("BW_API_URL")
+        children = None
         try:
+            children = _start_display_stack(db, run_id, display_number)
+            os.environ["DISPLAY"] = f":{display_number}"
             credentials = _vault_preflight(task)
             ctx = _RunContext(task, run_id, db, debug, credentials, api_url)
             files, aborted, pause_outcome = _run_recipe(ctx, recipe)
@@ -741,9 +774,18 @@ def run_task(task_id: int, debug: bool = False) -> int:
             # A vault-preflight failure: one clear stderr line, distinct from
             # a step failure (which the step loop logs on stdout).
             print(f"runner: vault preflight failed for task {task_id}: {e}", file=sys.stderr)
+        except display.DisplayError as e:
+            # A display-stack failure (binary missing, Xvfb refusing the
+            # display): one clear stderr line, like a vault-preflight failure.
+            print(f"runner: display stack failed for task {task_id}: {e}", file=sys.stderr)
         except Exception:
             logger.exception(f"Task {task_id} run {run_id} aborted by an unexpected error")
         finally:
+            # The display stack is reaped and the claim released with the
+            # run, so a finished run never leaks a display.
+            if children is not None:
+                display.stop_display_stack(children)
+            display.release_display(display_number)
             # The run row always ends with a terminal result, even when the
             # vault preflight or an unexpected error stopped the run before
             # the step loop ran.

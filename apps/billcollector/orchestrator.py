@@ -14,7 +14,8 @@ UI/scheduler, and the OS reclaims the runner's memory when it exits.
    double queue entry for the same task;
 2. acquires the global semaphore (``max_concurrency`` setting, default 1);
 3. spawns the runner subprocess and monitors it to completion: streams its
-   output (C7.3 adds the per-run log file; the tail is kept in memory),
+   output line by line into the per-run log file
+   (``<data>/logs/run-<id>.log``), keeps a tail in memory for ``Run.notes``,
    awaits the exit, and finalizes the Run row.
 
 Finalization on exit: the runner finalizes its own Run row with the
@@ -36,6 +37,7 @@ import asyncio
 import logging
 import sys
 from collections import deque
+from pathlib import Path
 
 from . import config
 from .db import Database, now
@@ -45,6 +47,11 @@ logger = logging.getLogger("billcollector.orchestrator")
 # How many tail lines of a failed runner's output land in Run.notes: the
 # traceback is what the operator needs, not the full log.
 NOTES_TAIL_LINES = 100
+
+
+def run_log_path(run_id: int) -> Path:
+    """Per-run stdout log file: ``<data>/logs/run-<id>.log`` (C7.3)."""
+    return config.LOG_DIR / f"run-{run_id}.log"
 
 
 class Orchestrator:
@@ -111,19 +118,63 @@ class Orchestrator:
 
     async def _monitor(self, task_id: int, proc) -> int:
         """Stream the runner's output line by line and finalize the Run row
-        once the subprocess has exited (C7.3 routes the lines to the
-        per-run log file at this same spot)."""
+        once the subprocess has exited.
+
+        Every stdout line (stderr merged in) is appended to the per-run log
+        file ``<data>/logs/run-<id>.log`` (C7.3); the M2 ui.log push reads the
+        same file. The Run row is created by the runner (which records its own
+        pid), so the file is opened once that row exists: lines seen before
+        that are buffered and flushed when the file opens. The last
+        NOTES_TAIL_LINES lines are also kept in memory for Run.notes on a
+        non-zero exit."""
         tail = deque(maxlen=NOTES_TAIL_LINES)
-        while True:
-            line = await proc.stdout.readline()
-            if not line:
-                break
-            text = line.decode("utf-8", errors="replace")
-            tail.append(text)
-            logger.debug("runner[%s]: %s", task_id, text.rstrip("\n"))
-        exit_code = await proc.wait()
-        self._finalize_run(task_id, proc.pid, exit_code, tail)
-        return exit_code
+        pending = []       # stdout lines seen before the Run row exists
+        log_fh = None      # the per-run log file, opened once the row is known
+
+        def open_run_log():
+            """Open the per-run log file now that the Run row exists and flush
+            the lines buffered before it. No-op when the file is already open
+            or the runner never created a row (early failure)."""
+            nonlocal log_fh
+            if log_fh is not None:
+                return
+            row = self._db.get_run_for_pid(task_id, proc.pid)
+            if row is None:
+                return
+            path = run_log_path(row["id"])
+            path.parent.mkdir(parents=True, exist_ok=True)
+            log_fh = path.open("a", encoding="utf-8")
+            # Record the log location on the row so the UI (M2) can find it.
+            self._db.update_run(row["id"], log_path=str(path))
+            for old in pending:
+                log_fh.write(old)
+            pending.clear()
+            log_fh.flush()
+
+        try:
+            while True:
+                line = await proc.stdout.readline()
+                if not line:
+                    break
+                text = line.decode("utf-8", errors="replace")
+                tail.append(text)
+                logger.debug("runner[%s]: %s", task_id, text.rstrip("\n"))
+                if log_fh is not None:
+                    log_fh.write(text)
+                    log_fh.flush()
+                else:
+                    pending.append(text)
+                    open_run_log()
+            exit_code = await proc.wait()
+            # The runner may have created the Run row without printing any
+            # further line (a clean run): discover it now that the process has
+            # fully exited and its row is committed.
+            open_run_log()
+            self._finalize_run(task_id, proc.pid, exit_code, tail)
+            return exit_code
+        finally:
+            if log_fh is not None:
+                log_fh.close()
 
     def _finalize_run(self, task_id: int, pid: int, exit_code: int, tail) -> None:
         """Finalize the Run row the subprocess created (module docstring)."""

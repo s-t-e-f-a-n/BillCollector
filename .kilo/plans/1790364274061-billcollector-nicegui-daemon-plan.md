@@ -751,7 +751,7 @@ history wipe. **Not built yet:** the runner's pause wiring (it still aborts with
 `result=failure` on a 3× step failure), the display lifecycle, `scheduler.py`,
 `orchestrator.py`.
 
-**Progress (2026-10-10, updated after C7.1 landed):** C5.1–C5.6 are
+**Progress (2026-10-10, updated after C7.2 landed):** C5.1–C5.6 are
 done — `pause.py` (context builder, Copilot handlers, waiting loop) + `tests/test_bc_pause.py`
 + the `db.py` `check_same_thread=False` fix, the runner's step-loop pause wiring
 (C5.4, E2E-verified on the mock portal — see its bullet below), the `wait_user`
@@ -762,10 +762,12 @@ allocation + stack (`display.py` + `tests/test_bc_display.py`), the runner
 integration (C6.3, `runner.py` + `DisplayLifecycleTests`, E2E-verified — see its
 bullet below) and the Dockerfile apt deps (C6.4 — see its bullet below).
 C7.1 (the per-task cron scheduler: `scheduler.py` + `tests/test_bc_scheduler.py`)
-is done — see its bullet below. All of C5.1–C6.4 and C7.1 are committed + pushed to
-origin/dev (with the `tests/scenarios.py` Layer B TOTP secrets). The full unit
-suite (129 tests) is green. C7.2 (the orchestrator spawn/monitor) is the next
-sub-step. The `*Done*` markers in this
+and C7.2 (the orchestrator spawn/monitor: `orchestrator.py` +
+`tests/test_bc_orchestrator.py` + the runner's pid on the Run row) are done —
+see their bullets below. C5.1–C7.1 are committed + pushed to origin/dev (with the
+`tests/scenarios.py` Layer B TOTP secrets); C7.2 lands in the next commit(s). The
+full unit suite (139 tests) is green. C7.3 (stdout streaming to the per-run log
+file) is the next sub-step. The `*Done*` markers in this
 drafted section are the plan template, not status — remove them as each sub-step
 actually lands. E2E prerequisite:
 the three Layer B vault items (`testautopause user1`, `testwaituser user1`,
@@ -999,6 +1001,38 @@ fresh session resumes at the first sub-step that is not yet committed.
   monitor it, and on exit finalize the Run (exit code → result; non-zero → tail the
   traceback into `Run.notes`). The runner owns the display (C6). *Verify:* unit test —
   `start_run` spawns a (stub or real) runner, monitors the exit, finalizes the Run.
+  *Done (2026-10-10):* `orchestrator.py` — `Orchestrator(db, runner_cmd=None,
+  env=None)` with `start_run(task_id)` (the scheduler's run callback, C7.1): unknown
+  task → skip; the claim via `claim_task_run` comes first (a running/waiting task is
+  skipped — this also guards against a double queue entry for the same task), then
+  the global semaphore (`max_concurrency` setting, default 1); spawn
+  `python -m billcollector run <task_id>` (`sys.executable`, cwd `apps/`, stderr merged
+  into stdout, piped) and monitor it line by line (in-memory tail,
+  `NOTES_TAIL_LINES=100`; C7.3 routes the lines to the per-run log file at the same
+  spot). Finalization on exit: the runner's own result (success/failure/cancelled/
+  needs_attention) is never overwritten by the exit code — the orchestrator only
+  finalizes a row the runner left open (exit 0 → success, non-zero → failure) and
+  takes over the task release (→ idle) whenever the runner's own teardown did not
+  run: a hard crash / killed runner, or a runner that exited before creating its Run
+  row (the real runner's invalid-recipe / display-allocation paths exit 1 there and
+  would otherwise wedge the task in `running`); on any non-zero exit the output tail
+  (the traceback) is appended to `Run.notes`; live subprocesses are tracked per task
+  (`processes` — C7.4's shutdown terminates these). The runner now records its own
+  pid on the Run row it creates (`runner.py`: `create_run(..., pid=os.getpid())`) and
+  `db.get_run_for_pid(task_id, pid)` is the match. Unit: `tests/test_bc_orchestrator.py`
+  (10 tests, a real subprocess stub runner that mimics the runner's contract —
+  create the Run row with its own pid, finalize + release the task on the normal
+  path — in ok/fail/timeout/crash/earlyfail modes): a success keeps the runner's
+  result and releases the task; a failure appends the traceback tail to notes;
+  `needs_attention` is not overwritten by the exit code; a crashed runner is
+  finalized by the orchestrator (+ task released); an early runner failure releases
+  the claim with no Run row; unknown / running / waiting tasks are skipped; a spawn
+  failure releases the claim; the semaphore serializes two concurrent runs
+  (marker-file ordering). Plus a real-spawn smoke (scratch `BC_*` env
+  `/tmp/bc-c72-smoke/`, the default runner command): the real runner exits 1 on a
+  missing recipe before the Run row, the orchestrator releases the claim (task
+  `idle`) and logs the output tail. `test_bc_runner.py` `DisplayLifecycleTests`
+  asserts the Run row records the runner's pid. Full unit suite 139/139 green.
 - **C7.3 stdout streaming.** Stream the runner subprocess stdout line-by-line into
   `<data>/logs/run-<id>.log` (the `ui.log` push is M2). *Verify:* unit test — the spawned
   process' stdout lands in the log file.

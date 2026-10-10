@@ -85,7 +85,10 @@ class Database:
     def __init__(self, path=None):
         self.path = str(path or config.DB_FILE)
         config.ensure_dirs()
-        self.conn = sqlite3.connect(self.path, timeout=30)
+        # check_same_thread=False: the daemon touches the DB from the event-loop
+        # thread (scheduler/orchestrator) and the runner's main thread; safety
+        # comes from WAL + busy_timeout and short writes only.
+        self.conn = sqlite3.connect(self.path, timeout=30, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA busy_timeout=30000")

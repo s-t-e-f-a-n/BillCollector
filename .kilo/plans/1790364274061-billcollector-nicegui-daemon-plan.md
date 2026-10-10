@@ -732,9 +732,9 @@ isolated `BC_*` env (scratch DB/profiles/downloads; real vault + real mock).
     the same persistent-profile code). The original "file an upstream report"
     follow-up is superseded — the crash is already reported (issue 556160935)
     and fixed upstream (CL 8378127, M154).
-- Remaining M1 chunks: **C5.6, C6, C7** — detailed, resumable execution plan in the
-  next section (C5.1–C5.5 are built, unit-tested and E2E-verified; see there). M2 UI
-  pages follow.
+- Remaining M1 chunks: **C6, C7** — detailed, resumable execution plan in the
+  next section (C5.1–C5.6 are built and unit-tested, C5.4/C5.5 E2E-verified;
+  see there). M2 UI pages follow.
 
 ### M1 — remaining chunks: detailed execution plan (C5 → C6 → C7)
 
@@ -751,15 +751,18 @@ history wipe. **Not built yet:** the runner's pause wiring (it still aborts with
 `result=failure` on a 3× step failure), the display lifecycle, `scheduler.py`,
 `orchestrator.py`.
 
-**Progress (2026-10-10, updated after this section was first drafted):** C5.1–C5.5 are
+**Progress (2026-10-10, updated after C5.6 landed):** C5.1–C5.6 are
 done — `pause.py` (context builder, Copilot handlers, waiting loop) + `tests/test_bc_pause.py`
 + the `db.py` `check_same_thread=False` fix, the runner's step-loop pause wiring
-(C5.4, E2E-verified on the mock portal — see its bullet below), and the `wait_user`
+(C5.4, E2E-verified on the mock portal — see its bullet below), the `wait_user`
 step (C5.5, unit-tested in `tests/test_bc_runner.py` `WaitUserTests` + E2E-verified on
-the mock portal — see its bullet below); the full unit suite (83 tests) is green.
-**Uncommitted** (with the `tests/scenarios.py` Layer B TOTP secrets). C5.6 is the next
-sub-step. The `*Done*` markers in this drafted section are the plan template, not
-status — remove them as each sub-step actually lands. E2E prerequisite:
+the mock portal — see its bullet below), and the C5.6 terminal-results/deadline/ntfy
+verification (unit-only — see its bullet below); the full unit suite (93 tests) is
+green. C5.1–C5.5 are committed + pushed to origin/dev (with the
+`tests/scenarios.py` Layer B TOTP secrets); the C5.6 tests are in the working tree.
+C6 (per-run display lifecycle) is the next sub-step. The `*Done*` markers in this
+drafted section are the plan template, not status — remove them as each sub-step
+actually lands. E2E prerequisite:
 the three Layer B vault items (`testautopause user1`, `testwaituser user1`,
 `testcaptchadrag user1`) were created in the LAN Vaultwarden on 2026-10-10 (same pattern
 as the seven Layer A items, 2026-10-01; TOTP secrets added to `tests/scenarios.py`,
@@ -869,7 +872,25 @@ fresh session resumes at the first sub-step that is not yet committed.
   `timeout`→`needs_attention` (deadline from `pause_deadline_seconds`), ntfy pushed on
   every pause, and the profile preserved on timeout. *Verify:* unit test for the deadline
   math; a test that a cancelled run ends `cancelled` and a (short-deadline) timed-out run
-  ends `needs_attention`.
+  ends `needs_attention`. *Done (2026-10-10):* no runner code change was needed — the
+  wiring was already in place (`run_result` outcome mapping in `runner.py`;
+  `pause_deadline_seconds` → `pause_deadline_at` + the ntfy push in
+  `pause.pause_loop`; the per-task profile has no deletion path); C5.6 added the
+  verification. `tests/test_bc_notify.py` (new): `notify_pause` with no network —
+  no-topic skip, the payload (topic URL, title `BillCollector: <service user> needs
+  attention`, priority 4, tags, prompt + session deep link), relative link without
+  `ui_base_url`, the prompt fallback, HTTP-failure → False, transport error swallowed.
+  `tests/test_bc_pause.py`: the persisted `pause_deadline_at` matches the
+  `pause_deadline_seconds` setting (90 s) and the context's `deadline_at`; ntfy is
+  pushed on *every* pause (two consecutive pauses → two pushes with the Run row + task).
+  `tests/test_bc_runner.py` `RunTaskOutcomeTests`: a real `run_task` with only the vault
+  preflight, the recipe check and the browser factory stubbed — the step fails 3×
+  instantly on the fake page, the *real* pause loop runs (ControlServer, deadline
+  math): a control-socket `cancel` ends the run `result=cancelled` (exit 1, task back
+  to `idle`, socket file removed); a 1-second `pause_deadline_seconds` run ends
+  `result=needs_attention` with the deadline persisted from the setting (not the 30 min
+  default) and the profile preserved (marker + Preferences survive, stale `History`
+  wiped as usual). Full unit suite 93/93 green.
 
 #### C6 — Per-run display lifecycle (runner-owned)
 

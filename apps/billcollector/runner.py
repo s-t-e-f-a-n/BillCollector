@@ -166,11 +166,42 @@ def _ensure_pdf_preference(profile_dir):
         prefs.write_text(json.dumps(content, indent=2), encoding="utf-8")
 
 
+def _clear_stale_history(profile_dir):
+    """Clear the previous run's browsing-history state before launch.
+
+    Workaround for Chromium issue 556160935 ([M152 regression] browser
+    process crash after setDownloadBehavior with a persistent profile that
+    has download history): with DevTools/CDP attached, a persistent profile
+    carrying both ``Default/History`` and the network service's
+    ``Default/shared_proto_db`` crashes (SEGV/SIGTRAP) when the first
+    download starts. Upstream fix CL 8378127 (DevToolsDownloadManagerDelegate
+    forwards SupportsHistoryLoading) targets M154 - this wipe can be removed
+    once the pinned Playwright chromium build is >= 154. Clearing the history
+    side of that pair avoids it; the history data is not needed by the
+    collector. Cookies, login and Preferences are untouched. No-op for fresh
+    profiles."""
+    default_dir = profile_dir / "Default"
+    removed = []
+    for name in ("History", "History-journal"):
+        path = default_dir / name
+        if path.exists():
+            try:
+                path.unlink()
+                removed.append(name)
+            except OSError as e:
+                logger.warning(f"Could not remove {path}: {e}")
+    if removed:
+        logger.info(
+            f"Cleared stale browsing history before launch: "
+            f"{', '.join(removed)}")
+
+
 def _launch_browser(ctx, p):
     """Launch the persistent per-task browser context (headful; DISPLAY must
     come from the environment) and open the run's page."""
     profile_dir = config.profile_dir_for(ctx.task["service"], ctx.task["user"])
     _ensure_pdf_preference(profile_dir)
+    _clear_stale_history(profile_dir)
     ctx.context = p.chromium.launch_persistent_context(
         user_data_dir=str(profile_dir),
         headless=False,

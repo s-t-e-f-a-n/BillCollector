@@ -751,19 +751,20 @@ history wipe. **Not built yet:** the runner's pause wiring (it still aborts with
 `result=failure` on a 3× step failure), the display lifecycle, `scheduler.py`,
 `orchestrator.py`.
 
-**Progress (2026-10-10, updated after C6.3 landed):** C5.1–C5.6 are
+**Progress (2026-10-10, updated after C7.1 landed):** C5.1–C5.6 are
 done — `pause.py` (context builder, Copilot handlers, waiting loop) + `tests/test_bc_pause.py`
 + the `db.py` `check_same_thread=False` fix, the runner's step-loop pause wiring
 (C5.4, E2E-verified on the mock portal — see its bullet below), the `wait_user`
 step (C5.5, unit-tested in `tests/test_bc_runner.py` `WaitUserTests` + E2E-verified on
 the mock portal — see its bullet below), and the C5.6 terminal-results/deadline/ntfy
-verification (unit-only — see its bullet below). C6.1/C6.2 (display allocation +
-stack: `display.py` + `tests/test_bc_display.py`) are committed; C6.3 (runner
-integration: `runner.py` + `DisplayLifecycleTests`, E2E-verified — see its bullet
-below) and C6.4 (Dockerfile apt deps) are in the working tree, uncommitted.
-The full unit suite (120 tests) is green. C5.1–C5.5 and C6.1/C6.2 are committed
-+ pushed to origin/dev (with the `tests/scenarios.py` Layer B TOTP secrets); the
-C5.6 tests are in the working tree. C7 (orchestrator + scheduler) is the next
+verification (unit-only — see its bullet below). C6.1–C6.4 are done — display
+allocation + stack (`display.py` + `tests/test_bc_display.py`), the runner
+integration (C6.3, `runner.py` + `DisplayLifecycleTests`, E2E-verified — see its
+bullet below) and the Dockerfile apt deps (C6.4 — see its bullet below).
+C7.1 (the per-task cron scheduler: `scheduler.py` + `tests/test_bc_scheduler.py`)
+is done — see its bullet below. All of C5.1–C6.4 and C7.1 are committed + pushed to
+origin/dev (with the `tests/scenarios.py` Layer B TOTP secrets). The full unit
+suite (129 tests) is green. C7.2 (the orchestrator spawn/monitor) is the next
 sub-step. The `*Done*` markers in this
 drafted section are the plan template, not status — remove them as each sub-step
 actually lands. E2E prerequisite:
@@ -975,7 +976,23 @@ fresh session resumes at the first sub-step that is not yet committed.
 - **C7.1 APScheduler.** `scheduler.py`: an `AsyncIOScheduler` with a SQLAlchemy jobstore
   on `bc.db`; one cron job per enabled Task (from `Task.cron`); add/update/remove on
   task change; re-sync all jobs from the Task table on startup. *Verify:* unit test — a
-  task with a cron produces   a job; disabling the task removes it.
+  task with a cron produces a job; disabling the task removes it.
+  *Done (2026-10-10):* `scheduler.py` — `TaskScheduler(db, run_func)` wraps an
+  `AsyncIOScheduler` with the persistent `SQLAlchemyJobStore` on the same `bc.db` file
+  (an `apscheduler_jobs` table); `resync()` (the startup hook) drops every stored job
+  and re-adds one per enabled task with a cron (job id `task-<id>`,
+  `CronTrigger.from_crontab`), `sync_task(task_id)` is the single-task add/update/
+  remove hook for the M2 task CRUD; the job target is the module-level `_task_job`
+  (importable by the jobstore, which persists it by reference and re-imports it after
+  a daemon restart) awaiting the run callback configured on the scheduler; job
+  defaults coalesce missed fires, cap one concurrent instance per job (the DB row
+  lock is the second guard) and drop the misfire grace window so a missed monthly run
+  still runs on the next daemon start. Unit: `tests/test_bc_scheduler.py` — the cron
+  field mapping of an enabled task's job, no job for disabled / cron-less tasks,
+  disabling removes the job via `sync_task`, resync rebuilds from the Task table
+  (incl. dropping the job of a deleted task), the jobstore persists across a
+  scheduler start/stop cycle and a fresh instance resyncs (stale jobs dropped), and
+  `_task_job` dispatches to the run callback. Full unit suite 129/129 green.
 - **C7.2 Orchestrator spawn/monitor.** `orchestrator.py` `start_run(task_id)`: claim the
   task (DB row lock via `claim_task_run`), acquire the global semaphore
   (`max_concurrency`), spawn `python -m billcollector run <task_id>` as a subprocess,

@@ -766,10 +766,12 @@ and C7.2 (the orchestrator spawn/monitor: `orchestrator.py` +
 `tests/test_bc_orchestrator.py` + the runner's pid on the Run row) are done —
 see their bullets below. C7.3 (stdout streaming to the per-run log file:
 `run_log_path` + `_monitor` in `orchestrator.py`, `RunLogTests`) is done — see
-its bullet below. C5.1–C7.2 are committed + pushed to origin/dev (with the
-`tests/scenarios.py` Layer B TOTP secrets); C7.3 lands in the next commit. The
-full unit suite (141 tests) is green. C7.4 (orphan cleanup + shutdown) is the
-next sub-step. The `*Done*` markers in this
+its bullet below. C7.4 (orphan cleanup + shutdown: `cleanup_orphans` +
+`shutdown` in `orchestrator.py`, `OrphanCleanupTests` + `ShutdownTests`) is
+done — see its bullet below. C5.1–C7.3 are committed + pushed to origin/dev
+(with the `tests/scenarios.py` Layer B TOTP secrets); C7.4 lands in the next
+commit. The full unit suite (148 tests) is green. C7.5 (wire into `serve`)
+is the next sub-step. The `*Done*` markers in this
 drafted section are the plan template, not status — remove them as each sub-step
 actually lands. E2E prerequisite:
 the three Layer B vault items (`testautopause user1`, `testwaituser user1`,
@@ -1053,7 +1055,21 @@ fresh session resumes at the first sub-step that is not yet committed.
 - **C7.4 Orphan cleanup + shutdown.** On startup: mark leftover active runs whose PID is
   dead as `interrupted` (and free their displays). On shutdown (SIGTERM): terminate child
   runners, mark their runs `interrupted`. *Verify:* unit test — a fake active Run with a
-  dead PID is marked `interrupted` by cleanup.
+  dead PID is marked `interrupted` by cleanup. *Done (2026-10-10):* `orchestrator.py` —
+  `cleanup_orphans()` (the startup hook) walks the active Run rows (`result IS NULL`) and
+  interrupts every one whose pid is dead or absent: `result=interrupted` + `ended_at`,
+  the stale display lock force-removed (`display.remove_display_lock`), the task back to
+  `idle`; a run whose pid is still alive is left alone (its orphaned runner finalizes
+  the row and releases the task itself). `async shutdown()` (the SIGTERM hook, wired in
+  C7.5) sends SIGTERM to every live runner subprocess (SIGKILL after `SHUTDOWN_TIMEOUT`
+  = 5 s), then marks each run the runner did not finalize itself `interrupted` and
+  releases its task. `_finalize_run` now maps a signal-killed runner (negative exit
+  code) to `interrupted` instead of `failure` (and skips the notes tail — a killed
+  runner has no traceback). Unit: `tests/test_bc_orchestrator.py` `OrphanCleanupTests`
+  (dead pid → interrupted, live pid untouched, pid-less row interrupted, stale lock
+  removed, finalized rows left alone) + `ShutdownTests` (a sleeping stub runner is
+  terminated by `shutdown()` and its run ends `interrupted` with the task released;
+  no-op without live runners). Full unit suite 148/148 green.
 - **C7.5 Wire into `serve`.** In `ui/app.py` startup: start the scheduler + orphan
   cleanup; on shutdown: stop the scheduler + terminate runners. *Verify:* start `serve` →
   scheduler running + `/_alive`   ok; SIGTERM → runners terminated.

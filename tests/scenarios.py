@@ -56,6 +56,11 @@ TOTP_SECRETS = {
     ("graceful", "user1"): "OI5ILWLO37R6CSZHFUTUR2RWNM",
     ("empty", "nodocts"): "UYAKJVYVWEXHC2VD5VNHEWT3CQ",
     ("dlfail", "dlerror"): "EGMZHGTBSQJF75XG2V4UYEO7BU",
+    # Layer B (daemon runner): the mock's OTP step is reached on every site,
+    # so the vault items must carry TOTP for the runner's {{OTP}} fill.
+    ("waituser", "user1"): "FVLVBRQHPJFEVVNZQLAHTDTMIM",
+    ("captchadrag", "user1"): "YJI4FX57X25KS37T3UEF3VTICM",
+    ("autopause", "user1"): "HPQU756ZJGTJRQTL4EOMFHH37Q",
 }
 
 # Full user data: two invoice rows plus a contract document.

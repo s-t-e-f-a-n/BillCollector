@@ -764,10 +764,12 @@ bullet below) and the Dockerfile apt deps (C6.4 — see its bullet below).
 C7.1 (the per-task cron scheduler: `scheduler.py` + `tests/test_bc_scheduler.py`)
 and C7.2 (the orchestrator spawn/monitor: `orchestrator.py` +
 `tests/test_bc_orchestrator.py` + the runner's pid on the Run row) are done —
-see their bullets below. C5.1–C7.1 are committed + pushed to origin/dev (with the
-`tests/scenarios.py` Layer B TOTP secrets); C7.2 lands in the next commit(s). The
-full unit suite (139 tests) is green. C7.3 (stdout streaming to the per-run log
-file) is the next sub-step. The `*Done*` markers in this
+see their bullets below. C7.3 (stdout streaming to the per-run log file:
+`run_log_path` + `_monitor` in `orchestrator.py`, `RunLogTests`) is done — see
+its bullet below. C5.1–C7.2 are committed + pushed to origin/dev (with the
+`tests/scenarios.py` Layer B TOTP secrets); C7.3 lands in the next commit. The
+full unit suite (141 tests) is green. C7.4 (orphan cleanup + shutdown) is the
+next sub-step. The `*Done*` markers in this
 drafted section are the plan template, not status — remove them as each sub-step
 actually lands. E2E prerequisite:
 the three Layer B vault items (`testautopause user1`, `testwaituser user1`,
@@ -1035,7 +1037,19 @@ fresh session resumes at the first sub-step that is not yet committed.
   asserts the Run row records the runner's pid. Full unit suite 139/139 green.
 - **C7.3 stdout streaming.** Stream the runner subprocess stdout line-by-line into
   `<data>/logs/run-<id>.log` (the `ui.log` push is M2). *Verify:* unit test — the spawned
-  process' stdout lands in the log file.
+  process' stdout lands in the log file. *Done (2026-10-10):* `orchestrator.py` —
+  `run_log_path(run_id)` = `<data>/logs/run-<id>.log`; `_monitor` streams every stdout
+  line (stderr merged in) to the per-run log file and records `Run.log_path` on the row
+  so M2's ui.log can find it. The Run row is runner-owned, so the file opens once the
+  runner's pid claims a row (`get_run_for_pid`, the same match C7.2's finalization
+  uses); lines seen before that are buffered and flushed on open, and a final discovery
+  after `proc.wait()` catches a clean run whose only line precedes the row. An
+  early-failure run (no row) writes no file — its tail already lands in the
+  orchestrator's warning log. Unit: `tests/test_bc_orchestrator.py` `RunLogTests` — a
+  failing run's stdout (the pre-row line, buffered, plus the post-row traceback) reaches
+  `run-<id>.log` in order with `Run.log_path` set, and a clean run still writes its
+  one-line log; `config.LOG_DIR` is redirected to the temp dir so the tests never touch
+  `apps/data`. Full unit suite 141/141 green.
 - **C7.4 Orphan cleanup + shutdown.** On startup: mark leftover active runs whose PID is
   dead as `interrupted` (and free their displays). On shutdown (SIGTERM): terminate child
   runners, mark their runs `interrupted`. *Verify:* unit test — a fake active Run with a

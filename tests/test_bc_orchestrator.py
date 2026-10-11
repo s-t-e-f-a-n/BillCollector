@@ -359,7 +359,10 @@ class LogSubscriberTests(OrchestratorTestBase):
         task_id = self.db.create_task("svc", "u1", enabled=True)
         received = []
         orch = self._orch(mode="fail")
-        callback = lambda task, run, line: received.append(line)
+
+        def callback(task, run, line):
+            received.append(line)
+
         orch.add_log_subscriber(callback)
         orch.remove_log_subscriber(callback)
         orch.remove_log_subscriber(callback)  # a second remove is a no-op

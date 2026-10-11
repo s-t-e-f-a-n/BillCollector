@@ -91,7 +91,8 @@ class PageState:
             return true;
         }'''
         # Run the observer safely to ensure the DOM is stable.
-        if not safe_evaluate(page, js_observer): return None
+        if not safe_evaluate(page, js_observer):
+            return None
 
         # Now, scan the entire DOM for "likely interactive" elements.
         # We consider an element interactive if:
@@ -145,7 +146,8 @@ class PageState:
         }'''
         # Run the observer safely to ensure the DOM is stable.
         elements_data = safe_evaluate(page, js_collect)
-        if not elements_data: return None
+        if not elements_data:
+            return None
 
         results = []
         seen = set()
@@ -158,9 +160,7 @@ class PageState:
             aria_label = data["ariaLabel"]
             title_attr = data["title"]
             placeholder = data["placeholder"]
-            elm_id = data["id"]
             onclick = data["onclick"]
-            contenteditable_flag = data["contenteditable"]
             href = data["href"]
             value = data["value"]
             label_text = data["labelText"]

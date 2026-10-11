@@ -347,8 +347,6 @@ def create_app():
         if doc not in ucfg["invoices"] and doc != "contract":
             return not_found()
         filename = download_filename(site, user, doc)
-        title = (INVOICE_DATES.get(doc) or CONTRACT_LABEL.format(user=user)
-                 or f"Document {doc}").replace("(", r"\(").replace(")", r"\)")
         pdf = make_pdf(f"{site} {user} {doc}")
         return Response(
             content=pdf,

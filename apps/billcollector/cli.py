@@ -7,7 +7,6 @@ Subcommands:
 
 import argparse
 import logging
-import sys
 
 from . import config
 from .db import Database

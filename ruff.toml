@@ -1,0 +1,27 @@
+# Ruff config for the maintained BillCollector code (M2).
+#
+# Scope: the daemon package (apps/billcollector/), the shared vault
+# transport, and the test suite. The frozen legacy batch/CLI entry points
+# are excluded - M2 leaves them unchanged (the legacy batch path stays
+# until M4) and they were never held to this style.
+#
+# Lint command (ruff is a dev-only dep in apps/requirements-dev.txt,
+# never in the runtime requirements.txt):
+#   apps/.venv/bin/python -m ruff check apps tests
+
+line-length = 79
+target-version = "py312"
+
+extend-exclude = [
+    "apps/BillCollector.py",
+    "apps/BillCollectorServices_pw.py",
+    "apps/bc_ui.py",
+    "apps/helpers/",
+]
+
+[lint]
+# Real defects only (pyflakes + pycodestyle errors/warnings). Line length
+# (E501) is not enforced: the code is not uniformly 79 cols (the dashboard
+# Vue-template strings are deliberately long), so 79 is a soft target.
+select = ["E", "F", "W"]
+ignore = ["E501"]

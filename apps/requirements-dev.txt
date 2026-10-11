@@ -2,3 +2,6 @@
 # The suite command is: apps/.venv/bin/python -m pytest tests/ -q
 pytest==9.1.1
 pytest-asyncio==1.4.0
+# Linter (config: ruff.toml at the repo root). Lint command:
+#   apps/.venv/bin/python -m ruff check apps tests
+ruff==0.17.0

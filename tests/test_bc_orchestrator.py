@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """Unit tests for the orchestrator spawn/monitor (M1 chunk C7.2).
 
-``start_run`` claims the task (DB row lock), acquires the global
-semaphore, spawns the runner subprocess, monitors it to exit, and
-finalizes the Run row. The runner itself creates the Run row and (on the
-normal path) finalizes it, so the tests use a stub runner: a real
+``start_run`` (the scheduler job) claims the task (DB row lock),
+acquires the global semaphore, spawns the runner subprocess, and hands
+the monitoring to its own asyncio task (C7.5), which monitors the exit
+and finalizes the Run row. The runner itself creates the Run row and (on
+the normal path) finalizes it, so the tests use a stub runner: a real
 subprocess that mimics that contract (create the Run row with its own
 pid, print output, optionally finalize the row + release the task,
 exit). Stub modes (env ``ORCH_TEST_MODE``):
@@ -25,6 +26,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -87,6 +89,56 @@ mark("end")
 sys.exit(0 if mode == "ok" else 1)
 '''
 
+# The C7.5 stub modes run after the Run row exists, replacing the normal
+# tail. They emulate the two runner faces of the daemon's SIGTERM:
+# gracefulterm - the real runner's SIGTERM handler (C7.5) finalizes the
+# run itself and exits 1; stubborn - a runner that ignores SIGTERM with
+# a display-stack grandchild in its process group (the group-signal
+# contract of C7.5: the stack must die with the runner).
+STUB_RUNNER_SIGNALS = '''
+import os
+import signal
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, os.environ["ORCH_TEST_APPS"])
+from billcollector.db import Database, now  # noqa: E402
+
+task_id = int(sys.argv[-1])
+mode = os.environ.get("ORCH_TEST_MODE")
+db = Database(os.environ["ORCH_TEST_DB"])
+markers = os.environ.get("ORCH_TEST_MARKERS")
+
+
+def mark(label):
+    if markers:
+        with open(markers, "a", encoding="utf-8") as f:
+            f.write(f"{label}:{task_id}\\n")
+
+
+run_id = db.create_run(task_id, pid=os.getpid())
+mark("row")
+if mode == "gracefulterm":
+    def on_term(signum, frame):
+        db.update_run(run_id, result="interrupted", ended_at=now())
+        db.set_task_status(task_id, "idle")
+        db.close()
+        mark("end")
+        sys.exit(1)
+
+    signal.signal(signal.SIGTERM, on_term)
+    mark("ready")  # the handler is in place; the test waits for this
+elif mode == "stubborn":
+    child = subprocess.Popen(["sleep", "300"])
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    mark(f"child:{child.pid}")
+time.sleep(300)
+db.close()
+mark("end")
+sys.exit(1)
+'''
+
 
 class OrchestratorTestBase(unittest.TestCase):
     def setUp(self):
@@ -103,6 +155,8 @@ class OrchestratorTestBase(unittest.TestCase):
         self.db = Database(self.db_file)
         self.stub = self.tmp / "stub_runner.py"
         self.stub.write_text(STUB_RUNNER, encoding="utf-8")
+        self.signal_stub = self.tmp / "signal_stub_runner.py"
+        self.signal_stub.write_text(STUB_RUNNER_SIGNALS, encoding="utf-8")
         self.orch = Orchestrator(
             self.db, runner_cmd=[sys.executable, str(self.stub)],
             env=self._make_env())
@@ -129,13 +183,29 @@ class OrchestratorTestBase(unittest.TestCase):
             self.db, runner_cmd=[sys.executable, str(self.stub)],
             env=self._make_env(mode=mode, sleep=sleep))
 
+    def _signal_orch(self, mode):
+        return Orchestrator(
+            self.db, runner_cmd=[sys.executable, str(self.signal_stub)],
+            env=self._make_env(mode=mode))
+
+    def _run_to_exit(self, orch, task_id):
+        """Await start_run (the job) and then the run's monitor; returns
+        the runner's exit code (C7.5: the monitoring is its own task)."""
+
+        async def scenario():
+            self.assertTrue(await orch.start_run(task_id))
+            return await orch.monitors[task_id]
+
+        return asyncio.run(scenario())
+
 
 class StartRunTests(OrchestratorTestBase):
-    """start_run spawns the runner, monitors the exit, finalizes the Run."""
+    """start_run spawns the runner; the monitor task monitors the exit and
+    finalizes the Run."""
 
     def test_successful_run_keeps_the_runner_result_and_releases_the_task(self):
         task_id = self.db.create_task("svc", "u1", enabled=True)
-        exit_code = asyncio.run(self.orch.start_run(task_id))
+        exit_code = self._run_to_exit(self.orch, task_id)
         self.assertEqual(exit_code, 0)
         run = self.db.list_runs(task_id)[0]
         self.assertIsNotNone(run["pid"])
@@ -147,7 +217,7 @@ class StartRunTests(OrchestratorTestBase):
 
     def test_failed_run_appends_the_traceback_tail_to_notes(self):
         task_id = self.db.create_task("svc", "u1", enabled=True)
-        exit_code = asyncio.run(self._orch(mode="fail").start_run(task_id))
+        exit_code = self._run_to_exit(self._orch(mode="fail"), task_id)
         self.assertEqual(exit_code, 1)
         run = self.db.list_runs(task_id)[0]
         self.assertEqual(run["result"], "failure")
@@ -158,7 +228,7 @@ class StartRunTests(OrchestratorTestBase):
 
     def test_pause_timeout_result_is_not_overwritten_by_the_exit_code(self):
         task_id = self.db.create_task("svc", "u1", enabled=True)
-        exit_code = asyncio.run(self._orch(mode="timeout").start_run(task_id))
+        exit_code = self._run_to_exit(self._orch(mode="timeout"), task_id)
         self.assertEqual(exit_code, 1)
         run = self.db.list_runs(task_id)[0]
         # The runner's pause-outcome result (needs_attention) wins over a
@@ -168,7 +238,7 @@ class StartRunTests(OrchestratorTestBase):
 
     def test_crashed_runner_is_finalized_by_the_orchestrator(self):
         task_id = self.db.create_task("svc", "u1", enabled=True)
-        exit_code = asyncio.run(self._orch(mode="crash").start_run(task_id))
+        exit_code = self._run_to_exit(self._orch(mode="crash"), task_id)
         self.assertEqual(exit_code, 1)
         run = self.db.list_runs(task_id)[0]
         self.assertEqual(run["result"], "failure")
@@ -181,7 +251,7 @@ class StartRunTests(OrchestratorTestBase):
 
     def test_early_runner_failure_releases_the_claim(self):
         task_id = self.db.create_task("svc", "u1", enabled=True)
-        exit_code = asyncio.run(self._orch(mode="earlyfail").start_run(task_id))
+        exit_code = self._run_to_exit(self._orch(mode="earlyfail"), task_id)
         self.assertEqual(exit_code, 1)
         self.assertEqual(self.db.list_runs(task_id), [])
         self.assertEqual(self.db.get_task(task_id)["status"], "idle")
@@ -229,7 +299,7 @@ class RunLogTests(OrchestratorTestBase):
         # 'fail' prints one line before it creates the Run row (buffered) and
         # the traceback lines after it: both must reach the log file, in order.
         task_id = self.db.create_task("svc", "u1", enabled=True)
-        exit_code = asyncio.run(self._orch(mode="fail").start_run(task_id))
+        exit_code = self._run_to_exit(self._orch(mode="fail"), task_id)
         self.assertEqual(exit_code, 1)
         run = self.db.list_runs(task_id)[0]
         self.assertIsNotNone(run["log_path"])
@@ -247,7 +317,7 @@ class RunLogTests(OrchestratorTestBase):
         # 'ok' prints only the pre-row line: the file is still written once the
         # Run row is discovered after the process has fully exited.
         task_id = self.db.create_task("svc", "u1", enabled=True)
-        exit_code = asyncio.run(self.orch.start_run(task_id))
+        exit_code = self._run_to_exit(self.orch, task_id)
         self.assertEqual(exit_code, 0)
         run = self.db.list_runs(task_id)[0]
         self.assertIsNotNone(run["log_path"])
@@ -264,7 +334,18 @@ class ConcurrencyTests(OrchestratorTestBase):
         orch = self._orch(sleep=0.3)
 
         async def both():
-            return await asyncio.gather(orch.start_run(t1), orch.start_run(t2))
+            # Both jobs are in flight: t2's job blocks at the slot until
+            # t1's monitor releases it. Each monitor is captured right
+            # after its job returns - once the job is done the monitor is
+            # in ``monitors`` and cannot have finished yet (the runner is
+            # still sleeping).
+            j1 = asyncio.create_task(orch.start_run(t1))
+            j2 = asyncio.create_task(orch.start_run(t2))
+            await j1
+            m1 = orch.monitors[t1]
+            await j2
+            m2 = orch.monitors[t2]
+            return await asyncio.gather(m1, m2)
 
         exit_codes = asyncio.run(both())
         self.assertEqual(sorted(exit_codes), [0, 0])
@@ -357,7 +438,7 @@ class ShutdownTests(OrchestratorTestBase):
         orch = self._orch(mode="crash", sleep=30.0)  # a long-running run
 
         async def scenario():
-            monitor = asyncio.create_task(orch.start_run(task_id))
+            job = asyncio.create_task(orch.start_run(task_id))
             # Wait for the stub runner to have created its Run row (it
             # then sleeps without finalizing, like a long-running run).
             for _ in range(200):
@@ -365,7 +446,7 @@ class ShutdownTests(OrchestratorTestBase):
                     break
                 await asyncio.sleep(0.05)
             await orch.shutdown()
-            await monitor
+            await job
             return orch.processes
 
         self.assertEqual(asyncio.run(scenario()), {})
@@ -378,6 +459,153 @@ class ShutdownTests(OrchestratorTestBase):
     def test_shutdown_without_live_runners_is_a_noop(self):
         asyncio.run(self.orch.shutdown())
         self.assertEqual(self.orch.processes, {})
+
+
+class ShutdownSignalTests(OrchestratorTestBase):
+    """C7.5: shutdown signals the runner's whole process group.
+
+    The runner is spawned in its own session (``start_new_session`` in
+    ``_spawn``), and its display-stack children share that group (C6), so
+    one ``killpg`` takes runner and stack down together. Two runner faces:
+    ``gracefulterm`` mirrors the real runner's C7.5 SIGTERM handler (the
+    runner finalizes its own run before exiting); ``stubborn`` is a runner
+    that ignores SIGTERM while a grandchild (the display stack's stand-in)
+    lives in its group - the group signal must still take the whole stack
+    down, and the orchestrator's SIGKILL fallback the runner itself."""
+
+    def _markers(self):
+        if self.markers.exists():
+            return self.markers.read_text(encoding="utf-8").splitlines()
+        return []
+
+    @staticmethod
+    def _pid_alive(pid):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    def test_shutdown_of_a_graceful_runner_keeps_its_own_result(self):
+        # gracefulterm: the runner's own SIGTERM handler (the real
+        # runner's C7.5 handler, mirrored) finalizes its run interrupted
+        # and exits 1; the orchestrator must not overwrite that result.
+        task_id = self.db.create_task("svc", "u1", enabled=True)
+        orch = self._signal_orch(mode="gracefulterm")
+
+        async def scenario():
+            job = asyncio.create_task(orch.start_run(task_id))
+            for _ in range(400):
+                if f"ready:{task_id}" in self._markers():
+                    break
+                await asyncio.sleep(0.05)
+            monitor = orch.monitors[task_id]  # the job handed off by now
+            await orch.shutdown()
+            await job
+            return await monitor
+
+        exit_code = asyncio.run(scenario())
+        self.assertEqual(exit_code, 1)
+        run = self.db.list_runs(task_id)[0]
+        self.assertEqual(run["result"], "interrupted")
+        self.assertIsNotNone(run["ended_at"])
+        self.assertIsNone(run["notes"])
+        self.assertEqual(self.db.get_task(task_id)["status"], "idle")
+        self.assertEqual(orch.processes, {})
+        self.assertIn(f"end:{task_id}", self._markers())
+
+    def test_shutdown_of_a_stubborn_runner_kills_its_whole_group(self):
+        # stubborn: the runner ignores SIGTERM and holds a sleep grandchild
+        # in its process group (the display-stack contract). The group
+        # SIGTERM kills the grandchild, the group SIGKILL (after
+        # SHUTDOWN_TIMEOUT) takes the runner, and the orchestrator marks
+        # the run the runner never finalized itself as interrupted.
+        task_id = self.db.create_task("svc", "u1", enabled=True)
+        orch = self._signal_orch(mode="stubborn")
+
+        async def scenario():
+            job = asyncio.create_task(orch.start_run(task_id))
+            child_pid = None
+            for _ in range(400):
+                for line in self._markers():
+                    if line.startswith("child:") and line.endswith(f":{task_id}"):
+                        child_pid = int(line.split(":")[1])
+                if child_pid is not None and self.db.list_runs(task_id):
+                    break
+                await asyncio.sleep(0.05)
+            self.assertIsNotNone(child_pid)
+            self.assertTrue(self._pid_alive(child_pid))
+            await orch.shutdown()
+            await job
+            return child_pid
+
+        child_pid = asyncio.run(scenario())
+        run = self.db.list_runs(task_id)[0]
+        self.assertEqual(run["result"], "interrupted")
+        self.assertIsNotNone(run["ended_at"])
+        self.assertEqual(self.db.get_task(task_id)["status"], "idle")
+        self.assertEqual(orch.processes, {})
+        # The group signal reached the grandchild: sleep dies on SIGTERM
+        # even though its parent (the runner) ignored it. PID 1 reaps the
+        # zombie shortly after the runner is SIGKILLed; give it a moment.
+        deadline = time.time() + 5
+        while self._pid_alive(child_pid) and time.time() < deadline:
+            time.sleep(0.05)
+        self.assertFalse(self._pid_alive(child_pid))
+
+
+class JobCancelTests(OrchestratorTestBase):
+    """C7.5: a daemon shutdown stops the scheduler and cancels whatever job
+    coroutines are still running - but the monitoring of a spawned runner
+    is never a job, so it survives. The only window in which the job is
+    still running is between the claim and the handoff (waiting for the
+    global slot, or mid-spawn): a cancellation there must release the
+    claim, so the task is not wedged in 'running' without a run (the
+    startup orphan cleanup only sees Run rows)."""
+
+    def test_job_cancelled_while_waiting_for_the_slot_releases_the_claim(self):
+        # max_concurrency=1: run A holds the slot (a long sleep), so run
+        # B's job blocks at the semaphore. Cancelling B's job (the
+        # scheduler stop) must release B's claim; A's monitor keeps
+        # running until shutdown() reaps A's runner.
+        t1 = self.db.create_task("svc", "u1", enabled=True)
+        t2 = self.db.create_task("svc", "u2", enabled=True)
+        orch = self._orch(mode="crash", sleep=30.0)
+
+        async def scenario():
+            self.assertTrue(await orch.start_run(t1))  # A holds the slot
+            job = asyncio.create_task(orch.start_run(t2))
+            for _ in range(200):
+                if self.db.get_task(t2)["status"] == "running":
+                    break
+                await asyncio.sleep(0.05)
+            self.assertIn(t1, orch.monitors)  # A is being monitored
+            # A's runner must have created its Run row before the shutdown
+            # signals the group: interpreter startup outlasts the claim, so
+            # without this wait a slow start would SIGTERM the runner before
+            # the row exists and the row would never appear.
+            for _ in range(200):
+                if self.db.list_runs(t1):
+                    break
+                await asyncio.sleep(0.05)
+            job.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await job
+            await orch.shutdown()
+            return orch.processes, orch.monitors
+
+        processes, monitors = asyncio.run(scenario())
+        self.assertEqual(processes, {})
+        self.assertEqual(monitors, {})
+        # B's claim was released; B never spawned (no run row).
+        self.assertEqual(self.db.get_task(t2)["status"], "idle")
+        self.assertEqual(self.db.list_runs(t2), [])
+        # A's run was interrupted by the shutdown; its task was released.
+        run = self.db.list_runs(t1)[0]
+        self.assertEqual(run["result"], "interrupted")
+        self.assertEqual(self.db.get_task(t1)["status"], "idle")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ stubbed, the allocation/release lockfile registry is real)."""
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -330,6 +331,119 @@ class RunTaskOutcomeTests(unittest.TestCase):
         self.assertTrue((profile_dir / "Default" / "Preferences").exists())
         self.assertFalse(history.exists())
         self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
+
+
+class RunInterruptedTests(unittest.TestCase):
+    """C7.5: a shutdown signal (SIGTERM from the daemon, Ctrl+C standalone)
+    interrupts a running task gracefully: the process' signal handler raises
+    RunInterrupted in the main thread, the teardown reaps the display stack
+    and releases the claim, and the run ends ``result=interrupted`` (distinct
+    from a step failure and from a pause outcome).
+
+    A real ``run_task`` with only the vault preflight, the recipe check and
+    the browser factory stubbed: the step loop, the 3x retry and the pause
+    loop (real ControlServer) all run for real. A signal thread sends SIGTERM
+    to the test process once the Run row is committed; the signal lands
+    wherever the main thread is and must take the whole teardown with it."""
+
+    RECIPE = {
+        "services": [{
+            "serviceName": "svc",
+            "steps": [
+                {"step": 1, "description": "Click",
+                 "methods": [{"method": "click",
+                              "arguments": [{"name": "Missing"}]}]},
+            ],
+        }]
+    }
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self._old_db_file = config.DB_FILE
+        self._old_run_dir = config.RUN_DIR
+        self._old_profile_root = config.PROFILE_ROOT
+        self._old_display_dir = config.DISPLAY_DIR
+        self._old_display_env = os.environ.get("DISPLAY")
+        config.DB_FILE = self.tmp / "bc.db"
+        config.RUN_DIR = self.tmp / "runs"
+        config.PROFILE_ROOT = self.tmp / "profiles"
+        config.DISPLAY_DIR = self.tmp / "displays"
+        config.DISPLAY_DIR.mkdir(parents=True)
+        self.db = Database(self.tmp / "bc.db")
+        self.task_id = self.db.create_task("svc", "u1")
+        # No ntfy network access from the unit tests.
+        self.db.set_setting("ntfy_topic", "")
+        # run_task installs its own SIGTERM/SIGINT handlers (C7.5); restore
+        # the test process' handlers after each test.
+        self._old_term = signal.getsignal(signal.SIGTERM)
+        self._old_int = signal.getsignal(signal.SIGINT)
+
+    def tearDown(self):
+        signal.signal(signal.SIGTERM, self._old_term)
+        signal.signal(signal.SIGINT, self._old_int)
+        config.DB_FILE = self._old_db_file
+        config.RUN_DIR = self._old_run_dir
+        config.PROFILE_ROOT = self._old_profile_root
+        config.DISPLAY_DIR = self._old_display_dir
+        if self._old_display_env is None:
+            os.environ.pop("DISPLAY", None)
+        else:
+            os.environ["DISPLAY"] = self._old_display_env
+        self.db.close()
+        self._tmp.cleanup()
+
+    def _run_task(self):
+        with mock.patch.object(runner, "CheckRecipe", return_value=self.RECIPE), \
+                mock.patch.object(runner, "_vault_preflight",
+                                  return_value={"user": "u1",
+                                                "password": "p",
+                                                "otp": "o"}), \
+                mock.patch.object(runner, "sync_playwright",
+                                  return_value=_FakePlaywrightManager()), \
+                mock.patch.object(display, "start_display_stack",
+                                  return_value=[]):
+            return runner.run_task(self.task_id)
+
+    def _term_when_row_exists(self):
+        """Send SIGTERM to the test process once the Run row is committed.
+
+        Python delivers the signal to the main thread (where run_task is
+        running), wherever it is - step loop, pause loop or teardown."""
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            if self.db.list_runs(self.task_id):
+                os.kill(os.getpid(), signal.SIGTERM)
+                return
+            time.sleep(0.02)
+
+    def test_signal_handlers_raise_run_interrupted(self):
+        runner._install_signal_handlers()
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            with self.assertRaises(runner.RunInterrupted):
+                os.kill(os.getpid(), signum)
+
+    def test_sigterm_during_the_run_ends_interrupted(self):
+        # The step fails 3x instantly and the run then blocks in the pause
+        # loop; the deadline is long enough that only the signal ends it.
+        self.db.set_setting("pause_deadline_seconds", "30")
+
+        thread = threading.Thread(target=self._term_when_row_exists)
+        thread.start()
+        try:
+            exit_code = self._run_task()
+        finally:
+            thread.join(timeout=30)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(exit_code, 1)
+        run = self.db.get_run(1)
+        self.assertEqual(run["result"], "interrupted")
+        self.assertIsNotNone(run["ended_at"])
+        self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
+        # The run's claim is released with the run, and the control socket
+        # (if the pause had started before the signal) is removed.
+        self.assertFalse((config.DISPLAY_DIR / ":99.lock").exists())
+        self.assertFalse(pause.control_sock_path(1).exists())
 
 
 class _LaunchDisplayManager:

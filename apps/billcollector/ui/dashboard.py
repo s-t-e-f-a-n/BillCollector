@@ -17,6 +17,11 @@ enabled only while running. **Run (filtered)** enqueues all *enabled*
 tasks in the filtered set (the global semaphore serializes; skipped
 tasks are reported in a notify).
 
+D3.3 task management (``ui.tasks``): the toolbar **Add task** button
+opens the create dialog and a row **Edit** button opens the edit
+dialog (cron + enabled); each change hits
+``db.create_task``/``db.update_task`` + ``scheduler.sync_task``.
+
 The task detail page is a placeholder until D4. ``ui.timer`` polls the
 DB (~2 s) and refreshes the table and badge (WAL reads); the log pane
 reads the run's log file once, then follows the orchestrator's log
@@ -34,6 +39,7 @@ from ..orchestrator import Orchestrator
 from ..scheduler import TaskScheduler, job_id_for
 from .auth import require_auth
 from .layout import build_layout
+from .tasks import open_task_dialog
 
 # The task statuses a row can carry (Run results are a separate axis).
 STATUSES = ("idle", "running", "waiting")
@@ -82,14 +88,16 @@ ROW_BODY = """
     <q-badge v-if="col.name === 'status'"
              :color="props.row.status === 'running' ? 'blue' : (props.row.status === 'waiting' ? 'orange' : 'grey')"
              outline>{{ props.row[col.name] }}</q-badge>
-    <span v-else-if="col.name === 'actions'">
-      <q-btn size="sm" color="primary" label="Run now"
-             :disable="props.row.status === 'running' || props.row.status === 'waiting'"
-             @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'run', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
-      <q-btn size="sm" color="negative" label="Stop"
-             :disable="props.row.status !== 'running'"
-             @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'stop', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
-    </span>
+     <span v-else-if="col.name === 'actions'">
+       <q-btn size="sm" color="primary" label="Run now"
+              :disable="props.row.status === 'running' || props.row.status === 'waiting'"
+              @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'run', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
+       <q-btn size="sm" color="negative" label="Stop"
+              :disable="props.row.status !== 'running'"
+              @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'stop', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
+       <q-btn size="sm" label="Edit"
+              @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'edit', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
+     </span>
     <span v-else>{{ props.row[col.name] }}</span>
   </q-td>
 </q-tr>
@@ -125,13 +133,14 @@ def _last_run_cell(run) -> str:
 
 def _session_cell(task, latest_run) -> str:
     """Session facts only (spec): profile dir present? + last used (the
-    newest run's started_at). The last reset lands with D3.4 (the
-    ``profile_reset_at`` column)."""
+    newest run's started_at) + last reset (``profile_reset_at``, D3.4)."""
     profile = task["profile_dir"]
     present = bool(profile) and Path(profile).exists()
     used = (latest_run["started_at"] or "")[:10] if latest_run else ""
     parts = ["profile present" if present else "profile missing"]
     parts.append(f"last used {used}" if used else "never used")
+    if task["profile_reset_at"]:
+        parts.append(f"reset {task['profile_reset_at'][:10]}")
     return " · ".join(parts)
 
 
@@ -215,6 +224,7 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
         waiting_badge = ui.badge(f"{waiting} waiting",
                                  color="orange" if waiting else "grey")
         run_filtered_btn = ui.button("Run (filtered)").mark("run-filtered")
+        add_task_btn = ui.button("Add task").mark("add-task")
         ui.space()
 
         table = ui.table(columns=COLUMNS, rows=rows).classes("w-full")
@@ -298,13 +308,20 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
 
         run_filtered_btn.on("click", on_run_filtered)
 
+        def on_add_task(_e) -> None:
+            """Toolbar Add task (D3.3): the create dialog."""
+            open_task_dialog(db, scheduler, refresh)
+
+        add_task_btn.on("click", on_add_task)
+
         async def on_row_action(e) -> None:
-            """Row action buttons (D3.2): Run now / Stop, routed from the
-            body-slot buttons through the ``rowaction`` CustomEvent (see
-            ROW_BODY). Run now works for disabled tasks too (manual
-            one-off, schedule unchanged); Stop only reaches a live
-            runner. The claim inside start_run stays the authoritative
-            double-start guard."""
+            """Row action buttons (D3.2/D3.3): Run now / Stop / Edit,
+            routed from the body-slot buttons through the ``rowaction``
+            CustomEvent (see ROW_BODY). Run now works for disabled tasks
+            too (manual one-off, schedule unchanged); Stop only reaches a
+            live runner. The claim inside start_run stays the
+            authoritative double-start guard. Edit opens the D3.3 task
+            dialog (cron + enabled)."""
             detail = e.args if isinstance(e.args, dict) else {}
             task_id = detail.get("id")
             if task_id is None:
@@ -319,6 +336,9 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
                 if not stopped:
                     ui.notify(f"{detail.get('task', task_id)}: no live "
                               "runner to stop", type="warning")
+            elif detail.get("action") == "edit":
+                open_task_dialog(db, scheduler, refresh, task_id=task_id)
+                return
             # Refresh immediately so the button states (Run now disabled
             # while active, Stop enabled only while running) follow the
             # new status without waiting for the ~2 s poll.

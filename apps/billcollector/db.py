@@ -10,6 +10,7 @@ runtime status, not an archive (decision 7).
 import configparser
 import json
 import os
+import shutil
 import sqlite3
 from datetime import datetime
 
@@ -32,6 +33,7 @@ CREATE TABLE IF NOT EXISTS Task (
     next_run TEXT,
     status TEXT NOT NULL DEFAULT 'idle',
     profile_dir TEXT,
+    profile_reset_at TEXT,
     created_at TEXT,
     updated_at TEXT,
     UNIQUE (service, user)
@@ -96,7 +98,21 @@ class Database:
 
     def _init_schema(self):
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self):
+        """Additive column migrations for pre-existing DBs (D3.4).
+
+        The schema above is ``CREATE TABLE IF NOT EXISTS`` only, so a DB file
+        created before a column was added keeps the old layout; each new
+        column gets a one-time ``ALTER TABLE`` guarded by a
+        ``PRAGMA table_info`` check (idempotent, no migration framework)."""
+        cols = {r["name"] for r in
+                self.conn.execute("PRAGMA table_info(Task)").fetchall()}
+        if "profile_reset_at" not in cols:
+            self.conn.execute(
+                "ALTER TABLE Task ADD COLUMN profile_reset_at TEXT")
 
     # ---- Task -------------------------------------------------------------
     def create_task(self, service, user, recipe_file=None, enabled=False,
@@ -135,6 +151,28 @@ class Database:
             "UPDATE Task SET status=?, updated_at=? WHERE id=?",
             (status, now(), task_id))
         self.conn.commit()
+
+    def reset_profile(self, task_id):
+        """Delete the task's browser profile so the next run cold-starts (D3.4).
+
+        Rejected unless the task is ``idle`` (locked decision 8: a reset
+        under a live runner would race its profile lock). Removes the
+        profile dir if present and records ``profile_reset_at`` either way.
+        Returns ``(ok, error)``."""
+        task = self.get_task(task_id)
+        if task is None:
+            return False, f"task {task_id} does not exist"
+        if task["status"] != "idle":
+            return False, (f"task {task_id} is {task['status']}; "
+                           "reset the profile only while idle")
+        profile = task["profile_dir"]
+        if profile and os.path.isdir(profile):
+            try:
+                shutil.rmtree(profile)
+            except OSError as e:
+                return False, f"could not remove {profile}: {e}"
+        self.update_task(task_id, profile_reset_at=now())
+        return True, None
 
     def claim_task_run(self, task_id):
         """Atomically mark a task ``running`` unless it is already running/waiting.

@@ -1,21 +1,32 @@
 # -*- coding: utf-8 -*-
-"""Dashboard page for the daemon UI (M2 chunk D2).
+"""Dashboard page for the daemon UI (M2 chunk D2, run actions D3.2).
 
 The operator's home page (spec: gui-concept-dashboard-spec, "Dashboard
-specification"): a toolbar with the service/status filters and the
-``[N waiting]`` badge, one table row per task (status color-coded,
-``waiting`` rows highlighted, ``running``/``waiting`` sorted first), and
-a live log pane that follows the selected run.
+specification"): a toolbar with the service/status filters, the
+``[N waiting]`` badge and the **Run (filtered)** button, one table row
+per task (status color-coded, ``waiting`` rows highlighted,
+``running``/``waiting`` sorted first) with a per-row **Run now** /
+**Stop** action column, and a live log pane that follows the selected
+run.
 
-The run buttons land in D3; the task detail page is a placeholder until
-D4. ``ui.timer`` polls the DB (~2 s) and refreshes the table and badge
-(WAL reads); the log pane reads the run's log file once, then follows
-the orchestrator's log subscribers (D2.2).
+D3.2 run actions: all calls go through ``orchestrator.start_run`` /
+``stop_run`` (the same callbacks the scheduler uses). Row **Run now**
+works for disabled tasks too (manual one-off; the schedule is
+untouched) and is disabled while the task is active; **Stop** is
+enabled only while running. **Run (filtered)** enqueues all *enabled*
+tasks in the filtered set (the global semaphore serializes; skipped
+tasks are reported in a notify).
+
+The task detail page is a placeholder until D4. ``ui.timer`` polls the
+DB (~2 s) and refreshes the table and badge (WAL reads); the log pane
+reads the run's log file once, then follows the orchestrator's log
+subscribers (D2.2).
 """
 
 from pathlib import Path
 
 from fastapi import Request
+from nicegui import background_tasks
 from nicegui import ui
 
 from ..db import Database
@@ -43,23 +54,42 @@ COLUMNS = [
     {"name": "next_run", "label": "Next run", "field": "next_run"},
     {"name": "session", "label": "Session", "field": "session"},
     {"name": "last_download", "label": "Last download", "field": "last_download"},
+    {"name": "actions", "label": "Actions", "field": "actions"},
 ]
 
-# Custom row body: plain string cells cannot carry colors, so the cells
-# are rendered through the QTable body slot - a color-coded status badge
-# and the highlight of waiting rows (spec).
+# Custom row body: plain string cells cannot carry colors (or buttons),
+# so the cells are rendered through the QTable body slot - a color-coded
+# status badge, the highlight of waiting rows (spec), and the D3.2 run
+# action buttons.
 #
 # The template must NOT be wrapped in <template v-slot="props">: NiceGUI
 # compiles the slot string with the Vue *runtime* compiler (nicegui.js),
 # which passes the slot scope in as the component prop ``props``. A
 # v-slot-wrapped root is an SFC-only construct and makes the runtime
 # compiler crash (TypeError: reading 'type'), blanking the whole page.
+#
+# Action buttons: the slot template is not a NiceGUI element, so a click
+# cannot call a Python handler directly. Instead the button dispatches a
+# bubbling DOM ``rowaction`` CustomEvent (``detail`` = the payload) on
+# itself; ``table.on("rowaction", ...)`` below lands on the q-table root
+# element through Vue's attr fallthrough (the nicegui table wrapper and
+# QTable do not declare the event), where the NiceGUI client has bound
+# the listener. ``.stop`` keeps the click from reaching the row, so an
+# action click never triggers the row's task-detail navigation.
 ROW_BODY = """
 <q-tr :props="props" :class="props.row.status === 'waiting' ? 'bg-amber-100' : ''">
   <q-td v-for="col in props.cols" :key="col.name" :props="{ ...props, col: col }">
     <q-badge v-if="col.name === 'status'"
              :color="props.row.status === 'running' ? 'blue' : (props.row.status === 'waiting' ? 'orange' : 'grey')"
              outline>{{ props.row[col.name] }}</q-badge>
+    <span v-else-if="col.name === 'actions'">
+      <q-btn size="sm" color="primary" label="Run now"
+             :disable="props.row.status === 'running' || props.row.status === 'waiting'"
+             @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'run', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
+      <q-btn size="sm" color="negative" label="Stop"
+             :disable="props.row.status !== 'running'"
+             @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'stop', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
+    </span>
     <span v-else>{{ props.row[col.name] }}</span>
   </q-td>
 </q-tr>
@@ -184,6 +214,7 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
         waiting = sum(1 for r in rows if r["status"] == "waiting")
         waiting_badge = ui.badge(f"{waiting} waiting",
                                  color="orange" if waiting else "grey")
+        run_filtered_btn = ui.button("Run (filtered)").mark("run-filtered")
         ui.space()
 
         table = ui.table(columns=COLUMNS, rows=rows).classes("w-full")
@@ -236,6 +267,64 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
                 ui.navigate.to(f"/tasks/{row['id']}")
 
         table.on("rowclick", on_row_click)
+
+        def on_run_filtered(_e) -> None:
+            """Toolbar Run (filtered): enqueue every *enabled* task in the
+            filtered set (D3.2). The global semaphore serializes the runs;
+            disabled and already-active tasks are skipped and reported."""
+            rows = build_rows(db, scheduler,
+                              service=service_select.value or "All",
+                              status=status_select.value or "All")
+            enqueued = []
+            skipped = []
+            for row in rows:
+                task = db.get_task(row["id"])
+                if task is None:
+                    continue
+                if not task["enabled"]:
+                    skipped.append(f"{row['task']} (disabled)")
+                    continue
+                if task["status"] in ("running", "waiting"):
+                    skipped.append(f"{row['task']} (active)")
+                    continue
+                enqueued.append(row["task"])
+                background_tasks.create(orchestrator.start_run(row["id"]))
+            if enqueued:
+                ui.notify(f"Run enqueued for {len(enqueued)} task(s)")
+            if skipped:
+                ui.notify("Skipped: " + ", ".join(skipped), type="warning")
+            if not enqueued and not skipped:
+                ui.notify("No tasks in the filtered set", type="warning")
+
+        run_filtered_btn.on("click", on_run_filtered)
+
+        async def on_row_action(e) -> None:
+            """Row action buttons (D3.2): Run now / Stop, routed from the
+            body-slot buttons through the ``rowaction`` CustomEvent (see
+            ROW_BODY). Run now works for disabled tasks too (manual
+            one-off, schedule unchanged); Stop only reaches a live
+            runner. The claim inside start_run stays the authoritative
+            double-start guard."""
+            detail = e.args if isinstance(e.args, dict) else {}
+            task_id = detail.get("id")
+            if task_id is None:
+                return
+            if detail.get("action") == "run":
+                started = await orchestrator.start_run(task_id)
+                if not started:
+                    ui.notify(f"{detail.get('task', task_id)}: not started "
+                              "(already running/waiting?)", type="warning")
+            elif detail.get("action") == "stop":
+                stopped = await orchestrator.stop_run(task_id)
+                if not stopped:
+                    ui.notify(f"{detail.get('task', task_id)}: no live "
+                              "runner to stop", type="warning")
+            # Refresh immediately so the button states (Run now disabled
+            # while active, Stop enabled only while running) follow the
+            # new status without waiting for the ~2 s poll.
+            refresh()
+
+        table.on("rowaction", on_row_action, ["detail"])
 
         ui.context.client.on_disconnect(
             lambda: orchestrator.remove_log_subscriber(on_log_line))

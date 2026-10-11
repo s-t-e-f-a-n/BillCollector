@@ -10,8 +10,11 @@ badge, the sort order, the row-click navigation to the task detail
 placeholder, the log pane content, and the ``/runs/<run_id>`` deep link
 (known id redirects, unknown id 404s)."""
 
+import asyncio
 import os
 import sys
+import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -19,8 +22,11 @@ from nicegui import ui
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
+from billcollector import scheduler as sched_mod  # noqa: E402
 from billcollector.db import Database  # noqa: E402
+from billcollector.scheduler import TaskScheduler  # noqa: E402
 from billcollector.ui import auth  # noqa: E402
+from billcollector.ui.dashboard import next_run  # noqa: E402
 
 GOOD_PASSWORD = "ui-test-pass-1"
 
@@ -78,6 +84,43 @@ def _set_filter(user, marker: str, value: str) -> None:
     """Drive a toolbar filter (setting the value fires on_value_change)."""
     (select,) = user.find(marker=marker).elements
     select.value = value
+
+
+def test_next_run_reads_the_live_jobstore():
+    """The live-job path of ``next_run`` (D2.3): with a running
+    scheduler and an enabled task it returns the job's ``next_run_time``
+    (the UI tests above only cover the no-job ``—`` path, so this pins
+    the attribute read against the real APScheduler job)."""
+    tmp = tempfile.TemporaryDirectory()
+    try:
+        db = Database(Path(tmp.name) / "bc.db")
+        task = db.create_task("svc", "u1", enabled=True, cron="* * * * *")
+        disabled = db.create_task("svc", "u2", enabled=False, cron="* * * * *")
+
+        async def run_stub(task_id):
+            pass
+
+        sched = TaskScheduler(db, run_stub)
+        try:
+            async def cycle():
+                sched.start()
+                try:
+                    return next_run(sched, task), next_run(sched, disabled)
+                finally:
+                    sched.stop()
+            live, off = asyncio.run(cycle())
+        finally:
+            sched_mod._run_callback = None
+            db.close()
+
+        # The enabled task's job is live: a parseable timestamp (not —).
+        parsed = datetime.strptime(live, "%Y-%m-%d %H:%M:%S")
+        assert live != "—"
+        assert parsed is not None
+        # The disabled task has no job: —.
+        assert off == "—"
+    finally:
+        tmp.cleanup()
 
 
 async def test_one_row_per_task_sorted_and_populated(user, testdb, tmp_path):

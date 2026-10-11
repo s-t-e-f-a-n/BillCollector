@@ -62,6 +62,11 @@ A runner killed by a signal (negative exit code) ends its still-open Run
 row as ``interrupted`` rather than ``failure`` (the exit-code mapping in
 :meth:`Orchestrator._finalize_run`).
 
+D3.1 adds ``stop_run`` (the UI "Stop" button): it signals one task's live
+runner (SIGTERM the group, SIGKILL after STOP_TIMEOUT) and lets the
+runner's own handler / the monitor do the finalization, so a graceful
+runner result is never overwritten.
+
 Display allocation and the Xvfb/x11vnc/websockify stack are runner-owned
 (C6); the orchestrator never touches them, except for force-removing the
 stale lockfile of a dead run in ``cleanup_orphans``.
@@ -86,6 +91,10 @@ NOTES_TAIL_LINES = 100
 
 # How long shutdown() gives a runner to exit after SIGTERM before SIGKILL.
 SHUTDOWN_TIMEOUT = 5.0
+
+# How long stop_run() gives a runner to exit after SIGTERM before SIGKILL
+# (dashboard spec: 10 s).
+STOP_TIMEOUT = 10.0
 
 
 def _pid_alive(pid: int) -> bool:
@@ -231,6 +240,30 @@ class Orchestrator:
             await monitor
         self._processes.clear()
         self._monitors.clear()
+
+    async def stop_run(self, task_id: int, timeout: float = STOP_TIMEOUT) -> bool:
+        """Stop the task's live runner (D3.1): SIGTERM its process group,
+        then SIGKILL after ``timeout`` (STOP_TIMEOUT: the dashboard spec's
+        10 s; a shorter value is injectable for the tests).
+
+        The orchestrator only signals - it never touches the Run row. The
+        runner's own SIGTERM handler (C7.5) normally finalizes the run
+        ``interrupted`` on the first signal; when it does not (a runner
+        that ignores SIGTERM), the monitor finalizes the still-open row
+        from the signal exit code. The monitor (still alive) releases the
+        task and the global slot as usual. Returns False when the task
+        has no live runner (nothing to stop)."""
+        proc = self._processes.get(task_id)
+        if proc is None or proc.returncode is not None:
+            return False
+        self._signal_group(proc, signal.SIGTERM)
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            logger.warning("runner for task %s ignored SIGTERM; killing", task_id)
+            self._signal_group(proc, signal.SIGKILL)
+            await proc.wait()
+        return True
 
     @staticmethod
     def _signal_group(proc, signum) -> None:

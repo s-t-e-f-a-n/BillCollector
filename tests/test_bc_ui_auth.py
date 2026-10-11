@@ -34,7 +34,7 @@ async def _set_password(user, password: str) -> None:
     response = await user.http_client.post(
         "/login", data={"password": password, "password_confirm": password},
         follow_redirects=False)
-    assert response.status_code == 307
+    assert response.status_code == 303
     assert response.headers["location"] == "/"
 
 
@@ -54,7 +54,7 @@ async def test_set_password_too_short_is_rejected_with_error(user, testdb):
     response = await user.http_client.post(
         "/login", data={"password": "short", "password_confirm": "short"},
         follow_redirects=False)
-    assert response.status_code == 307
+    assert response.status_code == 303
     assert response.headers["location"] == "/login?error=too_short"
     page = await user.http_client.get("/login?error=too_short")
     assert "must be at least" in page.text
@@ -65,7 +65,7 @@ async def test_set_password_mismatch_is_rejected_with_error(user, testdb):
     response = await user.http_client.post(
         "/login", data={"password": "good-pass-1", "password_confirm": "other"},
         follow_redirects=False)
-    assert response.status_code == 307
+    assert response.status_code == 303
     assert response.headers["location"] == "/login?error=mismatch"
     page = await user.http_client.get("/login?error=mismatch")
     assert "must match" in page.text
@@ -82,7 +82,7 @@ async def test_wrong_password_stays_on_login_with_error(user, testdb):
     await _set_password(user, GOOD_PASSWORD)
     response = await user.http_client.post(
         "/login", data={"password": "wrong-pass"}, follow_redirects=False)
-    assert response.status_code == 307
+    assert response.status_code == 303
     assert response.headers["location"] == "/login?error=wrong_password"
     page = await user.http_client.get("/login?error=wrong_password")
     assert "Wrong password." in page.text

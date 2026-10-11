@@ -77,19 +77,23 @@ def register_login_page(db) -> None:
 
     @nicegui_app.post("/login")
     async def login_post(request: Request):
-        """Handle the native form POST; redirects only (no page render)."""
+        """Handle the native form POST; redirects only (no page render).
+
+        All redirects are 303 See Other, not 307: a 307 would make the
+        browser re-POST to the Location, which 405s on the GET-only page
+        routes (e.g. the success redirect to /)."""
         form = await request.form()
         password = str(form.get("password") or "")
         stored = auth.get_password_hash(db)
         if stored is None:
             confirm = str(form.get("password_confirm") or "")
             if len(password) < auth.MIN_PASSWORD_LENGTH:
-                return RedirectResponse("/login?error=too_short", status_code=307)
+                return RedirectResponse("/login?error=too_short", status_code=303)
             if password != confirm:
-                return RedirectResponse("/login?error=mismatch", status_code=307)
+                return RedirectResponse("/login?error=mismatch", status_code=303)
             auth.set_password_hash(db, auth.hash_password(password))
             logger.info("ui password set via the first-start form")
         elif not auth.verify_password(password, stored):
-            return RedirectResponse("/login?error=wrong_password", status_code=307)
+            return RedirectResponse("/login?error=wrong_password", status_code=303)
         request.session["authenticated"] = True
-        return RedirectResponse("/", status_code=307)
+        return RedirectResponse("/", status_code=303)

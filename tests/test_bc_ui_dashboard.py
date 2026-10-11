@@ -44,7 +44,7 @@ async def _login(user, testdb) -> None:
     auth.set_password_hash(testdb, auth.hash_password(GOOD_PASSWORD))
     response = await user.http_client.post(
         "/login", data={"password": GOOD_PASSWORD}, follow_redirects=False)
-    assert response.status_code == 307
+    assert response.status_code == 303
     assert response.headers["location"] == "/"
 
 

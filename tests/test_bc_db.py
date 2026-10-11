@@ -2,6 +2,7 @@
 """Unit tests for the daemon data layer (schema, ini import, settings, dedup)."""
 
 import configparser
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -10,6 +11,100 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
 from billcollector import db as bcd  # noqa: E402
+
+
+class ProfileResetTests(unittest.TestCase):
+    """D3.4: the additive profile_reset_at migration and reset_profile."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.db = bcd.Database(path=self.root / "test.db")
+
+    def tearDown(self):
+        self.db.close()
+        self.tmp.cleanup()
+
+    def task_columns(self, conn):
+        return {r["name"] for r in
+                conn.execute("PRAGMA table_info(Task)").fetchall()}
+
+    def test_fresh_db_has_the_profile_reset_column(self):
+        self.assertIn("profile_reset_at", self.task_columns(self.db.conn))
+
+    def test_migration_adds_the_column_to_a_pre_existing_db(self):
+        # A DB file created with the pre-D3.4 Task schema (no
+        # profile_reset_at column).
+        legacy = self.root / "legacy.db"
+        conn = sqlite3.connect(legacy)
+        conn.execute(
+            """CREATE TABLE Task (
+                   id INTEGER PRIMARY KEY AUTOINCREMENT,
+                   service TEXT NOT NULL, user TEXT NOT NULL,
+                   recipe_file TEXT, enabled INTEGER NOT NULL DEFAULT 0,
+                   cron TEXT, last_run TEXT, next_run TEXT,
+                   status TEXT NOT NULL DEFAULT 'idle', profile_dir TEXT,
+                   created_at TEXT, updated_at TEXT)""")
+        conn.execute("INSERT INTO Task (service, user) VALUES ('svc', 'u1')")
+        conn.commit()
+        conn.close()
+
+        db2 = bcd.Database(path=legacy)
+        try:
+            self.assertIn("profile_reset_at", self.task_columns(db2.conn))
+            # The migration is additive: the pre-existing row survives
+            # with a NULL reset timestamp.
+            row = db2.get_task(1)
+            self.assertEqual(row["service"], "svc")
+            self.assertIsNone(row["profile_reset_at"])
+        finally:
+            db2.close()
+
+    def test_migration_is_idempotent(self):
+        # A second open of the same file re-runs the PRAGMA check without
+        # error and without duplicating the column.
+        bcd.Database(path=self.root / "again.db")
+        db2 = bcd.Database(path=self.root / "again.db")
+        try:
+            cols = [r["name"] for r in
+                    db2.conn.execute("PRAGMA table_info(Task)").fetchall()]
+            self.assertEqual(cols.count("profile_reset_at"), 1)
+        finally:
+            db2.close()
+
+    def test_reset_profile_deletes_the_dir_and_sets_the_timestamp(self):
+        profile = self.root / "profiles" / "svc_u1"
+        profile.mkdir(parents=True)
+        (profile / "marker.txt").write_text("warm profile", encoding="utf-8")
+        tid = self.db.create_task("svc", "u1", profile_dir=str(profile))
+
+        ok, err = self.db.reset_profile(tid)
+        self.assertTrue(ok, err)
+        self.assertIsNone(err)
+        self.assertFalse(profile.exists())
+        self.assertIsNotNone(self.db.get_task(tid)["profile_reset_at"])
+
+    def test_reset_profile_without_a_dir_still_records_the_reset(self):
+        # No profile_dir at all (a task that never ran): the reset is
+        # recorded so the dashboard can show it.
+        tid = self.db.create_task("svc", "u2")
+        ok, err = self.db.reset_profile(tid)
+        self.assertTrue(ok, err)
+        self.assertIsNotNone(self.db.get_task(tid)["profile_reset_at"])
+
+    def test_reset_profile_rejected_for_a_running_or_waiting_task(self):
+        tid = self.db.create_task("svc", "u3")
+        for status in ("running", "waiting"):
+            self.db.set_task_status(tid, status)
+            ok, err = self.db.reset_profile(tid)
+            self.assertFalse(ok, f"{status} should be rejected")
+            self.assertIn(status, err)
+        self.assertIsNone(self.db.get_task(tid)["profile_reset_at"])
+
+    def test_reset_profile_of_an_unknown_task_is_rejected(self):
+        ok, err = self.db.reset_profile(999)
+        self.assertFalse(ok)
+        self.assertIn("does not exist", err)
 
 
 class DatabaseTests(unittest.TestCase):

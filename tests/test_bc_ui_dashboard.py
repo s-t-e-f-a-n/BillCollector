@@ -14,7 +14,14 @@ D3.2 adds the run actions: the row **Run now** / **Stop** buttons route
 through the ``rowaction`` CustomEvent to ``orchestrator.start_run`` /
 ``stop_run`` (stubbed), and the toolbar **Run (filtered)** button
 enqueues exactly the enabled, non-active tasks in the filtered set
-(disabled and active tasks are skipped and reported in a notify)."""
+(disabled and active tasks are skipped and reported in a notify).
+
+D3.3 adds the task management dialogs: the toolbar **Add task** button
+(create: service/user/cron/enabled, the derived recipe file shown
+read-only with a missing-file warning, duplicate and invalid-cron
+rejections) and the row **Edit** button (cron + the enabled toggle;
+enabling flips the row's next-run cell from — to the live job's fire
+time via ``scheduler.sync_task``)."""
 
 import asyncio
 import os
@@ -332,6 +339,129 @@ async def test_run_filtered_respects_the_service_filter(user, testdb, tmp_path,
     assert started == []
     assert user.notify.contains("svc-b / user1 (active)")
     assert not user.notify.contains("Run enqueued")
+
+
+def _latest(user, marker: str):
+    """The newest element carrying the marker (D3.3).
+
+    A closed dialog is hidden, not deleted: after a second dialog opens,
+    the markers of both dialogs match, and the element with the highest
+    id belongs to the newest one (ids are monotonic per client)."""
+    return max(user.find(marker=marker).elements, key=lambda e: e.id)
+
+
+async def test_add_task_dialog_creates_a_task(user, testdb, tmp_path, monkeypatch):
+    """Toolbar Add task: the create dialog inserts the task (D3.3)."""
+    _seed(testdb, tmp_path)
+    await _login(user, testdb)
+    await user.open("/")
+
+    synced = []
+
+    def fake_sync(self, task_id):
+        synced.append(task_id)
+
+    monkeypatch.setattr(TaskScheduler, "sync_task", fake_sync)
+
+    user.find(marker="add-task").click()
+    service = _latest(user, "task-service")
+    user_input = _latest(user, "task-user")
+    service.value = "svc-c"
+    user_input.value = "user9"
+    # The recipe file is derived from the service and shown read-only;
+    # the missing file is made explicit (a warning, not a block).
+    await user.should_see("Recipe (shared): recipe-pw__svc-c.yaml (missing)")
+    user.find(marker="task-save").click()
+
+    rows = _table_rows(user)
+    assert any(r["task"] == "svc-c / user9" for r in rows)
+    task = testdb.get_task_by_service_user("svc-c", "user9")
+    assert task is not None
+    assert task["enabled"] == 0
+    assert task["cron"] == "0 0 1 * *"
+    assert task["status"] == "idle"
+    assert task["recipe_file"].endswith("recipe-pw__svc-c.yaml")
+    assert task["profile_dir"].endswith("svc-c_user9")
+    # Every create goes through the scheduler hook (C7.1).
+    assert synced == [task["id"]]
+    assert user.notify.contains("Task svc-c / user9 created")
+    assert user.notify.contains("recipe-pw__svc-c.yaml is missing")
+
+
+async def test_add_task_rejects_a_duplicate(user, testdb, tmp_path, monkeypatch):
+    """The (service, user) UNIQUE constraint is surfaced as a notify, not
+    an exception (D3.3)."""
+    _seed(testdb, tmp_path)
+    await _login(user, testdb)
+    await user.open("/")
+
+    monkeypatch.setattr(TaskScheduler, "sync_task", lambda self, task_id: None)
+
+    for _ in range(2):
+        user.find(marker="add-task").click()
+        _latest(user, "task-service").value = "svc-c"
+        _latest(user, "task-user").value = "user9"
+        user.find(marker="task-save").click()
+        # A closed dialog stays in the page layout (hidden, not deleted),
+        # so the second attempt opens on a fresh page load.
+        await user.open("/")
+
+    assert len([t for t in testdb.list_tasks()
+                if t["service"] == "svc-c"]) == 1
+    assert user.notify.contains("Task svc-c / user9 already exists")
+    assert user.notify.messages.count("Task svc-c / user9 created") == 1
+
+
+async def test_add_task_rejects_an_invalid_cron(user, testdb, tmp_path):
+    """A cron that does not parse is not saved (D3.3)."""
+    _seed(testdb, tmp_path)
+    await _login(user, testdb)
+    await user.open("/")
+
+    user.find(marker="add-task").click()
+    _latest(user, "task-service").value = "svc-c"
+    _latest(user, "task-user").value = "user9"
+    _latest(user, "task-cron").value = "not a cron"
+    user.find(marker="task-save").click()
+
+    assert testdb.get_task_by_service_user("svc-c", "user9") is None
+    assert user.notify.contains("Invalid cron expression")
+    assert not user.notify.contains("created")
+
+
+async def test_edit_dialog_cron_and_enable_flip_the_row(user, testdb, tmp_path):
+    """Row Edit: the dialog's cron + enabled toggle update the task, and
+    the row's next-run cell flips from — to the live job's fire time
+    (D3.3)."""
+    seed = _seed(testdb, tmp_path)
+    await _login(user, testdb)
+    await user.open("/")
+
+    tid = seed["waiting"]  # disabled, no cron
+    row = next(r for r in _table_rows(user) if r["id"] == tid)
+    assert row["next_run"] == "—"
+
+    # The Edit button routes through the same rowaction CustomEvent as
+    # Run now / Stop (D3.2 pattern).
+    user.find(kind=ui.table).trigger(
+        "rowaction", {"action": "edit", "id": tid, "task": "svc-a / user2"})
+    await user.should_see("Edit task: svc-a / user2")
+
+    (cron,) = user.find(marker="task-cron").elements
+    cron.value = "0 0 1 * *"
+    user.find(marker="task-enabled").click()  # toggle off -> on
+    user.find(marker="task-save").click()
+
+    task = testdb.get_task(tid)
+    assert task["enabled"] == 1
+    assert task["cron"] == "0 0 1 * *"
+    rows = _table_rows(user)
+    row = next(r for r in rows if r["id"] == tid)
+    # sync_task created the live APScheduler job: the next-run cell flips
+    # from — to a parseable timestamp without waiting for the poll.
+    assert row["next_run"] != "—"
+    datetime.strptime(row["next_run"], "%Y-%m-%d %H:%M:%S")
+    assert user.notify.contains("Task svc-a / user2 updated")
 
 
 if __name__ == "__main__":

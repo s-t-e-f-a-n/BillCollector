@@ -1,0 +1,4 @@
+# Dev-only test dependencies (never in the runtime requirements.txt, M2 D1).
+# The suite command is: apps/.venv/bin/python -m pytest tests/ -q
+pytest==9.1.1
+pytest-asyncio==1.4.0

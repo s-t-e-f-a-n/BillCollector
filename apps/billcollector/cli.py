@@ -52,6 +52,11 @@ def main(argv=None) -> int:
 
     if args.command == "serve":
         created = database.import_ini(config.INI_FILES)
+        # Seed the UI password hash from BC_UI_PASSWORD on first start
+        # (before any request is served; never overwrites an existing hash).
+        from .ui import auth as ui_auth
+
+        ui_auth.ensure_password(database)
         logger.info("serve starting on %s:%d (ini import created %d task(s), "
                     "total %d)", args.host, args.port, created,
                     len(database.list_tasks()))

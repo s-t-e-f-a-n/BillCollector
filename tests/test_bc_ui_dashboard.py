@@ -8,12 +8,19 @@ plus a download), running (an active run with a log file), waiting (a
 paused active run) - and check the table rows, the filters, the waiting
 badge, the sort order, the row-click navigation to the task detail
 placeholder, the log pane content, and the ``/runs/<run_id>`` deep link
-(known id redirects, unknown id 404s)."""
+(known id redirects, unknown id 404s).
+
+D3.2 adds the run actions: the row **Run now** / **Stop** buttons route
+through the ``rowaction`` CustomEvent to ``orchestrator.start_run`` /
+``stop_run`` (stubbed), and the toolbar **Run (filtered)** button
+enqueues exactly the enabled, non-active tasks in the filtered set
+(disabled and active tasks are skipped and reported in a notify)."""
 
 import asyncio
 import os
 import sys
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -24,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
 from billcollector import scheduler as sched_mod  # noqa: E402
 from billcollector.db import Database  # noqa: E402
+from billcollector.orchestrator import Orchestrator  # noqa: E402
 from billcollector.scheduler import TaskScheduler  # noqa: E402
 from billcollector.ui import auth  # noqa: E402
 from billcollector.ui.dashboard import next_run  # noqa: E402
@@ -84,6 +92,41 @@ def _set_filter(user, marker: str, value: str) -> None:
     """Drive a toolbar filter (setting the value fires on_value_change)."""
     (select,) = user.find(marker=marker).elements
     select.value = value
+
+
+def _stub_orchestrator(monkeypatch, started: list, stopped: list) -> None:
+    """Replace the orchestrator's run actions with recording stubs (D3.2).
+
+    The patch targets the class methods rather than the instance so it
+    reaches the production orchestrator the main file wired in - the
+    test and the runpy'd main file share the same
+    ``billcollector.orchestrator`` module (and hence class object). The
+    stubs record the task id and return ``True`` so the row-action
+    handlers take their success path (no warning notify)."""
+    async def fake_start(self, task_id):
+        started.append(task_id)
+        return True
+
+    async def fake_stop(self, task_id, timeout=None):
+        stopped.append(task_id)
+        return True
+
+    monkeypatch.setattr(Orchestrator, "start_run", fake_start)
+    monkeypatch.setattr(Orchestrator, "stop_run", fake_stop)
+
+
+async def _wait(predicate, message: str, timeout: float = 2.0) -> None:
+    """Poll until ``predicate()`` holds (D3.2).
+
+    The row-action handler is async and the Run (filtered) enqueue is
+    fanned out through ``background_tasks``; both run as tasks on the
+    simulation's loop, so the test yields control here until the recorded
+    call lands."""
+    deadline = time.monotonic() + timeout
+    while not predicate():
+        if time.monotonic() >= deadline:
+            raise AssertionError(message)
+        await asyncio.sleep(0.01)
 
 
 def test_next_run_reads_the_live_jobstore():
@@ -210,6 +253,85 @@ async def test_known_run_id_redirects_to_the_task_detail(user, testdb, tmp_path)
     await _login(user, testdb)
     await user.open(f"/runs/{seed['run_idle']}")
     await user.should_see(f"Task {seed['idle']}: svc-a / user1", retries=10)
+
+
+async def test_run_now_calls_start_run(user, testdb, tmp_path, monkeypatch):
+    """Row Run now routes to ``orchestrator.start_run`` (D3.2)."""
+    seed = _seed(testdb, tmp_path)
+    started, stopped = [], []
+    _stub_orchestrator(monkeypatch, started, stopped)
+    await _login(user, testdb)
+    await user.open("/")
+
+    # The idle task is not active: its Run now button is enabled, and the
+    # click routes through the rowaction CustomEvent to start_run.
+    user.find(kind=ui.table).trigger(
+        "rowaction",
+        {"action": "run", "id": seed["idle"], "task": "svc-a / user1"})
+    await _wait(lambda: seed["idle"] in started,
+                "Run now did not call start_run")
+    assert started == [seed["idle"]]
+    assert stopped == []
+
+
+async def test_stop_calls_stop_run(user, testdb, tmp_path, monkeypatch):
+    """Row Stop routes to ``orchestrator.stop_run`` (D3.2)."""
+    seed = _seed(testdb, tmp_path)
+    started, stopped = [], []
+    _stub_orchestrator(monkeypatch, started, stopped)
+    await _login(user, testdb)
+    await user.open("/")
+
+    # The running task is the only one whose Stop button is enabled.
+    user.find(kind=ui.table).trigger(
+        "rowaction", {"action": "stop", "id": seed["running"],
+                      "task": "svc-b / user1"})
+    await _wait(lambda: seed["running"] in stopped,
+                "Stop did not call stop_run")
+    assert stopped == [seed["running"]]
+    assert started == []
+
+
+async def test_run_filtered_enqueues_only_enabled_tasks(user, testdb, tmp_path,
+                                                        monkeypatch):
+    """Toolbar Run (filtered) enqueues exactly the enabled, non-active
+    tasks in the (unfiltered) set (D3.2)."""
+    seed = _seed(testdb, tmp_path)
+    started, stopped = [], []
+    _stub_orchestrator(monkeypatch, started, stopped)
+    await _login(user, testdb)
+    await user.open("/")
+
+    user.find(marker="run-filtered").click()
+    await _wait(lambda: len(started) == 1,
+                "Run (filtered) did not enqueue the idle task")
+    # Only the enabled+idle task is enqueued; the disabled task and the
+    # active task are reported in a notify, not started.
+    assert started == [seed["idle"]]
+    assert stopped == []
+    assert user.notify.contains("Run enqueued for 1 task(s)")
+    assert user.notify.contains("svc-a / user2 (disabled)")
+    assert user.notify.contains("svc-b / user1 (active)")
+
+
+async def test_run_filtered_respects_the_service_filter(user, testdb, tmp_path,
+                                                        monkeypatch):
+    """Run (filtered) only considers tasks in the filtered set (D3.2)."""
+    _seed(testdb, tmp_path)
+    started, stopped = [], []
+    _stub_orchestrator(monkeypatch, started, stopped)
+    await _login(user, testdb)
+    await user.open("/")
+
+    # svc-b holds a single task, and it is active: nothing is enqueued,
+    # the task is reported as skipped, and no enqueue notify is raised.
+    _set_filter(user, "service-filter", "svc-b")
+    user.find(marker="run-filtered").click()
+    # No task is enqueued, so no background start_run is scheduled.
+    await asyncio.sleep(0.05)
+    assert started == []
+    assert user.notify.contains("svc-b / user1 (active)")
+    assert not user.notify.contains("Run enqueued")
 
 
 if __name__ == "__main__":

@@ -770,9 +770,9 @@ its bullet below. C7.4 (orphan cleanup + shutdown: `cleanup_orphans` +
 `shutdown` in `orchestrator.py`, `OrphanCleanupTests` + `ShutdownTests`) is
 done — see its bullet below. C7.5 (wire into `serve`: the `build_lifecycle`
 hooks in `ui/app.py`, the runner's SIGTERM/SIGINT handler, the monitor as its
-own task) is done — see its bullet below. C5.1–C7.4 are committed + pushed to
-origin/dev (with the `tests/scenarios.py` Layer B TOTP secrets); C7.5 lands
-in the next commit. The full unit suite (155 tests) is green. The `*Done*`
+own task) is done — see its bullet below. C5.1–C7.5 are committed + pushed to
+origin/dev (with the `tests/scenarios.py` Layer B TOTP secrets); C7.6 (the M1 exit
+validation) is done — see its bullet below. The full unit suite (155 tests) is green. The `*Done*`
 markers in this drafted section are the plan template, not status — remove
 them as each sub-step actually lands. E2E prerequisite:
 the three Layer B vault items (`testautopause user1`, `testwaituser user1`,
@@ -1123,7 +1123,36 @@ fresh session resumes at the first sub-step that is not yet committed.
   daemon exits cleanly (~2 s).
 - **C7.6 M1 exit validation.** Full M1 exit on the mock portal: `testautopause` (3× →
   `waiting` → resume via the control socket → download) + `testwaituser` (wait_user
-  pause/resume); persistent-profile accumulation (banner only on run 1).
+  pause/resume); persistent-profile accumulation (banner only on run 1). *Done
+  (2026-10-11):* the full M1 exit on the mock portal, driven entirely through the
+  daemon (scratch `BC_*` env `/tmp/bc-c76-e2e/`, the LAN Vaultwarden, the mock portal
+  on 127.0.0.1:8787, all three tasks on `* * * * *`; `python -m billcollector serve
+  --port 18766`): the scheduler started with 3 jobs and the orchestrator spawned every
+  runner — 6 distinct successful runs in ~11.5 min, the pauses operated by a driver
+  script (`ControlClient` on the per-run control socket). `testautopause` (runs 1 + 4):
+  step 11 failed 3× → pause (`result=waiting`, `pause_reason=step_failed`, the full
+  machine-readable context — url, step error, numbered elements — on the Run row); the
+  operator clicked "I am not a robot", the fresh scan showed the Verified button,
+  `resume` → step 11 re-executed clean (one failure row + one clean row) → the download
+  `invoice_autopause_user1_1.pdf` tracked (sha256 + size; not deduped on run 1,
+  deduped by `duplicate_of_id` on repeat run 4). `testwaituser` (runs 2 + 5): the
+  `wait_user` pause carried the recipe's prompt; the operator read the displayed
+  6-digit code from the context's `page_text`, filled it, clicked Verify (the form was
+  replaced by the dashboard), `resume` → step 11 consumed, not re-executed (one clean
+  row) → the download `invoice_waituser_user1_1.pdf` (not deduped on run 2, deduped on
+  run 5). `testhappy` (runs 3 + 6): fresh-profile run 3 showed the consent banner
+  (graceful Reject step clean); warm-profile run 6 had the banner absent (graceful step
+  recorded as a graceful error, the run continued), login re-ran, and its two downloads
+  (invoice + contract) were not deduped on run 3 but deduped by sha256 on run 6. Every
+  run had a per-run log (daemon stdout streaming), a recorded pid and a final result.
+  SIGTERM to the daemon → clean exit (`Scheduler has been shut down`, `serve stopped:
+  scheduler stopped, runners terminated`; a cron fire mid-spawn at signal time was
+  reaped on the no-row path), no leftover display locks or control sockets, no active
+  runs, all three tasks idle. The terminal DB checks re-run `--terminal-only` against
+  the final DB: 0 failures. (The first driver pass reported 2 spurious FAILs from a
+  driver-side ordering bug — the check picked a repeat run as the "first" run, whose
+  download was correctly deduped; the product behavior was the intended cross-run
+  sha256 dedup.) M1 complete — next is M2 (UI core).
 
 **M1 exit (unchanged):** the daemon runs tasks on schedule; on the mock portal,
 `testautopause` and `testwaituser` pass via the control socket; profile accumulation is

@@ -768,12 +768,13 @@ see their bullets below. C7.3 (stdout streaming to the per-run log file:
 `run_log_path` + `_monitor` in `orchestrator.py`, `RunLogTests`) is done — see
 its bullet below. C7.4 (orphan cleanup + shutdown: `cleanup_orphans` +
 `shutdown` in `orchestrator.py`, `OrphanCleanupTests` + `ShutdownTests`) is
-done — see its bullet below. C5.1–C7.3 are committed + pushed to origin/dev
-(with the `tests/scenarios.py` Layer B TOTP secrets); C7.4 lands in the next
-commit. The full unit suite (148 tests) is green. C7.5 (wire into `serve`)
-is the next sub-step. The `*Done*` markers in this
-drafted section are the plan template, not status — remove them as each sub-step
-actually lands. E2E prerequisite:
+done — see its bullet below. C7.5 (wire into `serve`: the `build_lifecycle`
+hooks in `ui/app.py`, the runner's SIGTERM/SIGINT handler, the monitor as its
+own task) is done — see its bullet below. C5.1–C7.4 are committed + pushed to
+origin/dev (with the `tests/scenarios.py` Layer B TOTP secrets); C7.5 lands
+in the next commit. The full unit suite (155 tests) is green. The `*Done*`
+markers in this drafted section are the plan template, not status — remove
+them as each sub-step actually lands. E2E prerequisite:
 the three Layer B vault items (`testautopause user1`, `testwaituser user1`,
 `testcaptchadrag user1`) were created in the LAN Vaultwarden on 2026-10-10 (same pattern
 as the seven Layer A items, 2026-10-01; TOTP secrets added to `tests/scenarios.py`,
@@ -1072,7 +1073,54 @@ fresh session resumes at the first sub-step that is not yet committed.
   no-op without live runners). Full unit suite 148/148 green.
 - **C7.5 Wire into `serve`.** In `ui/app.py` startup: start the scheduler + orphan
   cleanup; on shutdown: stop the scheduler + terminate runners. *Verify:* start `serve` →
-  scheduler running + `/_alive`   ok; SIGTERM → runners terminated.
+  scheduler running + `/_alive`   ok; SIGTERM → runners terminated. *Done
+  (2026-10-11):* `ui/app.py` — `build_lifecycle(db, orchestrator, scheduler)` returns
+  the `(startup, shutdown)` pair registered on the NiceGUI app before `ui.run`: startup
+  runs `orchestrator.cleanup_orphans()` then `scheduler.start()`; shutdown stops the
+  scheduler first (no new job can dispatch while runners are reaped) and then
+  `await orchestrator.shutdown()`. The order is safe because the monitoring is no
+  longer the scheduler job: `orchestrator.py` — `start_run` (the job) covers only
+  claim/spawn/handoff and hands off to `_monitor` as its own asyncio task
+  (`monitors`), which owns the run's bookkeeping (per-run log flush, slot + tracking
+  release) in its `finally`, so a scheduler stop cancels the job but never the
+  monitoring of a live runner; `shutdown()` signals each runner's whole process group
+  (the runner is spawned with `start_new_session`, and `display.py` no longer starts
+  the stack children in their own session, so they share the runner's group — one
+  `killpg` takes runner + stack down); a job cancelled while waiting for the slot or
+  mid-spawn releases its claim (task back to `idle`, never wedged in `running`).
+  `runner.py` — `_install_signal_handlers()` turns SIGTERM/SIGINT into a
+  `RunInterrupted` raised in the main thread (new `interrupt.py` module: the lower
+  modules on the run path must re-raise it without importing `runner` — a cycle), so
+  a daemon SIGTERM or a standalone Ctrl+C runs the run's whole teardown (display
+  reap, claim release, the row ends `result=interrupted`); the Run row is created
+  inside the release scope, so a signal before the row exists still releases the
+  display (the orchestrator's no-row path releases the claim); every best-effort
+  `except Exception` handler on the run path re-raises `RunInterrupted`
+  (`_process_step`, the `_record_step` screenshot, `_handle_download`, the browser
+  launch/close, `pause.py`'s scan + context builder + `pause_loop` setup,
+  `control.py`'s connection + action dispatch, `downloads.py`'s consumer loop).
+  Unit: `tests/test_bc_ui_app.py` `BuildLifecycleTests` (startup order
+  cleanup → scheduler; shutdown order scheduler → orchestrator);
+  `tests/test_bc_orchestrator.py` `ShutdownSignalTests` (a graceful stub runner's own
+  SIGTERM handler finalizes `interrupted` and the orchestrator does not overwrite it;
+  a stubborn SIGTERM-ignoring stub with a `sleep` grandchild in its group is taken
+  down group-wide — the grandchild dies on the group SIGTERM, the runner on the
+  SIGKILL fallback — and its run ends `interrupted` with the task released) +
+  `JobCancelTests` (a job cancelled while waiting for the slot releases its claim;
+  the live runner of the other task is still interrupted by the shutdown and its
+  task released); `tests/test_bc_runner.py` `RunInterruptedTests` (the handler raises
+  `RunInterrupted` for both signals; a real `run_task` — real step loop, 3× retry and
+  pause loop with a real `ControlServer` — that receives SIGTERM while paused ends
+  `interrupted` with the display released, the task idle and the control socket
+  unlinked). Full unit suite 155/155 green. `serve` smoke (scratch `BC_*` env
+  `/tmp/bc-c75-smoke/`, a local mock vault + page server, one task on `* * * * *`):
+  startup → `Scheduler started (1 job(s))` + `/_alive` 200; the cron fire spawns the
+  real runner (Xvfb/x11vnc/websockify on :99, chromium, goto) which pauses at
+  `wait_user` with the full pause context on the Run row; SIGTERM to the daemon →
+  `Scheduler has been shut down`, the group SIGTERM, the runner logs
+  "interrupted by shutdown signal" and ends `result=interrupted` with the task
+  `idle`, the display lock and control socket removed; the monitor finishes and the
+  daemon exits cleanly (~2 s).
 - **C7.6 M1 exit validation.** Full M1 exit on the mock portal: `testautopause` (3× →
   `waiting` → resume via the control socket → download) + `testwaituser` (wait_user
   pause/resume); persistent-profile accumulation (banner only on run 1).

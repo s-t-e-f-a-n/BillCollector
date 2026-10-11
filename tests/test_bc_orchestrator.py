@@ -327,6 +327,70 @@ class RunLogTests(OrchestratorTestBase):
                       log.read_text(encoding="utf-8"))
 
 
+class LogSubscriberTests(OrchestratorTestBase):
+    """D2.2: the monitor pushes each stdout line to the registered log
+    subscribers (after the file write, in write order); an unregistered
+    subscriber gets nothing, and a raising subscriber is caught + logged
+    without breaking the monitor."""
+
+    def test_stdout_lines_reach_the_subscriber_in_order(self):
+        task_id = self.db.create_task("svc", "u1", enabled=True)
+        received = []
+        orch = self._orch(mode="fail")
+        orch.add_log_subscriber(
+            lambda task, run, line: received.append((task, run, line)))
+        self._run_to_exit(orch, task_id)
+        run = self.db.list_runs(task_id)[0]
+        self.assertEqual(
+            [line.rstrip("\n") for _, _, line in received],
+            [f"stub runner for task {task_id} (mode=fail)",
+             "Traceback (most recent call last):",
+             '  File "fake.py", line 1, in <module>',
+             "RuntimeError: stub runner failure"])
+        self.assertEqual([task for task, _, _ in received],
+                         [task_id] * len(received))
+        # The pre-row line carries the run id only when the row was
+        # committed before the monitor read the line (run_id is None while
+        # the row does not exist yet); the post-row lines always carry it.
+        self.assertIn(received[0][1], (None, run["id"]))
+        self.assertEqual({rid for _, rid, _ in received[1:]}, {run["id"]})
+
+    def test_unregistered_subscriber_gets_nothing(self):
+        task_id = self.db.create_task("svc", "u1", enabled=True)
+        received = []
+        orch = self._orch(mode="fail")
+        callback = lambda task, run, line: received.append(line)
+        orch.add_log_subscriber(callback)
+        orch.remove_log_subscriber(callback)
+        orch.remove_log_subscriber(callback)  # a second remove is a no-op
+        self._run_to_exit(orch, task_id)
+        self.assertEqual(received, [])
+
+    def test_raising_subscriber_does_not_break_the_monitor(self):
+        task_id = self.db.create_task("svc", "u1", enabled=True)
+        received = []
+        orch = self._orch(mode="fail")
+
+        def bad(task, run, line):
+            raise RuntimeError("subscriber boom")
+
+        orch.add_log_subscriber(bad)
+        orch.add_log_subscriber(
+            lambda task, run, line: received.append(line))
+        exit_code = self._run_to_exit(orch, task_id)
+        # The raising subscriber is caught + logged: the run finalizes
+        # normally and the healthy subscriber still gets every line.
+        self.assertEqual(exit_code, 1)
+        run = self.db.list_runs(task_id)[0]
+        self.assertEqual(run["result"], "failure")
+        self.assertEqual(
+            [line.rstrip("\n") for line in received],
+            [f"stub runner for task {task_id} (mode=fail)",
+             "Traceback (most recent call last):",
+             '  File "fake.py", line 1, in <module>',
+             "RuntimeError: stub runner failure"])
+
+
 class ConcurrencyTests(OrchestratorTestBase):
     def test_runs_are_serialized_by_the_global_semaphore(self):
         t1 = self.db.create_task("svc", "u1", enabled=True)

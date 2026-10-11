@@ -89,10 +89,12 @@ async def test_wrong_password_stays_on_login_with_error(user, testdb):
 
 
 async def test_correct_password_reaches_the_protected_index(user, testdb):
+    # D2 replaced the D1 index placeholder with the dashboard; the header
+    # and the (empty) waiting badge are the page's identity now.
     await _set_password(user, GOOD_PASSWORD)
     await user.open("/")
-    await user.should_see("BillCollector daemon")
-    await user.should_see("Tasks in database: 0")
+    await user.should_see("BillCollector")
+    await user.should_see("0 waiting")
 
 
 async def test_alive_is_public_without_authentication(user):

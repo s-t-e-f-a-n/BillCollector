@@ -15,20 +15,25 @@ tasks).
 M2 D1: session-cookie authentication (``ui.auth``) with the ``/login``
 page (set-password on first start, then login); every non-public path
 redirects to ``/login`` until the session carries ``authenticated``.
-The dashboard and task pages land in D2/D4.
+M2 D2: the dashboard (``/``: task table with filters and the waiting
+badge, the live log pane, the ``/runs/<run_id>`` deep-link route) and
+the task detail placeholder (``/tasks/<task_id>``) are wired in here
+(the full task detail page lands in D4).
 """
 
 import logging
 
-from fastapi import Request, Response
+from fastapi import Response
 from nicegui import app as nicegui_app
 from nicegui import ui
 
 from ..db import Database
 from ..orchestrator import Orchestrator
 from ..scheduler import TaskScheduler
-from .auth import register_auth, require_auth
+from .auth import register_auth
+from .dashboard import register_dashboard
 from .login import register_login_page
+from .task_detail import register_task_detail
 
 logger = logging.getLogger("billcollector.ui.app")
 
@@ -74,17 +79,10 @@ def build_app(db: Database, orchestrator: Orchestrator,
     def alive() -> Response:
         return Response("ok", media_type="text/plain")
 
-    @ui.page("/", title="BillCollector")
-    def index(request: Request) -> None:
-        redirect = require_auth(request)
-        if redirect is not None:
-            return redirect
-        ui.label("BillCollector daemon").classes("text-h4 font-bold")
-        ui.label("M2 D1: auth + shell, dashboard lands in D2.")
-        ui.label(f"Tasks in database: {len(db.list_tasks())}")
-
     register_auth(nicegui_app, db)
     register_login_page(db)
+    register_dashboard(db, orchestrator, scheduler)
+    register_task_detail(db)
 
 
 def start(host: str, port: int) -> None:

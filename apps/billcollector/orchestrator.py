@@ -15,7 +15,8 @@ UI/scheduler, and the OS reclaims the runner's memory when it exits.
 2. acquires the global semaphore (``max_concurrency`` setting, default 1);
 3. spawns the runner subprocess and hands off the monitoring to its own
    asyncio task (C7.5): the task streams the output line by line into the
-   per-run log file (``<data>/logs/run-<id>.log``), keeps a tail in memory
+   per-run log file (``<data>/logs/run-<id>.log``) and to the registered
+   log subscribers (D2.2, the UI live-log push), keeps a tail in memory
    for ``Run.notes``, awaits the exit, and finalizes the Run row. The
    scheduler job itself only covers the claim/spawn/handoff, so a daemon
    shutdown that stops the scheduler (cancelling the running job) does not
@@ -121,6 +122,9 @@ class Orchestrator:
         # task_id -> the run's monitoring task (C7.5): it outlives the
         # scheduler job that started it, so shutdown() can await it.
         self._monitors = {}
+        # Registered log subscriber callables (D2.2): each runner stdout
+        # line is pushed to them by the monitor (after the file write).
+        self._log_subscribers = []
 
     @property
     def processes(self) -> dict:
@@ -131,6 +135,35 @@ class Orchestrator:
     def monitors(self) -> dict:
         """task_id -> live monitoring task (status display / tests)."""
         return self._monitors
+
+    def add_log_subscriber(self, callback) -> None:
+        """Register a callback receiving each runner stdout line (D2.2).
+
+        ``callback(task_id, run_id, line)`` is invoked by the monitor on
+        the event-loop thread, after the line has been written to the
+        per-run log file, in the same order the lines are written.
+        ``run_id`` is None for the lines emitted before the runner has
+        created its Run row. The UI's log panes register on connect and
+        unregister on disconnect; a subscriber raising is caught + logged
+        and never breaks the monitor."""
+        self._log_subscribers.append(callback)
+
+    def remove_log_subscriber(self, callback) -> None:
+        """Unregister a log subscriber (a no-op when it is not registered)."""
+        try:
+            self._log_subscribers.remove(callback)
+        except ValueError:
+            pass
+
+    def _emit_line(self, task_id: int, run_id, line: str) -> None:
+        """Push one stdout line to all subscribers (a raising subscriber is
+        caught + logged and skipped)."""
+        for callback in list(self._log_subscribers):
+            try:
+                callback(task_id, run_id, line)
+            except Exception:
+                logger.exception("log subscriber raised for task %s; "
+                                 "subscriber skipped", task_id)
 
     def cleanup_orphans(self) -> int:
         """Startup hook: mark leftover active runs whose runner process is
@@ -296,26 +329,30 @@ class Orchestrator:
         once the subprocess has exited.
 
         Every stdout line (stderr merged in) is appended to the per-run log
-        file ``<data>/logs/run-<id>.log`` (C7.3); the M2 ui.log push reads the
-        same file. The Run row is created by the runner (which records its own
+        file ``<data>/logs/run-<id>.log`` (C7.3) and pushed to the registered
+        log subscribers (D2.2) after the file write, in the same order the
+        lines are written (``run_id`` is None while the row does not exist
+        yet). The Run row is created by the runner (which records its own
         pid), so the file is opened once that row exists: lines seen before
-        that are buffered and flushed when the file opens. The last
-        NOTES_TAIL_LINES lines are also kept in memory for Run.notes on a
-        non-zero exit."""
+        that are buffered and flushed (and emitted) when the file opens. The
+        last NOTES_TAIL_LINES lines are also kept in memory for Run.notes on
+        a non-zero exit."""
         tail = deque(maxlen=NOTES_TAIL_LINES)
         pending = []       # stdout lines seen before the Run row exists
         log_fh = None      # the per-run log file, opened once the row is known
+        run_id = None      # known once the Run row exists (log subscribers)
 
         def open_run_log():
             """Open the per-run log file now that the Run row exists and flush
             the lines buffered before it. No-op when the file is already open
             or the runner never created a row (early failure)."""
-            nonlocal log_fh
+            nonlocal log_fh, run_id
             if log_fh is not None:
                 return
             row = self._db.get_run_for_pid(task_id, proc.pid)
             if row is None:
                 return
+            run_id = row["id"]
             path = run_log_path(row["id"])
             path.parent.mkdir(parents=True, exist_ok=True)
             log_fh = path.open("a", encoding="utf-8")
@@ -340,6 +377,10 @@ class Orchestrator:
                 else:
                     pending.append(text)
                     open_run_log()
+                # Push the line to the subscribers after the file write
+                # (D2.2): run_id is None while the runner has not created
+                # its Run row yet.
+                self._emit_line(task_id, run_id, text)
             exit_code = await proc.wait()
             # The runner may have created the Run row without printing any
             # further line (a clean run): discover it now that the process has

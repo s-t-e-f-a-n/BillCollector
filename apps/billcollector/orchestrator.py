@@ -13,10 +13,14 @@ UI/scheduler, and the OS reclaims the runner's memory when it exits.
    is already running/waiting is skipped, which also guards against a
    double queue entry for the same task;
 2. acquires the global semaphore (``max_concurrency`` setting, default 1);
-3. spawns the runner subprocess and monitors it to completion: streams its
-   output line by line into the per-run log file
-   (``<data>/logs/run-<id>.log``), keeps a tail in memory for ``Run.notes``,
-   awaits the exit, and finalizes the Run row.
+3. spawns the runner subprocess and hands off the monitoring to its own
+   asyncio task (C7.5): the task streams the output line by line into the
+   per-run log file (``<data>/logs/run-<id>.log``), keeps a tail in memory
+   for ``Run.notes``, awaits the exit, and finalizes the Run row. The
+   scheduler job itself only covers the claim/spawn/handoff, so a daemon
+   shutdown that stops the scheduler (cancelling the running job) does not
+   kill the monitoring of a live runner - ``shutdown`` terminates the
+   runner and awaits the monitor.
 
 Finalization on exit: the runner finalizes its own Run row with the
 authoritative result (``success``/``failure``/``cancelled``/
@@ -38,9 +42,20 @@ C7.4 adds the two lifecycle edges:
   left alone: its orphaned runner finalizes the row and releases the
   task in its own teardown.
 - ``shutdown`` (the SIGTERM hook, wired into ``serve`` in C7.5)
-  terminates every live runner subprocess (SIGTERM, then SIGKILL after
-  ``SHUTDOWN_TIMEOUT``) and marks each run the runner did not finalize
-  itself as ``interrupted``.
+  terminates every live runner's whole process group (SIGTERM, then
+  SIGKILL after ``SHUTDOWN_TIMEOUT``) and marks each run the runner did
+  not finalize itself as ``interrupted``. The group signal reaches the
+  display-stack children too (they share the runner's group, C6/C7.5),
+  so a runner that cannot clean up still takes the stack down; the
+  runner's own SIGTERM handler (C7.5) normally finalizes its run
+  gracefully before the group signal matters.
+
+C7.5 completes the lifecycle in ``serve`` (ui/app.py): on startup
+``cleanup_orphans`` runs and the scheduler starts; on SIGTERM the
+scheduler stops first (no new job can dispatch while runners are being
+reaped) and then ``shutdown`` runs. The monitor being its own task (step
+3) is what makes that order safe: stopping the scheduler cancels the
+running job, not the monitoring of the live runner.
 
 A runner killed by a signal (negative exit code) ends its still-open Run
 row as ``interrupted`` rather than ``failure`` (the exit-code mapping in
@@ -54,6 +69,7 @@ stale lockfile of a dead run in ``cleanup_orphans``.
 import asyncio
 import logging
 import os
+import signal
 import sys
 from collections import deque
 from pathlib import Path
@@ -102,11 +118,19 @@ class Orchestrator:
         # task_id -> runner subprocess of the currently spawned run (C7.4's
         # shutdown terminates these).
         self._processes = {}
+        # task_id -> the run's monitoring task (C7.5): it outlives the
+        # scheduler job that started it, so shutdown() can await it.
+        self._monitors = {}
 
     @property
     def processes(self) -> dict:
         """task_id -> live runner subprocess (status display / tests)."""
         return self._processes
+
+    @property
+    def monitors(self) -> dict:
+        """task_id -> live monitoring task (status display / tests)."""
+        return self._monitors
 
     def cleanup_orphans(self) -> int:
         """Startup hook: mark leftover active runs whose runner process is
@@ -137,24 +161,28 @@ class Orchestrator:
         return count
 
     async def shutdown(self) -> None:
-        """Shutdown hook: terminate every live runner subprocess and mark
-        its run ``interrupted`` (C7.4).
+        """Shutdown hook: terminate every live runner and mark its run
+        ``interrupted`` (C7.4, group signal per C7.5).
 
-        Each child gets SIGTERM; a child that does not exit within
-        SHUTDOWN_TIMEOUT gets SIGKILL. A run the runner did not finalize
-        itself (``result IS NULL``) is marked interrupted and its task
-        released back to ``idle`` - the runner's own teardown never ran.
-        A run the runner already finalized is left untouched. A no-op
-        when no runner is live."""
+        Each runner's whole process group gets SIGTERM - the runner's
+        display-stack children share the group (C6), so a runner that
+        cannot clean up (e.g. stuck in a Playwright call) still takes the
+        stack down; a group that does not exit within SHUTDOWN_TIMEOUT
+        gets SIGKILL. The runner's own SIGTERM handler (C7.5) normally
+        finalizes its run gracefully on the first signal. A run the
+        runner did not finalize itself (``result IS NULL``) is marked
+        interrupted and its task released back to ``idle`` - the runner's
+        own teardown never ran. A run the runner already finalized is
+        left untouched. A no-op when no runner is live."""
         for task_id, proc in list(self._processes.items()):
             if proc.returncode is None:
-                proc.terminate()
+                self._signal_group(proc, signal.SIGTERM)
         for task_id, proc in list(self._processes.items()):
             try:
                 await asyncio.wait_for(proc.wait(), timeout=SHUTDOWN_TIMEOUT)
             except asyncio.TimeoutError:
                 logger.warning("runner for task %s ignored SIGTERM; killing", task_id)
-                proc.kill()
+                self._signal_group(proc, signal.SIGKILL)
                 await proc.wait()
             row = self._db.get_run_for_pid(task_id, proc.pid)
             if row is not None and row["result"] is None:
@@ -162,14 +190,48 @@ class Orchestrator:
             self._db.set_task_status(task_id, "idle")
             logger.info("shutdown: runner for task %s terminated (pid %s)",
                         task_id, proc.pid)
+        # All runners are reaped: their monitors now finish (per-run log
+        # flush + finalization) and release their slots. Await them so no
+        # monitor outlives the daemon (C7.5: the scheduler job may have
+        # been cancelled by then, but the monitor is its own task).
+        for task_id, monitor in list(self._monitors.items()):
+            await monitor
         self._processes.clear()
+        self._monitors.clear()
+
+    @staticmethod
+    def _signal_group(proc, signum) -> None:
+        """Signal a runner's whole process group (the display-stack
+        children share it). A process that does not lead its own group
+        (test doubles) is signalled alone; a process that already exited
+        is skipped."""
+        try:
+            pgid = os.getpgid(proc.pid)
+        except (ProcessLookupError, PermissionError):
+            return
+        try:
+            if pgid == proc.pid:
+                os.killpg(pgid, signum)
+            else:
+                os.kill(proc.pid, signum)
+        except ProcessLookupError:
+            pass
 
     async def start_run(self, task_id: int):
-        """Claim and start one run; monitor the runner until it exits.
+        """Claim and start one run; the monitoring runs as its own task.
 
-        Returns the runner subprocess' exit code, or None when the run was
-        not started (unknown task, task already running/waiting, spawn
-        failure)."""
+        Returns True when the run was started - the monitoring task (in
+        ``monitors``) streams the output to the per-run log, awaits the
+        exit, and finalizes the Run row; await it for the runner's exit
+        code. Returns None when the run was not started (unknown task,
+        task already running/waiting, spawn failure).
+
+        This method is the scheduler job (C7.1): it only covers the
+        claim/spawn/handoff. A daemon shutdown that stops the scheduler
+        while the job is still running (waiting for the global slot, or
+        mid-spawn) cancels the job - and only the job: the monitor of an
+        already-spawned runner is its own task (C7.5) that ``shutdown``
+        awaits."""
         task = self._db.get_task(task_id)
         if task is None:
             logger.warning("start_run: task %s does not exist; not started", task_id)
@@ -177,32 +239,56 @@ class Orchestrator:
         if not self._db.claim_task_run(task_id):
             logger.info("start_run: task %s already running/waiting; skipped", task_id)
             return None
-        await self._semaphore.acquire()
+        try:
+            await self._semaphore.acquire()
+        except asyncio.CancelledError:
+            # The job was cancelled while waiting for the global slot:
+            # release the claim so the task is not wedged in 'running'
+            # without a run (the startup orphan cleanup only sees rows).
+            self._db.set_task_status(task_id, "idle")
+            raise
         try:
             proc = await self._spawn(task_id)
+        except asyncio.CancelledError:
+            # Cancelled between the claim and the spawn: release slot +
+            # claim (the runner never started).
+            self._semaphore.release()
+            self._db.set_task_status(task_id, "idle")
+            raise
         except Exception as e:
             # The runner never started: release the claim so the task is
             # not wedged in 'running' (a started runner normally releases
             # it in its own teardown, but there is no runner here).
+            self._semaphore.release()
             self._db.set_task_status(task_id, "idle")
             logger.error("start_run: spawning the runner for task %s failed: %s",
                          task_id, e)
             return None
+        # The monitor is its own task (C7.5): it outlives this job, so a
+        # scheduler stop (daemon shutdown) cannot cancel the monitoring of
+        # the live runner.
         self._processes[task_id] = proc
-        try:
-            return await self._monitor(task_id, proc)
-        finally:
-            self._processes.pop(task_id, None)
-            self._semaphore.release()
+        self._monitors[task_id] = asyncio.create_task(self._monitor(task_id, proc))
+        return True
 
     async def _spawn(self, task_id: int):
-        """Spawn the runner subprocess (stderr merged into stdout, piped)."""
+        """Spawn the runner subprocess in its own session (stderr merged
+        into stdout, piped).
+
+        ``start_new_session`` makes the runner a session/group leader
+        (pgid == pid) for two reasons: the display-stack children share
+        that group (C6), so shutdown() can signal the whole stack with
+        one killpg (C7.5); and a serve process killed with SIGKILL
+        orphans the runner instead of dragging it down - C7.4's startup
+        cleanup then sees the live pid and leaves the run to its
+        orphaned runner."""
         return await asyncio.create_subprocess_exec(
             *self._runner_cmd, "run", str(task_id),
             cwd=str(config.APP_DIR),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
             env=self._env,
+            start_new_session=True,
         )
 
     async def _monitor(self, task_id: int, proc) -> int:
@@ -264,6 +350,13 @@ class Orchestrator:
         finally:
             if log_fh is not None:
                 log_fh.close()
+            # The monitor owns the run's bookkeeping (C7.5): it is the only
+            # path that releases the slot and the tracking entries, whether
+            # it ran to the end or the daemon shutdown signalled the runner
+            # first (the scheduler job may have been cancelled meanwhile).
+            self._processes.pop(task_id, None)
+            self._monitors.pop(task_id, None)
+            self._semaphore.release()
 
     def _finalize_run(self, task_id: int, pid: int, exit_code: int, tail) -> None:
         """Finalize the Run row the subprocess created (module docstring)."""

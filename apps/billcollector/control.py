@@ -34,6 +34,8 @@ import os
 import select
 import socket
 
+from .interrupt import RunInterrupted
+
 logger = logging.getLogger(__name__)
 
 PROTOCOL_VERSION = 1
@@ -88,6 +90,8 @@ class ControlServer:
             return False
         try:
             response = self._serve_connection(conn)
+        except RunInterrupted:
+            raise  # a shutdown signal during an action ends the run, not the request
         except Exception as e:
             logger.exception(f"Control socket error: {e}")
             response = {"v": PROTOCOL_VERSION, "ok": False, "error": str(e)}
@@ -136,6 +140,8 @@ class ControlServer:
             return {"v": PROTOCOL_VERSION, "ok": False, "error": f"unknown action {action!r}"}
         try:
             payload = handler(**args)
+        except RunInterrupted:
+            raise  # a shutdown signal during an action ends the run, not the request
         except Exception as e:
             # A failed action is reported to the client; the pause stays active.
             logger.warning(f"Control action {action} failed: {e}")

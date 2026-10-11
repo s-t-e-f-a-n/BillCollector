@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 
 from . import config, notify
 from .control import ControlServer
+from .interrupt import RunInterrupted
 from .pagestate import PageState
 
 logger = logging.getLogger("billcollector.pause")
@@ -72,9 +73,12 @@ def scan_elements(page):
     """A fresh interactive-element scan (role/name/rect/locator/actionTypes).
 
     Returns [] when the scan fails: a broken scan must not kill the pause.
+    A shutdown signal (RunInterrupted) always propagates (C7.5).
     """
     try:
         state = PageState("", 0, page)
+    except RunInterrupted:
+        raise  # a shutdown signal is not a scan failure to degrade around
     except Exception as e:
         logger.warning(f"Element scan failed: {type(e).__name__}: {e}")
         return []
@@ -86,8 +90,10 @@ def build_pause_context(ctx, reason, prompt, step_action_json, error, deadline_a
 
     ``step_action_json`` is the failing step's locator-action JSON (the
     ``transform_step_to_json`` output), or None for pauses without a
-    failing step (``wait_user``). Never raises: every page access is
-    best-effort, a degraded context is still a context.
+    failing step (``wait_user``). Never raises for page errors: every page
+    access is best-effort, a degraded context is still a context. A
+    shutdown signal (RunInterrupted) always propagates (C7.5): it is the
+    end of the run, not a page error to degrade around.
     """
     page = ctx.page
     url = None
@@ -95,16 +101,22 @@ def build_pause_context(ctx, reason, prompt, step_action_json, error, deadline_a
     page_text = None
     try:
         url = page.url
+    except RunInterrupted:
+        raise
     except Exception:
         pass
     try:
         page_title = page.title()
+    except RunInterrupted:
+        raise
     except Exception:
         pass
     try:
         page_text = page.inner_text("body")
         if len(page_text) > PAUSE_PAGE_TEXT_CAP:
             page_text = page_text[:PAUSE_PAGE_TEXT_CAP]
+    except RunInterrupted:
+        raise
     except Exception:
         pass
 
@@ -117,6 +129,8 @@ def build_pause_context(ctx, reason, prompt, step_action_json, error, deadline_a
         page.screenshot(path=str(path))
         screenshot_path = str(path)
         screenshot_data = base64.b64encode(path.read_bytes()).decode("ascii")
+    except RunInterrupted:
+        raise
     except Exception as e:
         logger.warning(f"Pause screenshot failed (run continues): {type(e).__name__}: {e}")
 
@@ -247,10 +261,14 @@ def pause_loop(ctx, reason, prompt, step_action_json, error):
 
     sock_path = control_sock_path(ctx.run_id)
     server = ControlServer(sock_path, make_action_handlers(ctx))
-    server.start()
-    db.update_run(ctx.run_id, control_sock=str(sock_path))
-    logger.warning(f"Run {ctx.run_id} paused ({reason}): {prompt}")
     try:
+        # server.start() binds the socket file; it is inside the try so a
+        # shutdown signal (RunInterrupted) landing in the setup window
+        # between the bind and the waiting loop still unlinks the file in
+        # the finally (C7.5).
+        server.start()
+        db.update_run(ctx.run_id, control_sock=str(sock_path))
+        logger.warning(f"Run {ctx.run_id} paused ({reason}): {prompt}")
         while True:
             server.poll(PAUSE_POLL_SECONDS)
             if server.resume_requested:

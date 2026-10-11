@@ -15,6 +15,7 @@ import os
 
 from . import config
 from .consumers import CONSUMERS
+from .interrupt import RunInterrupted
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,8 @@ def track_download(download, run_id, task, db):
                     "sha256": sha,
                     "saved_path": saved_path,
                 })
+            except RunInterrupted:
+                raise  # a shutdown signal must end the run, not be logged as a consumer failure
             except Exception:
                 # A consumer must never break the run: log and continue.
                 logger.exception(f"Consumer {getattr(consume, '__name__', consume)} failed")

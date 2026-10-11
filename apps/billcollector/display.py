@@ -13,6 +13,10 @@ orchestrator's startup cleanup (C7.4).
 The runner allocates the display (not the orchestrator) so that the
 standalone ``python -m billcollector run <task_id>`` works without the
 daemon (decision locked in the M1 chunk plan).
+
+The stack children share the runner's process group (C7.5): the daemon
+shutdown signals the runner's whole group, so the stack dies with the
+runner even when the runner cannot clean up itself.
 """
 
 import logging
@@ -165,8 +169,14 @@ def _stack_env():
 
 
 def _spawn(binary, *args, env=None):
-    """Start one display-stack child (own session, stdio to devnull,
-    wayland-free env).
+    """Start one display-stack child (stdio to devnull, wayland-free env).
+
+    The child deliberately stays in the runner's process group (C7.5): a
+    daemon shutdown signals the runner's whole group (orchestrator
+    shutdown), so the stack dies with the runner even when the runner
+    cannot clean up itself; a terminal Ctrl+C on the standalone runner
+    reaches the stack through the group as well (the runner's SIGINT
+    handler makes that a graceful stop).
 
     Raises DisplayError when the binary is missing or the spawn fails."""
     try:
@@ -174,7 +184,7 @@ def _spawn(binary, *args, env=None):
             [str(binary), *[str(a) for a in args]],
             env=env if env is not None else _stack_env(),
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL, start_new_session=True)
+            stderr=subprocess.DEVNULL)
     except FileNotFoundError as e:
         raise DisplayError(
             f"display binary not found: {e.filename} "

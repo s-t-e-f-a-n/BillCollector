@@ -25,11 +25,17 @@ display from the configured range (lockfile registry), starts the
 Xvfb/x11vnc/websockify child stack, points DISPLAY at that display for the
 headful browser launch, records ``Run.display`` / ``Run.novnc_port``, and
 reaps the stack + releases the claim in the run teardown.
+
+A shutdown signal (SIGTERM from the daemon, Ctrl+C on the standalone
+runner; C7.5) interrupts the run gracefully: the handler raises
+RunInterrupted, the teardown reaps the display stack and releases the
+claim, and the run ends ``result=interrupted``.
 """
 
 import json
 import logging
 import os
+import signal
 import sys
 from datetime import datetime
 
@@ -39,6 +45,7 @@ from playwright.sync_api import sync_playwright
 
 from . import config, display, downloads
 from .db import Database, now
+from .interrupt import RunInterrupted
 from .pagestate import PageState
 from .pause import pause_loop
 from .vault import (
@@ -80,6 +87,25 @@ class PauseOutcomeAbort(Exception):
     def __init__(self, outcome):
         super().__init__(f"pause outcome: {outcome}")
         self.outcome = outcome
+
+
+def _install_signal_handlers() -> None:
+    """Turn SIGTERM/SIGINT into a graceful run interruption (C7.5).
+
+    The daemon's shutdown (and a Ctrl+C on the standalone runner) must
+    take the run's whole teardown with it - display stack reap, claim
+    release, Run finalization - so the handler raises RunInterrupted in
+    the main thread instead of letting the OS kill the process in place.
+    A signal arriving inside a blocking Playwright call is handled as
+    soon as that call returns; a daemon shutdown that outlasts the
+    runner's grace period force-kills the runner's whole process group
+    instead (orchestrator.shutdown, C7.5)."""
+
+    def _handler(signum, frame):
+        raise RunInterrupted(f"received signal {signum}")
+
+    signal.signal(signal.SIGTERM, _handler)
+    signal.signal(signal.SIGINT, _handler)
 
 
 def step_attempts(graceful: bool) -> int:
@@ -387,6 +413,8 @@ def _process_step(bcs, step):
                     if processed_args:
                         raise TypeError(f"Attribute '{method_name}' is not callable but arguments were provided: {processed_args}")
                     previous_result = method_executor               # Get the value of a property.
+            except RunInterrupted:
+                raise  # a shutdown signal is not a step failure to retry
             except Exception as e:
                 fail_step({"method": method_name, "message": str(e)})
                 break  # Stop the method chain (graceful failure).
@@ -453,6 +481,8 @@ def _record_step(ctx, state, step, parent_step=None):
         path = target_dir / f"{name}.png"
         ctx.page.screenshot(path=str(path))
         screenshot_path = str(path)
+    except RunInterrupted:
+        raise  # a shutdown signal is not a screenshot failure to degrade around
     except Exception as e:
         logger.warning(f"Step {step.get('step', 0)} screenshot failed (run continues): {e}")
     ctx.db.insert_page_status(
@@ -656,6 +686,8 @@ def _handle_download(ctx, step):
                 _execute_step(ctx, nested_step, parent_step=step_number)
         download = download_info.value
         record = downloads.track_download(download, ctx.run_id, ctx.task, ctx.db)
+    except RunInterrupted:
+        raise  # a shutdown signal is not a download error to pause on
     except StepAbortError:
         raise
     except Exception as e:
@@ -686,6 +718,8 @@ def _run_recipe(ctx, recipe):
     with sync_playwright() as p:
         try:
             _launch_browser(ctx, p)
+        except RunInterrupted:
+            raise  # a shutdown signal is not a launch failure to abort on
         except Exception as e:
             logger.exception(f"Browser launch failed: {e}")
             return files_downloaded, True, None
@@ -712,6 +746,8 @@ def _run_recipe(ctx, recipe):
         except StepAbortError as e:
             aborted = True
             logger.error(f"Run aborted: {e}")
+        except RunInterrupted:
+            raise  # a shutdown signal ends the run interrupted, not failed
         except Exception:
             aborted = True
             logger.exception("EXCEPTION in _run_recipe(): run aborted")
@@ -719,6 +755,8 @@ def _run_recipe(ctx, recipe):
             for closer in (ctx.page.close, ctx.context.close):
                 try:
                     closer()
+                except RunInterrupted:
+                    raise  # a shutdown signal during the close still ends the run interrupted
                 except Exception:
                     pass
     files_downloaded = ctx.files_downloaded
@@ -732,6 +770,7 @@ def run_task(task_id: int, debug: bool = False) -> int:
     (display, vault preflight, recipe error, or step failure)."""
     config.load_env()
     _ensure_logging()
+    _install_signal_handlers()
 
     db = Database()
     try:
@@ -757,51 +796,78 @@ def run_task(task_id: int, debug: bool = False) -> int:
                   file=sys.stderr)
             return 1
 
-        # The row records this process' pid so the orchestrator (C7.2) can
-        # match the spawned subprocess to the row it created, and the
-        # startup orphan cleanup (C7.4) can check whether the pid is alive.
-        run_id = db.create_run(task_id, pid=os.getpid(), display=display_number,
-                               novnc_port=websockify_port)
         result = "failure"
         files = []
         api_url = config.env("BW_API_URL")
         children = None
+        run_id = None
         try:
-            children = _start_display_stack(db, run_id, display_number)
-            os.environ["DISPLAY"] = f":{display_number}"
-            credentials = _vault_preflight(task)
-            ctx = _RunContext(task, run_id, db, debug, credentials, api_url)
-            files, aborted, pause_outcome = _run_recipe(ctx, recipe)
-            result = run_result(aborted, files, pause_outcome)
-        except (VaultAPIError, VaultTransportError) as e:
-            # A vault-preflight failure: one clear stderr line, distinct from
-            # a step failure (which the step loop logs on stdout).
-            print(f"runner: vault preflight failed for task {task_id}: {e}", file=sys.stderr)
-        except display.DisplayError as e:
-            # A display-stack failure (binary missing, Xvfb refusing the
-            # display): one clear stderr line, like a vault-preflight failure.
-            print(f"runner: display stack failed for task {task_id}: {e}", file=sys.stderr)
-        except Exception:
-            logger.exception(f"Task {task_id} run {run_id} aborted by an unexpected error")
+            # The row records this process' pid so the orchestrator (C7.2)
+            # can match the spawned subprocess to the row it created, and
+            # the startup orphan cleanup (C7.4) can check whether the pid
+            # is alive. It is created inside the release scope below so a
+            # shutdown signal (C7.5) in any window after the display claim
+            # still releases the display and finalizes the row.
+            run_id = db.create_run(task_id, pid=os.getpid(),
+                                   display=display_number,
+                                   novnc_port=websockify_port)
+            try:
+                children = _start_display_stack(db, run_id, display_number)
+                os.environ["DISPLAY"] = f":{display_number}"
+                credentials = _vault_preflight(task)
+                ctx = _RunContext(task, run_id, db, debug, credentials, api_url)
+                files, aborted, pause_outcome = _run_recipe(ctx, recipe)
+                result = run_result(aborted, files, pause_outcome)
+            except RunInterrupted:
+                # A shutdown signal (SIGTERM/SIGINT) reached the run: the
+                # teardown below reaps the display stack and finalizes the
+                # row with the interruption result.
+                result = "interrupted"
+                logger.warning(f"Task {task_id} run {run_id} interrupted by shutdown signal")
+            except (VaultAPIError, VaultTransportError) as e:
+                # A vault-preflight failure: one clear stderr line, distinct
+                # from a step failure (which the step loop logs on stdout).
+                print(f"runner: vault preflight failed for task {task_id}: {e}",
+                      file=sys.stderr)
+            except display.DisplayError as e:
+                # A display-stack failure (binary missing, Xvfb refusing the
+                # display): one clear stderr line, like a vault-preflight
+                # failure.
+                print(f"runner: display stack failed for task {task_id}: {e}",
+                      file=sys.stderr)
+            except Exception:
+                logger.exception(f"Task {task_id} run {run_id} aborted by an unexpected error")
+            finally:
+                # The display stack is reaped and the row finalized with
+                # the run, so a finished run never leaks the stack or
+                # leaves the row open.
+                if children is not None:
+                    display.stop_display_stack(children)
+                # The run row always ends with a terminal result, even when
+                # the vault preflight or an unexpected error stopped the
+                # run before the step loop ran.
+                db.update_run(run_id, result=result, ended_at=now())
+                # A finished run releases the task: the 'waiting' status
+                # set by a pause is terminal here (resume, cancel and
+                # timeout all end the run), so the task goes back to idle
+                # and the scheduler's row lock can claim it again.
+                db.set_task_status(task_id, "idle")
         finally:
-            # The display stack is reaped and the claim released with the
-            # run, so a finished run never leaks a display.
-            if children is not None:
-                display.stop_display_stack(children)
+            # The claim is released with the run, so a finished (or
+            # interrupted) run never leaks a display - even when the
+            # shutdown signal arrived before the Run row existed.
             display.release_display(display_number)
-            # The run row always ends with a terminal result, even when the
-            # vault preflight or an unexpected error stopped the run before
-            # the step loop ran.
-            db.update_run(run_id, result=result, ended_at=now())
-            # A finished run releases the task: the 'waiting' status set by
-            # a pause is terminal here (resume, cancel and timeout all end
-            # the run), so the task goes back to idle and the scheduler's
-            # row lock can claim it again.
-            db.set_task_status(task_id, "idle")
         if result == "success":
             logger.info(f"Task {task_id} run {run_id} finished with downloaded file(s) {files}.")
             return 0
         logger.error(f"Task {task_id} run {run_id} failed (result={result}, downloads={files}).")
+        return 1
+    except RunInterrupted:
+        # Interrupted before the Run row existed (early pre-checks, or the
+        # row creation itself): there is nothing to finalize; the display
+        # release above already ran when the claim had happened, and the
+        # orchestrator's no-row path releases the claim (C7.2).
+        logger.warning(f"Task {task_id} interrupted before the run started")
         return 1
     finally:
         db.close()

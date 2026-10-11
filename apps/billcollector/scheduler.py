@@ -78,7 +78,15 @@ class TaskScheduler:
                     len(self._scheduler.get_jobs()))
 
     def stop(self) -> None:
-        """Stop the scheduler (no-op when it is not running)."""
+        """Stop the scheduler (no-op when it is not running).
+
+        The asyncio executor cancels the job futures still in flight
+        (APScheduler 3.x cannot honour ``wait`` for asyncio executors).
+        On the serve shutdown path (this runs first, C7.5) that is
+        harmless: a job that just started is at most between spawn and
+        handoff, and the monitoring of its live runner is its own task
+        that the orchestrator's shutdown awaits.
+        """
         if self._scheduler.running:
             self._scheduler.shutdown(wait=False)
 

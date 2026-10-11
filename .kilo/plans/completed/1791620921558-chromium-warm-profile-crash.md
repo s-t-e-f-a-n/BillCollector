@@ -1,5 +1,8 @@
 # Chromium warm-profile download crash — root cause, fix, re-validation
 
+> **Status: RESOLVED (2026-10-10)** — root-caused and fixed in the runner; recorded in
+> the v3 master plan (M1 exit validation). Kept in `completed/` for the record.
+
 ## Goal
 
 Find the reason the Chromium 153 (`chromium-1243`) browser process crashes

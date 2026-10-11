@@ -4,6 +4,10 @@
 **Method:** each file's stated goal + explicit status markers, cross-checked
 against git history, CHANGELOG (v0.3 / v0.4), and the current tree.
 
+**2026-10-11 layout update:** active plans stay at the `.kilo/plans/` root; every
+delivered/superseded/consumed plan (including this one) moved to
+`.kilo/plans/completed/`. The tables below are the 2026-10-04 snapshot.
+
 ## Result
 
 **Active (2)**

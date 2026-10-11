@@ -1,6 +1,6 @@
 # BillCollector — Daemon, NiceGUI Web UI & Interactive Sessions (v3)
 
-Supersedes `.kilo/plans/1790289661685-billcollector-daemon-webui-plan.md`.
+Supersedes `.kilo/plans/completed/1790289661685-billcollector-daemon-webui-plan.md`.
 Goal (sharpened in v3): turn the cron batch job into a 24/7 daemon whose web UI is its
 window — recipe-driven task management, interactive stepping into scraping sessions,
 and easier adoption for other users (one instance per operator, DMS-agnostic document
@@ -89,7 +89,7 @@ Carried over from v1/v2 (unchanged):
   (`recipe-pw__testwaituser|testcaptchadrag|testautopause.yaml`) use the `wait_user`
   method (free-form schema — already validates); `tests/scenarios.py` = single source
   of truth. Layer B execution is deferred to the daemon runner = **Wave 1**. See
-  `.kilo/plans/1790714158680-local-regression-test-web-service.md` (DELIVERED, all
+  `.kilo/plans/completed/1790714158680-local-regression-test-web-service.md` (DELIVERED, all
   validation green incl. vault e2e)
 - **Fast-track manual run UI delivered:** `apps/bc_ui.py` — minimal NiceGUI subprocess
   supervisor (start/stop + live log); absorbed into `billcollector/ui/` in M2
@@ -458,11 +458,13 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
 ## Milestones
 
 > **Fast track (2026-09-26):** a minimal manual start/stop UI is being delivered before
-> M1, as a carve-out: `.kilo/plans/1790465908381-nicegui-manual-run-ui.md` — one
+> M1, as a carve-out: `.kilo/plans/completed/1790465908381-nicegui-manual-run-ui.md` — one
 > standalone `apps/bc_ui.py` (subprocess supervisor for `BillCollector.py`) plus an
 > additive `--service` flag on the batch entry point. It previews M2's "run now"
 > behavior; when M1/M2 land, `bc_ui.py` is absorbed into `billcollector/ui/` and the
-> `--service` filter becomes the runner's task selection.
+> `--service` filter becomes the runner's task selection. M2 execution:
+> `.kilo/plans/1791705823133-m2-ui-core-plan.md` (D6 removes `bc_ui.py` and completes
+> the absorption).
 
 ### M0 — Stabilize the batch system + modernize dependencies (cron keeps running)
 
@@ -693,7 +695,7 @@ isolated `BC_*` env (scratch DB/profiles/downloads; real vault + real mock).
 - **RESOLVED — Chromium warm-profile download crash (2026-10-10):** the Chromium 153
   (`chromium-1243`) browser-process crash at the step-15 invoice-PDF download on a warm
   profile was root-caused and fixed in the runner (full investigation:
-  `.kilo/plans/1791620921558-chromium-warm-profile-crash.md`).
+  `.kilo/plans/completed/1791620921558-chromium-warm-profile-crash.md`).
   - **Trigger (bisection):** a persistent profile carrying BOTH `Default/History`
     (browsing-history SQLite) AND the network service's `Default/shared_proto_db`
     deterministically SEGVs in the browser process (`Received signal 11
@@ -1159,6 +1161,9 @@ fresh session resumes at the first sub-step that is not yet committed.
 verifiable. Then M2 (UI core).
 
 ### M2 — UI core
+
+> **Execution plan (in progress):** `.kilo/plans/1791705823133-m2-ui-core-plan.md`
+> (chunks D1–D6) — authoritative for M2 execution.
 
 1. Login + session cookie (bcrypt), auth middleware
 2. Dashboard: task table + "N waiting" badge

@@ -3,7 +3,7 @@
 > Status: DELIVERED (2026-10-01, commits 8be7a8a/e466553) — the skills are now the source of truth and have since diverged from this plan.
 
 **Date:** 2026-10-01
-**Extends:** `.kilo/plans/1790539917809-gitea-github-branch-strategy.md` — encodes its "Promotion workflow (standing process)" + decisions as executable project skills.
+**Extends:** `.kilo/plans/completed/1790539917809-gitea-github-branch-strategy.md` — encodes its "Promotion workflow (standing process)" + decisions as executable project skills.
 
 ## Goal
 
@@ -90,7 +90,7 @@ description: BillCollector release lifecycle - pre-promotion regression validati
 # BillCollector Deploy (release lifecycle)
 
 Standing process for the deployment strategy
-(`.kilo/plans/1790539917809-gitea-github-branch-strategy.md`: "Promotion workflow"
+(`.kilo/plans/completed/1790539917809-gitea-github-branch-strategy.md`: "Promotion workflow"
 + decisions). Each stage ends in an explicit user gate: prepare + propose, user
 decides, then execute. The agent never merges to `main`, pushes, tags, deploys,
 or rolls back without the gate confirmation.

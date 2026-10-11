@@ -1,6 +1,8 @@
 # BillCollector — GUI Concept, Dashboard-First (spec) + M1 Session 1 (execution plan)
 
-**Status:** implementation-ready. Execute **Session 1** in a new implementation session.
+**Status:** Session 1 delivered (M1 kickoff — M1 complete and committed to `dev`,
+2026-10-11); the dashboard spec is implemented in M2 — execution plan:
+`.kilo/plans/1791705823133-m2-ui-core-plan.md` (chunk D2; the session view stays in M3).
 **Baseline docs:** this file (GUI concept + dashboard spec, below) and
 `.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md` (v3 daemon plan — master
 for daemon/scheduler/runner; its M1 section defines what Session 1 starts).
@@ -294,7 +296,8 @@ orchestrator stdout pump (per run) + `ui.timer` DB poll.
 - **M1 exit criteria — dashboard-readiness clause:** M1 is not done until the dashboard
   can read everything it displays (Task/Run/Download/PageStatus rows per spec;
   per-task subprocess spawn/stop; per-run stdout stream; persistent per-task profile).
-- **M2:** implement dashboard per spec; absorb `bc_ui.py` into
+- **M2:** implement dashboard per spec (executed in
+  `.kilo/plans/1791705823133-m2-ui-core-plan.md`); absorb `bc_ui.py` into
   `billcollector/ui/dashboard.py` (its `.bc_ui_run.json` orphan handling is superseded
   by the orchestrator's `Run.pid` startup cleanup); the `--service` flag becomes
   task-selection at the CLI, not the UI's run granularity.

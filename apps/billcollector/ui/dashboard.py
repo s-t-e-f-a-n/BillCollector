@@ -48,17 +48,21 @@ COLUMNS = [
 # Custom row body: plain string cells cannot carry colors, so the cells
 # are rendered through the QTable body slot - a color-coded status badge
 # and the highlight of waiting rows (spec).
+#
+# The template must NOT be wrapped in <template v-slot="props">: NiceGUI
+# compiles the slot string with the Vue *runtime* compiler (nicegui.js),
+# which passes the slot scope in as the component prop ``props``. A
+# v-slot-wrapped root is an SFC-only construct and makes the runtime
+# compiler crash (TypeError: reading 'type'), blanking the whole page.
 ROW_BODY = """
-<template v-slot="props">
-  <q-tr :props="props" :class="props.row.status === 'waiting' ? 'bg-amber-100' : ''">
-    <q-td v-for="col in props.cols" :key="col.name" :props="{ ...props, col: col }">
-      <q-badge v-if="col.name === 'status'"
-               :color="props.row.status === 'running' ? 'blue' : (props.row.status === 'waiting' ? 'orange' : 'grey')"
-               outline>{{ props.row[col.name] }}</q-badge>
-      <span v-else>{{ props.row[col.name] }}</span>
-    </q-td>
-  </q-tr>
-</template>
+<q-tr :props="props" :class="props.row.status === 'waiting' ? 'bg-amber-100' : ''">
+  <q-td v-for="col in props.cols" :key="col.name" :props="{ ...props, col: col }">
+    <q-badge v-if="col.name === 'status'"
+             :color="props.row.status === 'running' ? 'blue' : (props.row.status === 'waiting' ? 'orange' : 'grey')"
+             outline>{{ props.row[col.name] }}</q-badge>
+    <span v-else>{{ props.row[col.name] }}</span>
+  </q-td>
+</q-tr>
 """
 
 

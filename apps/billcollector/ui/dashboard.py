@@ -71,14 +71,14 @@ def next_run(scheduler: TaskScheduler, task_id: int) -> str:
     """The task's next cron fire from the live jobstore (D2.3).
 
     ``Task.next_run`` is not maintained by the scheduler, so the display
-    reads the APScheduler job's ``trigger.next_fire_time`` (job id
-    ``task-<id>``). Disabled tasks have no job: ``—``."""
+    reads the APScheduler job's ``next_run_time`` (job id ``task-<id>``).
+    Disabled tasks have no job: ``—``."""
     if not scheduler.scheduler.running:
         return "—"
     job = scheduler.scheduler.get_job(job_id_for(task_id))
-    if job is None or job.trigger.next_fire_time is None:
+    if job is None or job.next_run_time is None:
         return "—"
-    return job.trigger.next_fire_time.strftime("%Y-%m-%d %H:%M:%S")
+    return job.next_run_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _last_run_cell(run) -> str:

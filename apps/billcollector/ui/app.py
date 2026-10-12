@@ -19,9 +19,10 @@ M2 D2: the dashboard (``/``: task table with filters and the waiting
 badge, the live log pane, the ``/runs/<run_id>`` deep-link route) and
 the task detail page (``/tasks/<task_id>``, full page since D4) are
 wired in here. M2 D4: ``config.RUN_DIR`` is exposed as the ``runfiles``
-static directory (``/runfiles/<run_id>/…``; locked decision 10 keeps it
-distinct from the ``/runs/<run_id>`` deep-link route) and the downloads
-page (``/downloads``) is registered.
+ static directory (``/runfiles/<run_id>/…``; locked decision 10 keeps it
+ distinct from the ``/runs/<run_id>`` deep-link route) and the downloads
+ page (``/downloads``) is registered. M2 D5: the per-service recipe
+ editor (``/recipes/<service>``) is registered.
 """
 
 import logging
@@ -37,6 +38,7 @@ from .auth import register_auth
 from .dashboard import register_dashboard
 from .downloads import register_downloads
 from .login import register_login_page
+from .recipes import register_recipe_editor
 from .runfiles import register_runfiles
 from .task_detail import register_task_detail
 
@@ -88,6 +90,7 @@ def build_app(db: Database, orchestrator: Orchestrator,
     register_login_page(db)
     register_dashboard(db, orchestrator, scheduler)
     register_task_detail(db, orchestrator)
+    register_recipe_editor(db, orchestrator)
     register_downloads(db)
     register_runfiles(nicegui_app)
 

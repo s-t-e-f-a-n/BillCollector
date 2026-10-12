@@ -318,7 +318,12 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
                                     ui.image(detail.get("url", "")
                                              ).classes("max-h-[80vh]")
 
-                            table.on("stepshot", on_step_shot, ["detail"])
+                            # The js_handler emits the bare ``detail``
+                            # payload (see the dashboard's rowaction
+                            # binding): the args-spec form would arrive
+                            # wrapped as ``{"detail": ...}``.
+                            table.on("stepshot", on_step_shot,
+                                     js_handler="(event) => emit(event.detail)")
                         else:
                             ui.label("No step rows recorded.").classes(
                                 "text-grey-6")

@@ -78,8 +78,11 @@ COLUMNS = [
 # itself; ``table.on("rowaction", ...)`` below lands on the q-table root
 # element through Vue's attr fallthrough (the nicegui table wrapper and
 # QTable do not declare the event), where the NiceGUI client has bound
-# the listener. ``.stop`` keeps the click from reaching the row, so an
-# action click never triggers the row's task-detail navigation.
+# the listener. The binding's ``js_handler`` re-emits the bare
+# ``event.detail`` (the args-spec form would filter the event's fields
+# and arrive wrapped as ``{"detail": ...}``). ``.stop`` keeps the click
+# from reaching the row, so an action click never triggers the row's
+# task-detail navigation.
 ROW_BODY = """
 <q-tr :props="props" :class="props.row.status === 'waiting' ? 'bg-amber-100' : ''">
   <q-td v-for="col in props.cols" :key="col.name" :props="{ ...props, col: col }">
@@ -323,7 +326,15 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
             # new status without waiting for the ~2 s poll.
             refresh()
 
-        table.on("rowaction", on_row_action, ["detail"])
+        # The js_handler emits the CustomEvent's bare ``detail`` payload:
+        # with the ``["detail"]`` args spec instead, the client only
+        # filters the event's fields and the server receives
+        # ``{"detail": ...}`` (wrapped), which the handler above does not
+        # expect. The bare payload is also exactly what the User
+        # simulation's ``trigger("rowaction", ...)`` delivers, so both
+        # paths agree on the contract.
+        table.on("rowaction", on_row_action,
+                 js_handler="(event) => emit(event.detail)")
 
         ui.context.client.on_disconnect(pane.close)
 

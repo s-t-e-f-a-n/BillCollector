@@ -15,7 +15,6 @@ target-version = "py312"
 extend-exclude = [
     "apps/BillCollector.py",
     "apps/BillCollectorServices_pw.py",
-    "apps/bc_ui.py",
     "apps/helpers/",
 ]
 

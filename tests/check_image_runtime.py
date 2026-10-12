@@ -67,22 +67,27 @@ def check_headed_browser():
 def check_ui(checkout):
     with tempfile.TemporaryFile(mode="w+") as log:
         process = subprocess.Popen(
-            [sys.executable, "apps/bc_ui.py"], cwd=checkout, stdout=log, stderr=log
+            [sys.executable, "-m", "billcollector", "serve", "--port", "8000"],
+            cwd=checkout / "apps", stdout=log, stderr=log,
         )
         try:
             deadline = time.monotonic() + 60
             while process.poll() is None and time.monotonic() < deadline:
                 try:
-                    # Fixed loopback HTTP URL, with no user-provided scheme or host.
-                    with urllib.request.urlopen("http://127.0.0.1:8000/", timeout=2) as response:  # nosec B310
+                    # Fixed loopback HTTP URLs, with no user-provided scheme or host.
+                    # / is auth-protected; the public endpoints prove the daemon serves.
+                    with urllib.request.urlopen("http://127.0.0.1:8000/_alive", timeout=2) as response:  # nosec B310
+                        assert response.status == 200
+                        assert response.read() == b"ok"
+                    with urllib.request.urlopen("http://127.0.0.1:8000/login", timeout=2) as response:  # nosec B310
                         assert response.status == 200
                         assert b"BillCollector" in response.read()
-                    print("PASS NiceGUI HTTP startup", flush=True)
+                    print("PASS NiceGUI daemon startup", flush=True)
                     return
                 except OSError:
                     time.sleep(0.2)
             log.seek(0)
-            raise RuntimeError(f"NiceGUI did not start:\n{log.read()}")
+            raise RuntimeError(f"NiceGUI daemon did not start:\n{log.read()}")
         finally:
             stop_process(process)
 

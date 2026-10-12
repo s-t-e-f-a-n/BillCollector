@@ -12,7 +12,7 @@
   - [Vault of Secrets](#vault-of-secrets)
   - [Enabling DNS and HTTPS with Let's Encrypt certs](#enabling-dns-and-https-with-lets-encrypt-certs)
   - [The BillCollector Installation](#the-billcollector-installation-and-docker-deployment)
-  - [Manual Run UI](#manual-run-ui)
+  - [Web UI](#web-ui)
 - [Configure BillCollector](#configuration)
   - [Vaultwarden and Bitwarden](#vaultwarden-and-bitwarden)
   - [Local Development & Debugging](#local-development--debugging)
@@ -167,15 +167,15 @@ Python dependencies are validated during the image build. The final container
 does not include `pip` or `wheel`; update `apps/requirements.txt` and rebuild the
 image when changing dependencies. Local virtual environments keep their installers.
 
-### Manual Run UI
+### Web UI
 
-Besides cron, BillCollector ships with a minimal web UI for manual runs. From the `apps` directory run:
+Besides cron, BillCollector ships with a web UI for running and supervising tasks. From the `apps` directory run:
 
 ```bash
-python3 bc_ui.py
+python3 -m billcollector serve
 ```
 
-This opens a NiceGUI supervisor page on port 8000 where you select an INI file and a service, start or stop the run of that single service, and watch its output line by line. The UI is a pure subprocess supervisor: it launches `BillCollector.py <ini> --service <NAME>` and streams its stdout, so the scraping code stays untouched. A run left behind by a previous UI instance is cleaned up when the UI starts.
+This starts the BillCollector daemon on port 8000. The first start shows a set-password form; afterwards you sign in with that password. The dashboard lists all tasks with their status, last/next run, and latest download, with a live log pane; per-task pages show the run history with step screenshots, downloads, and Run now / Stop actions; recipes can be edited and validated with an optional git auto-commit; daemon settings (password, ntfy topic, concurrency, and more) live on the Settings page.
 
 ## Configuration
 

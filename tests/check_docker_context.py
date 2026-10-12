@@ -20,7 +20,7 @@ def main():
     parser.add_argument("--dockerignore", type=Path, default=ROOT / ".dockerignore")
     args = parser.parse_args()
     excluded = (
-        "apps/.env", "apps/.env.local", "apps/bc.log", "apps/.bc_ui_run.json",
+        "apps/.env", "apps/.env.local", "apps/bc.log",
         "apps/.bc.lock", "apps/recipes_playwright/.code/recorded.py", "apps/db/bc.db",
         "apps/browser/profile/Default/Cookies",
         "apps/Downloads/invoice.pdf", "apps/.venv/lib/private.py",

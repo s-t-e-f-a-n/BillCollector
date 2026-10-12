@@ -20,9 +20,11 @@ badge, the live log pane, the ``/runs/<run_id>`` deep-link route) and
 the task detail page (``/tasks/<task_id>``, full page since D4) are
 wired in here. M2 D4: ``config.RUN_DIR`` is exposed as the ``runfiles``
  static directory (``/runfiles/<run_id>/…``; locked decision 10 keeps it
- distinct from the ``/runs/<run_id>`` deep-link route) and the downloads
- page (``/downloads``) is registered. M2 D5: the per-service recipe
- editor (``/recipes/<service>``) is registered.
+  distinct from the ``/runs/<run_id>`` deep-link route) and the downloads
+  page (``/downloads``) is registered. M2 D5: the per-service recipe
+  editor (``/recipes/<service>``) is registered. M2 D6: the settings
+  page (``/settings``, the Settings-table fields of locked decision 12)
+  is registered.
 """
 
 import logging
@@ -40,6 +42,7 @@ from .downloads import register_downloads
 from .login import register_login_page
 from .recipes import register_recipe_editor
 from .runfiles import register_runfiles
+from .settings import register_settings
 from .task_detail import register_task_detail
 
 logger = logging.getLogger("billcollector.ui.app")
@@ -92,6 +95,7 @@ def build_app(db: Database, orchestrator: Orchestrator,
     register_task_detail(db, orchestrator)
     register_recipe_editor(db, orchestrator)
     register_downloads(db)
+    register_settings(db)
     register_runfiles(nicegui_app)
 
 

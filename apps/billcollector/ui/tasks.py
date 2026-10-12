@@ -8,7 +8,10 @@ is derived from the service, shown read-only, and a missing file warns
 but does not block creation - locked decision 9), and a row **Edit**
 button opens the same dialog for an existing task (service/user
 read-only, cron + enabled editable - the enabled switch is the
-enable/disable toggle). Every change goes through
+enable/disable toggle). Both render their content in a fixed-width
+card, since a bare ``q-dialog`` floats its children over the
+darkened backdrop where the fields are barely readable. Every change
+goes through
 ``db.create_task`` / ``db.update_task`` + ``scheduler.sync_task`` (the
 single task-change hook, C7.1). There is no task deletion in M2:
 disabling is the off switch.
@@ -39,21 +42,28 @@ def open_task_dialog(db: Database, scheduler: TaskScheduler, refresh,
                      task_id: int | None = None) -> None:
     """Open the create dialog (``task_id`` None) or the edit dialog.
 
-    ``refresh`` re-renders the dashboard table so the change is visible
-    without waiting for the ~2 s poll."""
+    The content renders in a fixed-width card: a bare ``q-dialog`` floats
+    its children over the darkened backdrop, where the labelled fields
+    are barely readable and their widths collapse, so the card gives
+    them a solid, roomy surface. ``refresh`` re-renders the dashboard
+    table so the change is visible without waiting for the ~2 s poll."""
     task = db.get_task(task_id) if task_id is not None else None
 
-    with ui.dialog() as dialog:
+    with ui.dialog() as dialog, ui.card().classes("w-96"):
         dialog.open()
         if task is None:
             ui.label("New task").classes("text-h6")
             ui.label("The recipe is shared by all tasks of a service "
                      "(per-service recipe file).").classes("text-grey-6")
-            service_input = ui.input(label="Service").mark("task-service")
-            user_input = ui.input(label="User").mark("task-user")
-            cron_input = ui.input(label="Cron", value=DEFAULT_CRON).mark("task-cron")
+            service_input = ui.input(label="Service").classes("w-full") \
+                .mark("task-service")
+            user_input = ui.input(label="User").classes("w-full") \
+                .mark("task-user")
+            cron_input = ui.input(label="Cron", value=DEFAULT_CRON) \
+                .classes("w-full").mark("task-cron")
             enabled_switch = ui.switch("Enabled").mark("task-enabled")
-            recipe_label = ui.label().mark("task-recipe")
+            recipe_label = ui.label().classes("w-full text-grey-6") \
+                .mark("task-recipe")
 
             def update_recipe_label(_e=None) -> None:
                 service = (service_input.value or "").strip()
@@ -72,15 +82,17 @@ def open_task_dialog(db: Database, scheduler: TaskScheduler, refresh,
             service_input = None
             user_input = None
             cron_input = ui.input(label="Cron",
-                                  value=task["cron"] or DEFAULT_CRON).mark("task-cron")
+                                  value=task["cron"] or DEFAULT_CRON) \
+                .classes("w-full").mark("task-cron")
             enabled_switch = ui.switch("Enabled",
-                                       value=bool(task["enabled"])).mark("task-enabled")
+                                       value=bool(task["enabled"])) \
+                .mark("task-enabled")
             recipe = config.recipe_path_for(task["service"])
             state = "" if recipe.exists() else " (missing)"
             ui.label(f"Recipe (shared, read-only): {recipe.name}{state}"
-                     ).mark("task-recipe")
+                     ).classes("text-grey-6").mark("task-recipe")
 
-        with ui.row().classes("w-full justify-end"):
+        with ui.row().classes("w-full justify-end items-center gap-2"):
             ui.button("Cancel", on_click=dialog.close).props("flat")
             save_btn = ui.button("Save").mark("task-save").props("color=primary")
 

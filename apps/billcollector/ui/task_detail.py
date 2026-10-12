@@ -208,13 +208,13 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
         def on_reset(_e) -> None:
             """Reset profile: the confirmation dialog (locked decision 8);
             the delete itself is db.reset_profile (D3.4)."""
-            with ui.dialog() as confirm:
+            with ui.dialog() as confirm, ui.card().classes("w-96"):
                 confirm.open()
                 ui.label("Reset the profile?").classes("text-h6")
                 ui.label("The browser profile directory is deleted and the "
                          "next run cold-starts (the consent banner is shown "
                          "again).")
-                with ui.row().classes("w-full justify-end"):
+                with ui.row().classes("w-full justify-end items-center gap-2"):
                     ui.button("Cancel", on_click=confirm.close).props("flat")
                     ok_btn = ui.button("Reset").mark("detail-reset-confirm") \
                         .props("color=primary")

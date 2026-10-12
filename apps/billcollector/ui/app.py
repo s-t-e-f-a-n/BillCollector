@@ -17,8 +17,11 @@ page (set-password on first start, then login); every non-public path
 redirects to ``/login`` until the session carries ``authenticated``.
 M2 D2: the dashboard (``/``: task table with filters and the waiting
 badge, the live log pane, the ``/runs/<run_id>`` deep-link route) and
-the task detail placeholder (``/tasks/<task_id>``) are wired in here
-(the full task detail page lands in D4).
+the task detail page (``/tasks/<task_id>``, full page since D4) are
+wired in here. M2 D4: ``config.RUN_DIR`` is exposed as the ``runfiles``
+static directory (``/runfiles/<run_id>/…``; locked decision 10 keeps it
+distinct from the ``/runs/<run_id>`` deep-link route) and the downloads
+page (``/downloads``) is registered.
 """
 
 import logging
@@ -32,7 +35,9 @@ from ..orchestrator import Orchestrator
 from ..scheduler import TaskScheduler
 from .auth import register_auth
 from .dashboard import register_dashboard
+from .downloads import register_downloads
 from .login import register_login_page
+from .runfiles import register_runfiles
 from .task_detail import register_task_detail
 
 logger = logging.getLogger("billcollector.ui.app")
@@ -82,7 +87,9 @@ def build_app(db: Database, orchestrator: Orchestrator,
     register_auth(nicegui_app, db)
     register_login_page(db)
     register_dashboard(db, orchestrator, scheduler)
-    register_task_detail(db)
+    register_task_detail(db, orchestrator)
+    register_downloads(db)
+    register_runfiles(nicegui_app)
 
 
 def start(host: str, port: int) -> None:

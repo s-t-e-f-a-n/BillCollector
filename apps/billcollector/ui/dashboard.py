@@ -39,13 +39,11 @@ from ..orchestrator import Orchestrator
 from ..scheduler import TaskScheduler, job_id_for
 from .auth import require_auth
 from .layout import build_layout
+from .logpane import LogPane
 from .tasks import open_task_dialog
 
 # The task statuses a row can carry (Run results are a separate axis).
 STATUSES = ("idle", "running", "waiting")
-
-# The log pane keeps at most this many lines (spec: ~2000).
-LOG_MAX_LINES = 2000
 
 # Last-download filenames are truncated to this width (spec).
 DOWNLOAD_NAME_WIDTH = 30
@@ -230,29 +228,10 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
         table = ui.table(columns=COLUMNS, rows=rows).classes("w-full")
         table.add_slot("body", ROW_BODY)
 
-        log = ui.log(max_lines=LOG_MAX_LINES).classes("w-full h-64")
-        selected_run_id = {"id": None}
-
-        def load_run_log(run) -> None:
-            """Show the run's log file content (the pane's initial state)."""
-            log.clear()
-            if run is not None and run["log_path"]:
-                path = Path(run["log_path"])
-                if path.exists():
-                    for line in path.read_text(encoding="utf-8",
-                                               errors="replace").splitlines():
-                        log.push(line)
-
-        def on_log_line(task_id: int, run_id, line: str) -> None:
-            """Live lines (D2.2) for the followed run only."""
-            if run_id is not None and run_id == selected_run_id["id"]:
-                log.push(line)
-
+        pane = LogPane(orchestrator)
         initial = _default_run(db)
         if initial is not None:
-            selected_run_id["id"] = initial["id"]
-        load_run_log(initial)
-        orchestrator.add_log_subscriber(on_log_line)
+            pane.follow(initial)
 
         def refresh() -> None:
             """DB poll (~2 s): rebuild the table and the waiting badge."""
@@ -346,8 +325,7 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
 
         table.on("rowaction", on_row_action, ["detail"])
 
-        ui.context.client.on_disconnect(
-            lambda: orchestrator.remove_log_subscriber(on_log_line))
+        ui.context.client.on_disconnect(pane.close)
 
     @ui.page("/runs/{run_id}")
     def runs_redirect(request: Request, run_id: int) -> None:

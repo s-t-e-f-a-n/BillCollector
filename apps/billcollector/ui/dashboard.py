@@ -22,10 +22,13 @@ opens the create dialog and a row **Edit** button opens the edit
 dialog (cron + enabled); each change hits
 ``db.create_task``/``db.update_task`` + ``scheduler.sync_task``.
 
-The task detail page is a placeholder until D4. ``ui.timer`` polls the
-DB (~2 s) and refreshes the table and badge (WAL reads); the log pane
-reads the run's log file once, then follows the orchestrator's log
-subscribers (D2.2).
+``ui.timer`` polls the DB (~2 s) and refreshes the table and badge
+(WAL reads); the log pane reads the run's log file once, then follows
+the orchestrator's log subscribers (D2.2) - re-pointing at the run it
+should follow on every poll, so a run started via Run now after the page
+load streams live too. Below the log pane, the step strip shows the
+followed run's step screenshot thumbnails (full image on click); the
+same thumbnails live in the task detail's run expansion (D4.1b).
 """
 
 from pathlib import Path
@@ -40,6 +43,7 @@ from ..scheduler import TaskScheduler, job_id_for
 from .auth import require_auth
 from .layout import build_layout
 from .logpane import LogPane
+from .runfiles import runfile_url
 from .tasks import open_task_dialog
 
 # The task statuses a row can carry (Run results are a separate axis).
@@ -232,12 +236,75 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
         table.add_slot("body", ROW_BODY)
 
         pane = LogPane(orchestrator)
-        initial = _default_run(db)
-        if initial is not None:
-            pane.follow(initial)
+
+        def refresh_log() -> None:
+            """Follow the run the pane should show (D2.2/D2.3 live log):
+            the most recent active run, else the most recent finished run
+            (the dashboard has no run selector, so a run started via Run now
+            is picked up on the next poll and streams live from there - the
+            pane loads the log file on follow, then receives live lines)."""
+            run = _default_run(db)
+            if run is not None and pane.selected_run_id != run["id"]:
+                pane.follow(run)
+
+        refresh_log()
+
+        # ---- Step screenshots of the followed run -------------------------
+        # The run's step thumbnails (D4.1b also shows them in the task
+        # detail's run expansion; the dashboard strip is the at-a-glance
+        # view the operator asked for): the followed run's PageStatus
+        # screenshots as a compact row, rebuilt only when the followed
+        # run or its step rows change, so the strip fills in live while a
+        # run is in progress. A thumbnail click opens the full image in a
+        # dialog (a plain element handler - the strip is built from real
+        # NiceGUI elements, not a slot template, so no CustomEvent is
+        # needed).
+        steps_box = ui.column().classes("w-full")
+        steps_sig = {"sig": None}
+
+        def open_shot(url: str) -> None:
+            """Thumbnail click -> the full image in a dialog."""
+            with ui.dialog() as dlg:
+                dlg.open()
+                ui.image(url).classes("max-h-[80vh]")
+
+        def render_steps() -> None:
+            """Rebuild the strip when the followed run or its step rows
+            changed (the signature: the run id + the PageStatus ids)."""
+            run_id = pane.selected_run_id
+            rows = db.list_page_status(run_id) if run_id is not None else []
+            sig = (run_id, tuple(r["id"] for r in rows))
+            if sig == steps_sig["sig"]:
+                return
+            steps_sig["sig"] = sig
+            steps_box.clear()
+            shots = []
+            for r in rows:
+                url = runfile_url(r["screenshot_path"])
+                if url:
+                    shots.append((r["step_number"], url))
+            if not shots:
+                return
+            with steps_box:
+                ui.label(f"Steps · Run {run_id}").classes("text-h6") \
+                    .mark("step-thumbs-label")
+                with ui.row().classes("items-end gap-2 step-thumbs") \
+                        .mark("step-thumbs"):
+                    for step_no, url in shots:
+                        with ui.column().classes("items-center gap-1"):
+                            ui.image(url).classes(
+                                "h-20 cursor-pointer rounded") \
+                                .on("click", lambda _e, u=url: open_shot(u))
+                            ui.label(
+                                str(step_no if step_no is not None else "—")
+                            ).classes("text-xs text-grey-6")
+
+        render_steps()
 
         def refresh() -> None:
-            """DB poll (~2 s): rebuild the table and the waiting badge."""
+            """DB poll (~2 s): rebuild the table and the waiting badge,
+            re-point the log pane at the run it should follow, and refresh
+            the step strip of the followed run."""
             rows = build_rows(db, scheduler,
                               service=service_select.value or "All",
                               status=status_select.value or "All")
@@ -246,6 +313,8 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
             waiting_badge.set_text(f"{waiting} waiting")
             waiting_badge.props(
                 f"color={'orange' if waiting else 'grey'}")
+            refresh_log()
+            render_steps()
 
         service_select.on_value_change(lambda _e: refresh())
         status_select.on_value_change(lambda _e: refresh())

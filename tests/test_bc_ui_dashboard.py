@@ -36,6 +36,7 @@ from nicegui import ui
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
+from billcollector import config  # noqa: E402
 from billcollector import scheduler as sched_mod  # noqa: E402
 from billcollector.db import Database  # noqa: E402
 from billcollector.orchestrator import Orchestrator  # noqa: E402
@@ -80,13 +81,13 @@ def _seed(testdb, tmp_path) -> dict:
     running = testdb.create_task("svc-b", "user1", enabled=True, cron="* * * * *")
     log = tmp_path / "run.log"
     log.write_text("daemon boot\nline two\n", encoding="utf-8")
-    testdb.create_run(running, log_path=str(log))
+    run_running = testdb.create_run(running, log_path=str(log))
     testdb.set_task_status(running, "running")
     waiting = testdb.create_task("svc-a", "user2", enabled=False)
     testdb.update_run(testdb.create_run(waiting), pause_reason="paused by test")
     testdb.set_task_status(waiting, "waiting")
     return {"idle": idle, "running": running, "waiting": waiting,
-            "run_idle": run_idle, "log": log}
+            "run_idle": run_idle, "run_running": run_running, "log": log}
 
 
 def _table_rows(user) -> list[dict]:
@@ -246,6 +247,62 @@ async def test_log_pane_shows_the_followed_run_log(user, testdb, tmp_path):
     # The pane follows the most recent running run: its log file content.
     await user.should_see("daemon boot")
     await user.should_see("line two")
+
+
+async def test_log_pane_repoints_to_a_run_started_after_the_page_load(
+        user, testdb, tmp_path):
+    """The Run now flow (D2.3 live log): a run started after the page
+    load is picked up on the next ~2 s poll - the pane clears the old
+    run's content and shows the new run's log file, then streams its
+    live lines from there."""
+    _seed(testdb, tmp_path)
+    await _login(user, testdb)
+    await user.open("/")
+    await user.should_see("daemon boot")
+
+    # A new run starts (the row Run now would: claim, spawn, Run row).
+    log2 = tmp_path / "fresh-run.log"
+    log2.write_text("fresh run line\n", encoding="utf-8")
+    task2 = testdb.create_task("svc-c", "user1", enabled=True,
+                               cron="0 0 1 * *")
+    testdb.create_run(task2, log_path=str(log2))
+    testdb.set_task_status(task2, "running")
+
+    # The ~2 s poll re-points the pane at the new active run (the retry
+    # window spans the poll interval).
+    await user.should_see("fresh run line", retries=10)
+
+
+async def test_step_strip_shows_the_followed_run_screenshots(
+        user, testdb, tmp_path):
+    """The step strip below the log pane (the at-a-glance view of the
+    followed run's steps, the task detail's run expansion carries the
+    full table): the PageStatus screenshots with their step numbers; a
+    thumbnail click opens the full image in a dialog."""
+    seed = _seed(testdb, tmp_path)
+    run = seed["run_running"]
+    run_dir = config.RUN_DIR / str(run)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "step_3.png").write_bytes(b"png-dash")
+    testdb.insert_page_status(run, 3, locator_action='{"step": 3}',
+                              screenshot_path=str(run_dir / "step_3.png"))
+    testdb.insert_page_status(run, 4, locator_action='{"step": 4}')
+
+    await _login(user, testdb)
+    await user.open("/")
+
+    await user.should_see(f"Steps · Run {run}")
+    (img,) = user.find(kind=ui.image).elements
+    # Only the step with a screenshot is rendered (the runfiles tree
+    # holds the file, so the URL maps).
+    assert img.source == f"/runfiles/{run}/step_3.png"
+    # The step number labels the thumbnail.
+    labels = user.find(kind=ui.label).elements
+    assert any(label.text == "3" for label in labels)
+    # The thumbnail click opens the full image in a dialog (a second
+    # ui.image with the same source).
+    user.find(kind=ui.image).click()
+    assert len(user.find(kind=ui.image).elements) == 2
 
 
 async def test_unknown_run_id_shows_a_404(user, testdb, tmp_path):

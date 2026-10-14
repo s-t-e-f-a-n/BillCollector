@@ -10,7 +10,7 @@ services:
       arguments:
       - url: "http://127.0.0.1:8787/happy/"
   - step: 2
-    description: "Dismiss the cookie banner (absent when the consent cookie persists)."
+    description: "Dismiss the cookie banner (absent when the consent cookie persists). — M2 exit pass check"
     graceful: true
     methods:
     - method: "get_by_role"

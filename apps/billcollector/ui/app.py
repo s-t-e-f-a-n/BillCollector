@@ -31,6 +31,7 @@ import logging
 
 from fastapi import Response
 from nicegui import app as nicegui_app
+from nicegui import core as _nicegui_core
 from nicegui import ui
 
 from ..db import Database
@@ -46,6 +47,76 @@ from .settings import register_settings
 from .task_detail import register_task_detail
 
 logger = logging.getLogger("billcollector.ui.app")
+
+# --- Slot-template DOM globals (Vue 3 runtime-compiler workaround) ------------
+#
+# NiceGUI slot templates (the dashboard ROW_BODY and the task-detail
+# STEP_BODY) are compiled on the client by Vue's *runtime* compiler, which
+# wraps the generated render code in a ``with (_ctx)`` scope. For
+# runtime-compiled components, Vue's instance proxy answers that scope's
+# ``has`` probe affirmatively for every identifier that is not in a small
+# built-in allow-list (Math, JSON, Date, ...) and its ``get`` probe then
+# returns ``undefined`` instead of falling through to the browser globals.
+# ``new CustomEvent(...)`` in a slot template's inline ``@click`` handler
+# therefore throws ``TypeError: CustomEvent is not a constructor`` before
+# the event is ever dispatched: the dashboard row-action buttons (Run now /
+# Stop / Edit) and the task-detail screenshot click silently do nothing,
+# and no event reaches the server. The proxy's ``get`` does consult
+# ``app.config.globalProperties`` - Vue's documented escape hatch for
+# exactly this situation - so expose the ``CustomEvent`` constructor there.
+# NiceGUI injects ``vue_config_script`` into every page's module script
+# before ``app.mount`` (where ``app`` is the Vue app in scope), so the
+# binding is in place before the first render. Add further browser globals
+# (e.g. ``window``) here if a future slot template needs them.
+nicegui_app.config.vue_config_script += (
+    "\napp.config.globalProperties.CustomEvent = CustomEvent;\n"
+)
+
+# --- Socket.IO client-disconnect tolerance (python-engineio bug) -------------
+#
+# The engineio ASGI driver (``engineio/async_drivers/asgi.py``,
+# ``translate_request``) returns an *empty* environ when the first ASGI
+# event is neither ``http.request`` nor ``websocket.connect`` - i.e. when
+# the client went away before its request was delivered (an aborted
+# preconnect, a reload that kills an in-flight poll, a WSL2
+# localhost-forward drop; uvicorn's ``receive`` then yields
+# ``http.disconnect`` first). Its only caller (``engineio/async_server.py``,
+# ``AsyncServer.handle_request``) then indexes
+# ``environ['REQUEST_METHOD']`` unconditionally: the unhandled ``KeyError``
+# unwinds through the whole middleware stack (including the auth
+# BaseHTTPMiddleware) and is logged as a 500 "Exception in ASGI
+# application" although no client is left to answer. python-engineio 4.14.0
+# (latest) still ships this, so the workaround is a wrapper, not a pin.
+#
+# The wrapper must *send a response* on that path: the mount sits below
+# BaseHTTPMiddleware layers, whose ``call_next`` turns "the wrapped app
+# sent nothing" into ``RuntimeError("No response returned.")`` - swapping
+# one traceback for an equally noisy one. 499 (client closed request) is
+# the honest status; uvicorn drops writes to an already-closed transport,
+# so nothing reaches the wire.
+_sio = _nicegui_core.sio
+if not getattr(_sio, "_billcollector_disconnect_tolerant", False):
+    _orig_handle_request = _sio.handle_request
+
+    async def _tolerant_handle_request(*args, **kwargs):
+        try:
+            return await _orig_handle_request(*args, **kwargs)
+        except KeyError as exc:
+            if exc.args != ("REQUEST_METHOD",) or len(args) < 3 \
+                    or not isinstance(args[0], dict):
+                raise
+            scope, send = args[0], args[2]
+            if scope.get("type") == "http":
+                await send({"type": "http.response.start", "status": 499,
+                            "headers": []})
+                await send({"type": "http.response.body", "body": b""})
+            elif scope.get("type") == "websocket":
+                await send({"type": "websocket.close", "code": 1000})
+            else:
+                raise
+
+    _sio.handle_request = _tolerant_handle_request
+    _sio._billcollector_disconnect_tolerant = True
 
 
 def build_lifecycle(db: Database, orchestrator: Orchestrator,

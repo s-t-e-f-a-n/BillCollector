@@ -358,7 +358,7 @@ def _process_step(bcs, step):
         raise ValueError("Invalid step format: Expected a dictionary with a 'methods' key.")
 
     step_number = step.get("step", 0)
-    logger.debug(f"Processing Step {step_number}")
+    logger.info(f"Processing Step {step_number}")
     step_results = {}
     previous_result = bcs.page  # Starting object.
 

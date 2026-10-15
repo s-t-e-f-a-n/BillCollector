@@ -26,6 +26,13 @@ at the same ~2 s regime as the other pages:
   elements). No noVNC (the display stack is reaped)
 - an unknown run id -> the 404 label (the M2 behavior)
 
+The **Repair recipe** link (M3 chunk S2.3, decision 7) is offered for a
+``step_failed`` pause - while the run is waiting and after it has
+ended (the pause columns survive the resume): it links to the recipe
+editor with the run's failure context preloaded
+(``/recipes/<service>?run=<run_id>``), where the candidate picker is
+the primary repair path.
+
 The noVNC tab (M3 decision 6) is a full-size iframe whose ``src`` is
 built *client-side* (the ``NOVNC_SRC_SCRIPT`` body script) from
 ``window.location.hostname`` and the run's websockify port (the
@@ -228,6 +235,18 @@ def pause_context_summary(run) -> dict | None:
         "shot_url": runfile_url(shot_path),
         "elements": elements,
     }
+
+
+def repair_recipe_url(run, task) -> str | None:
+    """The session page's **Repair recipe** link (M3 S2.3, decision 7):
+    for a ``step_failed`` pause (waiting or ended), the recipe editor
+    with the run's failure context preloaded
+    (``/recipes/<service>?run=<run_id>``). None for the other pause
+    reasons (``wait_user``, ``download_failed`` - the YAML path) and
+    for a run whose task row is missing."""
+    if run["pause_reason"] != "step_failed" or task is None:
+        return None
+    return f"/recipes/{task['service']}?run={run['id']}"
 
 
 def control_client(sock_path: str) -> ControlClient:
@@ -643,6 +662,14 @@ def register_session(db: Database) -> None:
                             .mark("session-pause-prompt")
                     refs["deadline"] = ui.label("") \
                         .mark("session-pause-deadline")
+                    # The Repair recipe link (M3 S2.3): a step_failed
+                    # pause offers the candidate picker directly.
+                    repair_url = repair_recipe_url(
+                        run, db.get_task(run["task_id"]))
+                    if repair_url:
+                        ui.link("Repair recipe", repair_url) \
+                            .props("no-caps").classes("text-blue-700") \
+                            .mark("session-repair")
                 with ui.tabs().classes("w-full") as tabs:
                     ui.tab("Copilot").mark("session-copilot-tab")
                     ui.tab("noVNC").mark("session-novnc-tab")
@@ -729,6 +756,16 @@ def register_session(db: Database) -> None:
                             .mark("session-result-started")
                         ui.label(f"Ended: {run['ended_at'] or '—'}") \
                             .mark("session-result-ended")
+                # The Repair recipe link (M3 S2.3): the pause columns
+                # survive the resume, so a step_failed run that ended
+                # (cancelled / needs_attention / ...) still offers the
+                # candidate picker on its last failure.
+                repair_url = repair_recipe_url(
+                    run, db.get_task(run["task_id"]))
+                if repair_url:
+                    ui.link("Repair recipe", repair_url) \
+                        .props("no-caps").classes("text-blue-700") \
+                        .mark("session-repair")
                 if run["notes"]:
                     ui.label(f"Notes: {run['notes']}") \
                         .classes("text-grey-6").mark("session-notes")

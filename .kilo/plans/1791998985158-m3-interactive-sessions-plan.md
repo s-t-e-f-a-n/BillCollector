@@ -318,8 +318,35 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
     the payload: the shape test asserts `step_number=11`, a new
     default-None test, the waiting-loop test asserts the field
     persists on the Run row, and the three runner wiring tests assert
-    the passed step number (`args[5]`: 7, 14, 11). Full suite green
-    (278 + 37 subtests), ruff clean. Next: S2.2.
+     the passed step number (`args[5]`: 7, 14, 11). Full suite green
+     (278 + 37 subtests), ruff clean. Next: S2.2.
+- **S2.2 done (2026-10-15, `5167230` + `3f78ef1`).** The pure candidate
+  replacement is in (M3 decision 7):
+  `recipes.apply_candidate_to_step(recipe_data, step_number, candidate)`
+  replaces the step's locator prefix (the leading run of methods up to
+  the first chain-ending method: click/fill/press, goto, close,
+  expect_download, wait_user) with the candidate's locator as a single
+  method entry, and the trailing action methods (click/fill/press with
+  their arguments, e.g. `{{PASSWORD}}`) are kept unchanged. Chain-
+  continuing methods (`first`, `content_frame`) are part of the prefix:
+  the candidate is the full locator of the real element, so a scoped
+  chain (`get_by_role(main)` -> `get_by_role(textbox)`) is replaced
+  whole (the operator can still fine-tune the rewritten YAML - the
+  advanced path). The candidate's `arguments` dict becomes the recipe's
+  list of single-key dicts with its key order preserved; the input is
+  never mutated. Not applicable -> None (the picker's YAML-path hint):
+  a malformed candidate, a non-recipe document, the step number missing
+  from the top-level steps (nested `expect_download` steps are never
+  repaired), or a step with no locator prefix (the goto/close/
+  expect_download/wait_user steps). Unit tests (the plan's S2.2 list):
+  the replacement keeps the actions and their arguments, the method-
+  entry shape and key order, a `get_by_text` candidate, a `get_by_role`
+  candidate with `exact: true`, the scoped chain and the `first`/
+  `content_frame` continuations, rejections of the `goto` step, a
+  missing step, nested steps, the `close`/`wait_user`/`expect_download`
+  steps, malformed candidates, non-recipe documents, non-int step
+  numbers, and the rewritten document re-validates against the real
+  schema. Full suite green (293 + 37 subtests), ruff clean. Next: S2.3.
 
 ### S1 — Session view (Copilot + noVNC)
 

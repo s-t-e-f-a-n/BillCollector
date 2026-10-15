@@ -6,7 +6,9 @@ The per-service recipe files stay as git-versioned YAML on disk
 locked decision 5 (no legacy ``BillCollectorCheckRecipe`` import, no
 ``exit()`` path): load, validate (``yaml.safe_load`` + jsonschema
 against ``config.RECIPE_SCHEMA``, structured error text, never
-raises), flatten the step tree for the editor's sidebar, and save
+raises), flatten the step tree for the editor's sidebar, the recipe
+repair flow's candidate replacement (M3 S2.2: replace the failed
+step's locator prefix with a pause-context scan candidate), and save
 atomically (a temp file in the same directory + ``os.replace``;
 unvalidated text is refused at the write site).
 """
@@ -165,6 +167,42 @@ def _locator_prefix_len(step) -> int:
     return count
 
 
+def _find_repair_step(recipe_data, step_number):
+    """The top-level step ``step_number`` can be candidate-repaired:
+    ``(service_index, step_index, step)``; None otherwise (a non-recipe
+    document, a non-int step number, the number missing from the
+    top-level steps - nested ``expect_download`` steps are never
+    repaired - or a step with no locator prefix). The first step with
+    the number decides, so a prefix-less step is never skipped for a
+    later same-numbered step."""
+    if not isinstance(recipe_data, dict):
+        return None
+    if isinstance(step_number, bool) or not isinstance(step_number, int):
+        return None
+    for service_index, service in enumerate(recipe_data.get("services") or []):
+        if not isinstance(service, dict):
+            continue
+        for step_index, step in enumerate(service.get("steps") or []):
+            if isinstance(step, dict) and step.get("step") == step_number:
+                if _locator_prefix_len(step) > 0:
+                    return service_index, step_index, step
+                return None
+    return None
+
+
+def repair_target(recipe_data, step_number):
+    """The step a candidate replacement applies to (M3 S2.3) - the
+    picker's not-applicable check (decision 7): the top-level step
+    ``step_number`` when it carries a locator prefix, else None (a
+    non-recipe document, a non-int/missing step number, a step absent
+    from the top-level steps - nested ``expect_download`` steps are
+    never repaired - or a step with no locator prefix: the goto/close/
+    expect_download/wait_user steps). Read-only: the document is never
+    mutated."""
+    found = _find_repair_step(recipe_data, step_number)
+    return found[2] if found is not None else None
+
+
 def apply_candidate_to_step(recipe_data, step_number, candidate):
     """Replace a step's locator prefix with a scan candidate (M3 S2.2).
 
@@ -188,32 +226,20 @@ def apply_candidate_to_step(recipe_data, step_number, candidate):
 
     Returns a new document (the input is never mutated) or ``None``
     when not applicable (the picker's YAML-path hint): a malformed
-    candidate, a non-recipe document, the step number missing from the
-    top-level steps (nested ``expect_download`` steps are never
-    repaired - decision 7), or a step with no locator prefix (the
-    goto/close/expect_download/wait_user steps)."""
-    if not isinstance(recipe_data, dict):
-        return None
-    if isinstance(step_number, bool) or not isinstance(step_number, int):
-        return None
+    candidate, or the step is not a repair target (see
+    :func:`repair_target`)."""
     entry = _candidate_method_entry(candidate)
     if entry is None:
         return None
-    for service_index, service in enumerate(recipe_data.get("services") or []):
-        if not isinstance(service, dict):
-            continue
-        for step_index, step in enumerate(service.get("steps") or []):
-            if not isinstance(step, dict) or step.get("step") != step_number:
-                continue
-            prefix_len = _locator_prefix_len(step)
-            if prefix_len == 0:
-                return None
-            methods = step.get("methods") or []
-            document = copy.deepcopy(recipe_data)
-            new_step = document["services"][service_index]["steps"][step_index]
-            new_step["methods"] = [entry] + methods[prefix_len:]
-            return document
-    return None
+    found = _find_repair_step(recipe_data, step_number)
+    if found is None:
+        return None
+    service_index, step_index, step = found
+    methods = step.get("methods") or []
+    document = copy.deepcopy(recipe_data)
+    new_step = document["services"][service_index]["steps"][step_index]
+    new_step["methods"] = [entry] + methods[_locator_prefix_len(step):]
+    return document
 
 
 def save_recipe(path, text: str) -> tuple:

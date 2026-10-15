@@ -347,6 +347,54 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
   steps, malformed candidates, non-recipe documents, non-int step
   numbers, and the rewritten document re-validates against the real
   schema. Full suite green (293 + 37 subtests), ruff clean. Next: S2.3.
+- **S2.3 done (2026-10-15, `1769434` + `fedb46d` + `71bb666`).** The
+  editor preload + the session's **Repair recipe** link are in (M3
+  decision 7). The recipe editor reads `?run=<run_id>` (integer
+  `request.query_params`, non-integers ignored) → `db.get_run` →
+  `failure_panel_data(run)` (module-level pure helper: parses
+  `pause_context` as a JSON dict, None when missing/corrupt/not a
+  dict; extracts the title, the screenshot's `/runfiles` URL via
+  `runfile_url`, the step's number/description, the expected locators,
+  the error, and the candidate elements with their
+  `locator.locatorType`). The panel renders in a red card (marks
+  `recipe-failure*`): title `Failure (run N)`, the screenshot, the
+  step label, one mono label per expected locator
+  (`_locator_text(entry)`), the error. One row per candidate
+  (`n · role · name (locatorType)`, marks `recipe-candidate-row` /
+  `recipe-candidate`) with a **Use** button (mark `recipe-use-N`);
+  **Use** → `on_use(candidate)`: the editor's current YAML is parsed
+  (invalid YAML → the result label), `apply_candidate_to_step`
+  rewrites the step's locator prefix, the editor reloads with the
+  re-dumped YAML (the operator can fine-tune — the advanced path), the
+  step tree re-renders, and the result label says what was replaced —
+  then the existing Validate → Save flow applies (save + git commit).
+  The disabled-with-hint state (mark `recipe-repair-hint`, the Use
+  buttons `.disable()`d): a missing/corrupt pause context, a pause
+  that is not a step failure (`wait_user`), a step that is not a
+  repair target (the new `recipes.repair_target` read-only check — the
+  top-level step with a locator prefix, else None; extracted from
+  `apply_candidate_to_step`, which is refactored onto the shared
+  `_find_repair_step`), or a context with no candidate elements. The
+  session page offers the link via `repair_recipe_url(run, task)`
+  (None unless `pause_reason == "step_failed"` and the task row
+  exists; `/recipes/<service>?run=<run_id>`): in the waiting view's
+  pause banner and in the ended view (the pause columns survive the
+  resume, so a `step_failed` run that ended still offers the picker on
+  its last failure). Verified by a throwaway smoke test (deleted after
+  running; the committed S2.3 tests land in S2.4): the panel renders
+  (title, `/runfiles` shot URL, step label, the locator label, the
+  error, both candidate rows), **Use** rewrites the chain in the
+  editor (the re-parsed YAML keeps the `click` action and the
+  `{{PASSWORD}}` fill argument of a later step), Validate → Save
+  writes the file + the `recipe(svc): …` commit (per-test temp recipe
+  dir, temp git repo, the toggle on), a `goto` step (step 1) →
+  disabled picker + the not-repairable hint, a `wait_user` pause →
+  the not-a-step-failure hint + disabled picker, the waiting view's
+  link (text + `_props["href"]`), the ended view's link, and no link
+  for a `wait_user` ended run. One test-harness note: NiceGUI's
+  `user.find(...).click()` is the synchronous programmatic click (the
+  raw `Button.clicked()` waiter hangs in the simulation). Full suite
+  green (293 + 37 subtests), ruff clean. Next: S2.4.
 
 ### S1 — Session view (Copilot + noVNC)
 

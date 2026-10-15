@@ -5,7 +5,8 @@ The operator's per-task page (``/tasks/<task_id>``; replaces the D2
 placeholder): the header (service/user, status, enabled/cron, recipe
 file), the run actions (**Run now** / **Stop** / **Reset profile** with
 a confirmation dialog, locked decision 8 / D3.4, **Recipe** -> the D5
-page), the pause section while a run is ``waiting`` (D4.1c), the run
+page), the pause section while a run is ``waiting`` (D4.1c; M3 S1.1
+adds the **Open session** link to the intervention page), the run
 history with per-run step rows and screenshot thumbnails (D4.1b), the
 task's downloads (D4.3), and the live log of the selected run (D4.1c,
 the shared D2.3 log pane).
@@ -31,6 +32,7 @@ from .auth import require_auth
 from .downloads import BODY as DOWNLOAD_BODY
 from .downloads import COLUMNS as DOWNLOAD_COLUMNS
 from .downloads import build_download_rows
+from .format import deadline_text
 from .layout import build_layout
 from .logpane import LogPane
 from .runfiles import runfile_url
@@ -95,24 +97,6 @@ def _step_rows(db: Database, run_id: int) -> list[dict]:
             "screenshot": runfile_url(ps["screenshot_path"]),
         })
     return rows
-
-
-def _deadline_text(deadline_at) -> str:
-    """The pause deadline with its countdown (``Deadline: … (mm:ss
-    remaining)``), or ``… (passed)`` once it is over."""
-    if not deadline_at:
-        return "Deadline: —"
-    try:
-        dl = datetime.strptime(deadline_at, "%Y-%m-%d %H:%M:%S")
-    except (TypeError, ValueError):
-        return f"Deadline: {deadline_at}"
-    remaining = int((dl - datetime.now()).total_seconds())
-    if remaining <= 0:
-        return f"Deadline: {deadline_at} (passed)"
-    h, rem = divmod(remaining, 3600)
-    m, s = divmod(rem, 60)
-    left = f"{h}h {m:02d}m" if h else f"{m:02d}:{s:02d}"
-    return f"Deadline: {deadline_at} ({left} remaining)"
 
 
 def _pause_screenshot_url(run) -> str | None:
@@ -255,8 +239,15 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
                     with pause_box:
                         with ui.card().classes(
                                 "w-full bg-orange-50").mark("detail-pause"):
-                            ui.label("Paused").classes(
-                                "text-orange-900 text-h6")
+                            with ui.row().classes("items-center gap-2"):
+                                ui.label("Paused").classes(
+                                    "text-orange-900 text-h6")
+                                # The intervention page (M3 decision 2):
+                                # the operator acts from the session view,
+                                # not from this read-only card.
+                                ui.link("Open session",
+                                        f"/runs/{run['id']}") \
+                                    .mark("detail-pause-open")
                             ui.label(f"Reason: {run['pause_reason']}") \
                                 .mark("detail-pause-reason")
                             if run["pause_prompt"]:
@@ -271,7 +262,7 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
                                     .mark("detail-pause-shot")
             if (run is not None and pause_state["deadline"] is not None):
                 pause_state["deadline"].set_text(
-                    _deadline_text(run["pause_deadline_at"]))
+                    deadline_text(run["pause_deadline_at"]))
 
         render_pause()
 

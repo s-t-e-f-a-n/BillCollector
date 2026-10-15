@@ -406,17 +406,3 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
                  js_handler="(event) => emit(event.detail)")
 
         ui.context.client.on_disconnect(pane.close)
-
-    @ui.page("/runs/{run_id}")
-    def runs_redirect(request: Request, run_id: int) -> None:
-        """The ntfy deep link: the session view is M3, so the run's task
-        detail page is the target until then (D2.3)."""
-        redirect = require_auth(request)
-        if redirect is not None:
-            return redirect
-        run = db.get_run(run_id)
-        if run is None:
-            build_layout()
-            ui.label(f"Unknown run id: {run_id} (404)").classes("text-red-600")
-            return
-        ui.navigate.to(f"/tasks/{run['task_id']}")

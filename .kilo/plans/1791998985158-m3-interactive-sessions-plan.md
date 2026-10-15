@@ -218,7 +218,25 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
   file is bound while the waiting loop serves and unlinked on
   resume/cancel/timeout/shutdown; `run_state(run, sock_alive)` reads a
   resumed run as `running` and the page self-heals on the next poll.
-  Full suite green (257 + 37 subtests), ruff clean. Next: S1.2.
+   Full suite green (257 + 37 subtests), ruff clean. Next: S1.2.
+- **S1.2 done (2026-10-15, `ce75ef9`).** The waiting view is live on
+   `/runs/<run_id>` (M3 decisions 1/3/4/5): the pause banner (reason,
+   prompt, the shared `format.deadline_text` countdown), the live
+   screenshot (control-socket `screenshot`) with the numbered overlay
+   (`png_dims` IHDR parse, `overlay_pct` center-by-percentage badge
+   placement, badge tap -> element select), the `n · role · name`
+   element select, the action bar (click / fill + text / press + key /
+   drag + dx,dy, enabled per the element's `actionTypes`; press always
+   enabled), **Resume** (primary) and **Cancel** (confirmation dialog ->
+   protocol `cancel`), the ~5 s screenshot+elements poll plus the
+   immediate post-action refresh, and the ControlError degrade (notify
+   + state refresh, never a crash). An empty `elements` list renders
+   the noVNC hint (decision 1). A throwaway smoke test (deleted after
+   running; the committed S1.2 tests land in S1.4) drove the real page
+   against a stubbed client end to end and caught one bug: the
+   `do_action` signature's `text` parameter collided with the protocol's
+   `text=` argument of `fill` (renamed to `note`). Full suite green
+   (257 + 37 subtests), ruff clean. Next: S1.3.
 
 ### S1 — Session view (Copilot + noVNC)
 

@@ -85,15 +85,20 @@ def scan_elements(page):
     return state.interactive_elements or []
 
 
-def build_pause_context(ctx, reason, prompt, step_action_json, error, deadline_at):
+def build_pause_context(ctx, reason, prompt, step_action_json, error, deadline_at,
+                        step_number=None):
     """Build the machine-readable pause payload (the intervention context).
 
     ``step_action_json`` is the failing step's locator-action JSON (the
     ``transform_step_to_json`` output), or None for pauses without a
-    failing step (``wait_user``). Never raises for page errors: every page
-    access is best-effort, a degraded context is still a context. A
-    shutdown signal (RunInterrupted) always propagates (C7.5): it is the
-    end of the run, not a page error to degrade around.
+    failing step (``wait_user``). ``step_number`` is the failing step's
+    recipe number, carried as the additive ``step_number`` payload key
+    (sibling of the parsed ``step`` key, M3 decision 8): it lets a
+    consumer find the step in the recipe without parsing the prompt
+    string; None for pauses without a step. Never raises for page
+    errors: every page access is best-effort, a degraded context is
+    still a context. A shutdown signal (RunInterrupted) always propagates
+    (C7.5): it is the end of the run, not a page error to degrade around.
     """
     page = ctx.page
     url = None
@@ -147,6 +152,7 @@ def build_pause_context(ctx, reason, prompt, step_action_json, error, deadline_a
         "url": url,
         "page_title": page_title,
         "error": error,
+        "step_number": step_number,
         "step": step,
         "screenshot": {"path": screenshot_path, "data": screenshot_data},
         "elements": _number_elements(scan_elements(page)),
@@ -240,9 +246,11 @@ def make_action_handlers(ctx):
     }
 
 
-def pause_loop(ctx, reason, prompt, step_action_json, error):
+def pause_loop(ctx, reason, prompt, step_action_json, error, step_number=None):
     """One pause: persist the context, push ntfy, serve the control socket.
 
+    ``step_number`` is the failing step's recipe number, forwarded to the
+    pause context (M3 decision 8); None for pauses without a step.
     Blocks in the waiting loop (main thread, between steps, so sync
     Playwright calls from the action handlers are safe). Returns
     ``"resume"``, ``"cancel"`` or ``"timeout"``.
@@ -254,7 +262,7 @@ def pause_loop(ctx, reason, prompt, step_action_json, error):
     ctx.last_pause_deadline = parse_ts(deadline_at)
 
     context = build_pause_context(
-        ctx, reason, prompt, step_action_json, error, deadline_at)
+        ctx, reason, prompt, step_action_json, error, deadline_at, step_number)
     ctx.last_pause_context = context
     persist_pause(db, ctx.run_id, ctx.task["id"], reason, prompt, context, deadline_at)
     notify.notify_pause(db, db.get_run(ctx.run_id), ctx.task)

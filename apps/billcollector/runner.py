@@ -608,7 +608,8 @@ def _execute_wait_user_step(ctx, step, method):
             f"Step {step.get('step', 0)} has an invalid wait_user 'until': {e}")
     while True:
         outcome = pause_loop(ctx, "wait_user", prompt,
-                             transform_step_to_json(step), None)
+                              transform_step_to_json(step), None,
+                              step.get("step", 0))
         if outcome != "resume":
             raise PauseOutcomeAbort(outcome)
         if until_locator is None:
@@ -649,7 +650,8 @@ def _execute_step_with_pause(ctx, step):
                 error = str(e)
             prompt = _step_prompt(step, f"failed after {MAX_STEP_ATTEMPTS} attempts. "
                                        "Fix the page (or repair the recipe), then resume.")
-            outcome = pause_loop(ctx, "step_failed", prompt, step_action_json, error)
+            outcome = pause_loop(ctx, "step_failed", prompt, step_action_json, error,
+                                 step.get("step", 0))
             if outcome == "resume":
                 continue
             raise PauseOutcomeAbort(outcome) from e
@@ -666,7 +668,8 @@ def _handle_download_with_pause(ctx, step):
             prompt = _step_prompt(step, "the download failed. "
                                        "Fix the page (or repair the recipe), then resume.")
             outcome = pause_loop(ctx, "download_failed", prompt,
-                                 transform_step_to_json(step), str(e))
+                                  transform_step_to_json(step), str(e),
+                                  step.get("step", 0))
             if outcome == "resume":
                 continue
             raise PauseOutcomeAbort(outcome) from e

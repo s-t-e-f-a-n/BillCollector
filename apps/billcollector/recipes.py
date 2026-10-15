@@ -11,6 +11,7 @@ atomically (a temp file in the same directory + ``os.replace``;
 unvalidated text is refused at the write site).
 """
 
+import copy
 import os
 import tempfile
 from pathlib import Path
@@ -107,6 +108,112 @@ def parse_steps(data) -> list:
         for step in service.get("steps") or []:
             steps.append(_step_entry(step))
     return steps
+
+
+# Methods that end a step's locator chain: the element actions
+# (click/fill/press), the page-level methods (goto/close), and the
+# special step methods (expect_download, wait_user). Everything before
+# the first of these is the step's locator prefix - the locator
+# methods plus the chain-continuing methods (first, content_frame, ...)
+# that still produce the locator (or frame) the actions act on. The
+# runner's pause-context heuristic (transform_step_to_json) also calls
+# first/content_frame "actions"; for the repair flow they belong to the
+# chain, because the candidate is the full locator of the real element
+# and replaces the whole chain (decision 7).
+_CHAIN_END_METHODS = frozenset({
+    "click", "fill", "press", "goto", "close",
+    "expect_download", "wait_user",
+})
+
+
+def _candidate_method_entry(candidate):
+    """The recipe method entry of one scan candidate.
+
+    ``{"locatorType": "get_by_role", "arguments": {...}}`` becomes
+    ``{"method": "get_by_role", "arguments": [{...}, ...]}`` - one
+    single-key dict per argument, in the candidate's key order (the
+    recipe's list-of-single-key-dicts method shape). None when the
+    candidate is malformed (not a dict, no usable locatorType, or
+    arguments that are not a dict)."""
+    if not isinstance(candidate, dict):
+        return None
+    locator_type = candidate.get("locatorType")
+    if not isinstance(locator_type, str) or not locator_type:
+        return None
+    arguments = candidate.get("arguments") or {}
+    if not isinstance(arguments, dict):
+        return None
+    entry = {"method": locator_type}
+    if arguments:
+        entry["arguments"] = [{key: value} for key, value in arguments.items()]
+    return entry
+
+
+def _locator_prefix_len(step) -> int:
+    """The number of leading locator-prefix methods of a step.
+
+    The prefix runs up to (not including) the first chain-ending
+    method; 0 means the step has no locator prefix (no methods, or the
+    first method ends the chain - goto/close/expect_download/
+    wait_user)."""
+    count = 0
+    for method_entry in step.get("methods") or []:
+        name = method_entry.get("method") if isinstance(method_entry, dict) else None
+        if name in _CHAIN_END_METHODS:
+            break
+        count += 1
+    return count
+
+
+def apply_candidate_to_step(recipe_data, step_number, candidate):
+    """Replace a step's locator prefix with a scan candidate (M3 S2.2).
+
+    The pure core of the recipe repair flow (decision 7): the step's
+    locator prefix - the leading run of methods up to the first
+    chain-ending method - is replaced by the candidate's locator as a
+    single method entry, and the trailing action methods (click/fill/
+    press with their arguments, e.g. ``{{PASSWORD}}``) are kept
+    unchanged. The candidate's ``arguments`` dict becomes the recipe's
+    list of single-key dicts with its key order preserved. Chain-
+    continuing methods (``first``, ``content_frame``, ...) are part of
+    the prefix: the candidate is the full locator of the real element,
+    so a scoped chain (``get_by_role(main)`` -> ``get_by_role(textbox)``)
+    is replaced whole; the operator can still fine-tune the rewritten
+    YAML (the advanced path).
+
+    ``recipe_data`` is the parsed recipe document (the ``services``
+    list); ``step_number`` the top-level step number (the pause
+    context's ``step_number``); ``candidate`` the scan entry's
+    ``locator`` dict (``locatorType`` + ``arguments``).
+
+    Returns a new document (the input is never mutated) or ``None``
+    when not applicable (the picker's YAML-path hint): a malformed
+    candidate, a non-recipe document, the step number missing from the
+    top-level steps (nested ``expect_download`` steps are never
+    repaired - decision 7), or a step with no locator prefix (the
+    goto/close/expect_download/wait_user steps)."""
+    if not isinstance(recipe_data, dict):
+        return None
+    if isinstance(step_number, bool) or not isinstance(step_number, int):
+        return None
+    entry = _candidate_method_entry(candidate)
+    if entry is None:
+        return None
+    for service_index, service in enumerate(recipe_data.get("services") or []):
+        if not isinstance(service, dict):
+            continue
+        for step_index, step in enumerate(service.get("steps") or []):
+            if not isinstance(step, dict) or step.get("step") != step_number:
+                continue
+            prefix_len = _locator_prefix_len(step)
+            if prefix_len == 0:
+                return None
+            methods = step.get("methods") or []
+            document = copy.deepcopy(recipe_data)
+            new_step = document["services"][service_index]["steps"][step_index]
+            new_step["methods"] = [entry] + methods[prefix_len:]
+            return document
+    return None
 
 
 def save_recipe(path, text: str) -> tuple:

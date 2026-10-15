@@ -28,6 +28,12 @@ a seeded ``pause_context``.
 The ``waiting`` state needs a live control socket (the pause columns
 survive a resume - see ``run_state``), so the waiting seeds bind a real
 unix socket file at the Run row's ``control_sock`` path.
+
+M3 chunk S2.4 (the committed S2.3 tests): the **Repair recipe** link
+(``/recipes/<service>?run=<run_id>``) is offered for a ``step_failed``
+pause - in the waiting view's pause banner and in the ended view (the
+pause columns survive the resume) - and never for the other pause
+reasons (``wait_user`` ...).
 """
 
 import asyncio
@@ -182,9 +188,12 @@ def _seed_ended(db, result="success"):
     return task, run
 
 
-def _seed_ended_with_pause(db, tmp_path, result="cancelled"):
+def _seed_ended_with_pause(db, tmp_path, result="cancelled",
+                           pause_reason="step_failed"):
     """An ended run whose ``pause_context`` survived (the ended view's
-    last-pause card): a screenshot in the runfiles tree + two elements."""
+    last-pause card): a screenshot in the runfiles tree + two elements.
+    ``pause_reason`` is the Run column the **Repair recipe** link keys
+    on (the context's own ``reason`` is the read-only summary's)."""
     task = db.create_task("svc-p", "user1", enabled=False)
     run = db.create_run(task)
     run_dir = config.RUN_DIR / str(run)
@@ -192,7 +201,7 @@ def _seed_ended_with_pause(db, tmp_path, result="cancelled"):
     shot = run_dir / "pause_1.png"
     shot.write_bytes(b"pause-shot")
     context = {
-        "reason": "step_failed",
+        "reason": pause_reason,
         "prompt": "The login button was not found",
         "screenshot": {"path": str(shot), "data": "aW1hZ2U="},
         "elements": [
@@ -203,6 +212,7 @@ def _seed_ended_with_pause(db, tmp_path, result="cancelled"):
         ],
     }
     db.update_run(run, result=result, ended_at="2026-10-11 08:00:00",
+                  pause_reason=pause_reason,
                   pause_context=json.dumps(context),
                   notes="Paused at the login step")
     return task, run
@@ -215,14 +225,15 @@ def _seed_running(db, novnc_port=None):
     return task, run
 
 
-def _seed_waiting(db, tmp_path, novnc_port=None):
+def _seed_waiting(db, tmp_path, novnc_port=None,
+                  pause_reason="captcha expected"):
     task = db.create_task("svc-w", "user1", enabled=False)
     run = db.create_run(task, novnc_port=novnc_port)
     deadline = (datetime.now() + timedelta(seconds=600)).strftime(
         "%Y-%m-%d %H:%M:%S")
     sock_path = tmp_path / f"run-{run}.sock"
     _bind_socket(sock_path)
-    db.update_run(run, pause_reason="captcha expected",
+    db.update_run(run, pause_reason=pause_reason,
                   pause_prompt="Solve the captcha",
                   pause_deadline_at=deadline,
                   control_sock=str(sock_path))
@@ -341,6 +352,27 @@ async def test_waiting_run_shows_the_pause_banner(user, testdb, tmp_path):
     await user.should_see("Prompt: Solve the captcha")
     (deadline_label,) = user.find(marker="session-pause-deadline").elements
     assert "remaining" in deadline_label.text
+    # A non-step_failed pause does not offer the candidate picker.
+    await user.should_not_see(marker="session-repair")
+
+
+async def test_waiting_view_offers_the_repair_recipe_link(user, testdb,
+                                                          tmp_path,
+                                                          monkeypatch):
+    """A ``step_failed`` pause (M3 S2.3, decision 7): the pause banner
+    offers the **Repair recipe** link to the editor with the run's
+    failure context preloaded."""
+    _stub_control(monkeypatch, ELEMENTS, SHOT_B64)
+    task, run, _sock = _seed_waiting(testdb, tmp_path,
+                                     pause_reason="step_failed")
+    await _login(user, testdb)
+    await user.open(f"/runs/{run}")
+
+    (badge,) = user.find(marker="session-state").elements
+    assert badge.text == "waiting"
+    (link,) = user.find(marker="session-repair").elements
+    assert link.text == "Repair recipe"
+    assert link._props["href"] == f"/recipes/svc-w?run={run}"
 
 
 async def test_state_flips_to_running_when_the_socket_closes(user, testdb,
@@ -640,6 +672,36 @@ async def test_ended_run_shows_result_and_last_pause_context(user, testdb,
     await user.should_see("1 · button · Sign in")
     await user.should_see("2 · textbox · Password")
     await user.should_not_see(marker="session-novnc")
+
+
+async def test_ended_step_failed_run_offers_the_repair_recipe_link(
+        user, testdb, tmp_path):
+    """The pause columns survive the resume (M3 S2.3): a ``step_failed``
+    run that ended still offers the candidate picker on its last
+    failure."""
+    task, run = _seed_ended_with_pause(testdb, tmp_path)
+    await _login(user, testdb)
+    await user.open(f"/runs/{run}")
+
+    (badge,) = user.find(marker="session-state").elements
+    assert badge.text == "ended"
+    (link,) = user.find(marker="session-repair").elements
+    assert link.text == "Repair recipe"
+    assert link._props["href"] == f"/recipes/svc-p?run={run}"
+
+
+async def test_ended_wait_user_run_has_no_repair_recipe_link(user, testdb,
+                                                             tmp_path):
+    """A ``wait_user`` pause is not a step failure: the ended view offers
+    no **Repair recipe** link (the YAML path)."""
+    task, run = _seed_ended_with_pause(testdb, tmp_path,
+                                       pause_reason="wait_user")
+    await _login(user, testdb)
+    await user.open(f"/runs/{run}")
+
+    (badge,) = user.find(marker="session-state").elements
+    assert badge.text == "ended"
+    await user.should_not_see(marker="session-repair")
 
 
 if __name__ == "__main__":

@@ -9,12 +9,13 @@ at the same ~2 s regime as the other pages:
 - ``waiting`` -> the pause banner (reason, prompt, deadline countdown)
   and the tabs (S1.3): the Copilot view (S1.2, active by default) with
   the live screenshot + numbered overlay (decision 5), the element
-  select (``n · role · name``), the action bar (click / fill / press /
-  drag per the element's ``actionTypes``), **Resume** and **Cancel**
-  (confirmation dialog -> the protocol ``cancel``), the ~5 s
-  screenshot/elements poll and the immediate post-action refresh
-  (decision 4), an empty ``elements`` list rendering the noVNC hint
-  (decision 1) - and the noVNC tab (decision 6)
+   select (``n · role · name``), the action bar (click / fill / press /
+   drag per the element's ``actionTypes``), **Resume** and **Cancel**
+   (confirmation dialog -> the protocol ``cancel``), the initial
+   screenshot/elements fetch on page load, the ~5 s poll and the
+   immediate post-action refresh (decision 4), an empty ``elements``
+   list rendering the noVNC hint (decision 1) - and the noVNC tab
+   (decision 6)
 - ``running`` -> read-only observation (S1.3): the run's step
   screenshots (the ``PageStatus`` DB pattern, the dashboard step strip;
   the strip fills in live as new rows land) and the noVNC tab
@@ -273,7 +274,7 @@ def register_session(db: Database) -> None:
     ntfy deep link target, replacing the M2 task-detail redirect)."""
 
     @ui.page("/runs/{run_id}")
-    def session_page(request: Request, run_id: int) -> None:
+    async def session_page(request: Request, run_id: int) -> None:
         redirect = require_auth(request)
         if redirect is not None:
             return redirect
@@ -769,6 +770,11 @@ def register_session(db: Database) -> None:
         _render_state(content_box, run, state, refs, renderers)
         if state == "waiting" and refs.get("deadline") is not None:
             refs["deadline"].set_text(deadline_text(run["pause_deadline_at"]))
+            # The initial Copilot fetch (M3 decision 4): the operator
+            # gets the live screenshot and the element list immediately
+            # (without it the first ~5 s tick would leave the page
+            # empty); it degrades to a notify when the socket is gone.
+            await refresh_copilot()
 
         ui.timer(REFRESH_INTERVAL, refresh)
         refresh()

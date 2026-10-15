@@ -3,16 +3,21 @@
 
 ``validate_recipe`` (valid / schema violation / broken YAML),
 ``parse_steps`` (nested ``expect_download`` steps, graceful flag,
-methods with arguments), and ``save_recipe`` (atomic replace, no
-partial file on failure, unvalidated text refused). Validation runs
-against the real schema (``config.RECIPE_SCHEMA``).
+methods with arguments), ``save_recipe`` (atomic replace, no partial
+file on failure, unvalidated text refused), and
+``apply_candidate_to_step`` (M3 S2.2: the repair flow's candidate
+replacement - the locator prefix replaced, the actions kept, the
+not-applicable steps rejected). Validation runs against the real
+schema (``config.RECIPE_SCHEMA``).
 """
 
+import copy
 import os
 import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
@@ -62,6 +67,98 @@ services:
       methods:
       - method: "click"
 """
+
+
+REPAIR = """\
+services:
+- serviceName: "testhappy"
+  description: "Happy path with a changed login button."
+  steps:
+  - step: 1
+    description: "Open the mock site landing page."
+    methods:
+    - method: "goto"
+      arguments:
+      - url: "http://127.0.0.1:8787/happy/"
+  - step: 2
+    description: "Fill the password field (title locator)."
+    methods:
+    - method: "get_by_title"
+      arguments:
+      - text: "Password"
+    - method: "fill"
+      arguments:
+      - value: "{{PASSWORD}}"
+  - step: 3
+    description: "Scoped chain (main -> textbox)."
+    methods:
+    - method: "get_by_role"
+      arguments:
+      - role: "main"
+    - method: "get_by_role"
+      arguments:
+      - role: "textbox"
+      - name: "E-mail address"
+    - method: "click"
+    - method: "fill"
+      arguments:
+      - value: "{{USERNAME}}"
+  - step: 4
+    description: "Click the first invoice row."
+    methods:
+    - method: "get_by_text"
+      arguments:
+      - text: "Invoice dated"
+    - method: "first"
+    - method: "click"
+  - step: 5
+    description: "Close the popup in the iframe."
+    methods:
+    - method: "locator"
+      arguments:
+      - selector: "iframe#popup-frame"
+    - method: "content_frame"
+    - method: "get_by_label"
+      arguments:
+      - text: "Close popup"
+    - method: "click"
+  - step: 6
+    description: "Download the invoice."
+    methods:
+    - method: "expect_download"
+    steps:
+    - step: 99
+      description: "inner"
+      methods:
+      - method: "get_by_role"
+        arguments:
+        - role: "link"
+        - name: "Invoice"
+        - exact: true
+      - method: "first"
+      - method: "click"
+  - step: 7
+    description: "Close the page."
+    methods:
+    - method: "close"
+  - step: 8
+    description: "Wait for the operator."
+    methods:
+    - method: "wait_user"
+      arguments:
+      - prompt: "act"
+"""
+
+CAND_ROLE = {"locatorType": "get_by_role",
+             "arguments": {"role": "button", "name": "Sign in", "exact": True}}
+CAND_TEXT = {"locatorType": "get_by_text",
+             "arguments": {"text": "Sign in", "exact": True}}
+
+
+def _repair_data():
+    ok, error, data = recipes.validate_recipe(REPAIR)
+    assert ok is True, error
+    return data
 
 
 def test_validate_recipe_accepts_a_valid_recipe():
@@ -188,6 +285,163 @@ def test_save_recipe_no_partial_file_on_write_failure(tmp_path):
         os.chmod(tmp_path, 0o755)
     assert path.read_text(encoding="utf-8") == VALID
     assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_apply_candidate_replaces_the_prefix_and_keeps_the_actions():
+    data = _repair_data()
+    out = recipes.apply_candidate_to_step(data, 2, CAND_ROLE)
+    assert out is not None
+    methods = out["services"][0]["steps"][1]["methods"]
+    assert methods == [
+        {"method": "get_by_role",
+         "arguments": [{"role": "button"}, {"name": "Sign in"},
+                       {"exact": True}]},
+        {"method": "fill", "arguments": [{"value": "{{PASSWORD}}"}]},
+    ]
+    # the rest of the step is untouched
+    assert out["services"][0]["steps"][1]["step"] == 2
+    assert out["services"][0]["steps"][1]["description"] == \
+        "Fill the password field (title locator)."
+    # the rest of the document is untouched
+    assert out["services"][0]["steps"][2] == data["services"][0]["steps"][2]
+
+
+def test_apply_candidate_does_not_mutate_the_input():
+    data = _repair_data()
+    snapshot = copy.deepcopy(data)
+    out = recipes.apply_candidate_to_step(data, 2, CAND_ROLE)
+    assert out is not None
+    assert data == snapshot
+
+
+def test_apply_candidate_method_entry_shape_and_key_order():
+    data = _repair_data()
+    out = recipes.apply_candidate_to_step(data, 2, CAND_ROLE)
+    (entry,) = out["services"][0]["steps"][1]["methods"][:1]
+    assert entry["method"] == "get_by_role"
+    # one single-key dict per argument, in the candidate's key order
+    assert entry["arguments"] == [
+        {"role": "button"}, {"name": "Sign in"}, {"exact": True}]
+    out = recipes.apply_candidate_to_step(
+        data, 2, {"locatorType": "get_by_role",
+                  "arguments": {"name": "Sign in", "role": "button",
+                                "exact": True}})
+    (entry,) = out["services"][0]["steps"][1]["methods"][:1]
+    assert entry["arguments"] == [
+        {"name": "Sign in"}, {"role": "button"}, {"exact": True}]
+
+
+def test_apply_candidate_get_by_text():
+    data = _repair_data()
+    out = recipes.apply_candidate_to_step(data, 2, CAND_TEXT)
+    methods = out["services"][0]["steps"][1]["methods"]
+    assert methods[0] == {"method": "get_by_text",
+                          "arguments": [{"text": "Sign in"}, {"exact": True}]}
+    assert methods[1] == {"method": "fill",
+                          "arguments": [{"value": "{{PASSWORD}}"}]}
+
+
+def test_apply_candidate_replaces_a_scoped_chain_whole():
+    data = _repair_data()
+    out = recipes.apply_candidate_to_step(data, 3, CAND_ROLE)
+    methods = out["services"][0]["steps"][2]["methods"]
+    # the whole chain (get_by_role(main) -> get_by_role(textbox)) is
+    # replaced by the single candidate; both actions keep their
+    # arguments
+    assert methods == [
+        {"method": "get_by_role",
+         "arguments": [{"role": "button"}, {"name": "Sign in"},
+                       {"exact": True}]},
+        {"method": "click"},
+        {"method": "fill", "arguments": [{"value": "{{USERNAME}}"}]},
+    ]
+
+
+def test_apply_candidate_replaces_chain_continuations():
+    data = _repair_data()
+    # first: the chain continuation is part of the prefix
+    out = recipes.apply_candidate_to_step(data, 4, CAND_TEXT)
+    methods = out["services"][0]["steps"][3]["methods"]
+    assert methods == [
+        {"method": "get_by_text",
+         "arguments": [{"text": "Sign in"}, {"exact": True}]},
+        {"method": "click"},
+    ]
+    # content_frame: the iframe chain is replaced whole
+    out = recipes.apply_candidate_to_step(data, 5, CAND_ROLE)
+    methods = out["services"][0]["steps"][4]["methods"]
+    assert methods == [
+        {"method": "get_by_role",
+         "arguments": [{"role": "button"}, {"name": "Sign in"},
+                       {"exact": True}]},
+        {"method": "click"},
+    ]
+
+
+def test_apply_candidate_candidate_without_arguments():
+    data = _repair_data()
+    out = recipes.apply_candidate_to_step(data, 4,
+                                          {"locatorType": "get_by_test_id"})
+    methods = out["services"][0]["steps"][3]["methods"]
+    assert methods[0] == {"method": "get_by_test_id"}
+    assert "arguments" not in methods[0]
+    assert methods[1] == {"method": "click"}
+
+
+def test_apply_candidate_rejects_a_goto_step():
+    data = _repair_data()
+    assert recipes.apply_candidate_to_step(data, 1, CAND_ROLE) is None
+
+
+def test_apply_candidate_rejects_a_missing_step():
+    data = _repair_data()
+    assert recipes.apply_candidate_to_step(data, 99, CAND_ROLE) is None
+
+
+def test_apply_candidate_rejects_nested_steps():
+    data = _repair_data()
+    # the expect_download step itself has no locator prefix ...
+    assert recipes.apply_candidate_to_step(data, 6, CAND_ROLE) is None
+    # ... and the nested step (number 99, top-level only search) is
+    # never repaired (decision 7: the YAML path)
+    assert recipes.apply_candidate_to_step(data, 99, CAND_ROLE) is None
+
+
+def test_apply_candidate_rejects_close_and_wait_user_steps():
+    data = _repair_data()
+    assert recipes.apply_candidate_to_step(data, 7, CAND_ROLE) is None
+    assert recipes.apply_candidate_to_step(data, 8, CAND_ROLE) is None
+
+
+def test_apply_candidate_rejects_malformed_candidates():
+    data = _repair_data()
+    for bad in (None, "get_by_role", [], {},
+                {"locatorType": 42}, {"locatorType": ""},
+                {"arguments": {"role": "button"}},
+                {"locatorType": "get_by_role", "arguments": ["role", "x"]},
+                {"locatorType": "get_by_role", "arguments": "role"}):
+        assert recipes.apply_candidate_to_step(data, 2, bad) is None, bad
+
+
+def test_apply_candidate_rejects_non_recipe_documents():
+    for bad in (None, {}, [], {"services": []}, {"services": "nope"}):
+        assert recipes.apply_candidate_to_step(bad, 2, CAND_ROLE) is None, bad
+
+
+def test_apply_candidate_rejects_non_integer_step_numbers():
+    data = _repair_data()
+    for bad in ("2", None, 2.0, [2]):
+        assert recipes.apply_candidate_to_step(data, bad, CAND_ROLE) is None, bad
+
+
+def test_apply_candidate_rewritten_document_validates():
+    data = _repair_data()
+    for step_number, candidate in ((2, CAND_ROLE), (3, CAND_ROLE),
+                                   (4, CAND_TEXT), (5, CAND_ROLE)):
+        out = recipes.apply_candidate_to_step(data, step_number, candidate)
+        assert out is not None
+        ok, error, _parsed = recipes.validate_recipe(yaml.safe_dump(out))
+        assert ok is True, error
 
 
 if __name__ == "__main__":

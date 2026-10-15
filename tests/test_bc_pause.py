@@ -155,12 +155,13 @@ class BuildPauseContextTests(PauseTestBase):
         context = pause.build_pause_context(
             ctx, "step_failed", "Step 11 failed",
             json.dumps({"description": "d", "locators": [], "actions": []}),
-            "boom", "2026-10-10 13:00:00")
+            "boom", "2026-10-10 13:00:00", step_number=11)
         self.assertEqual(context["reason"], "step_failed")
         self.assertEqual(context["prompt"], "Step 11 failed")
         self.assertEqual(context["url"], "http://127.0.0.1:8787/autopause/")
         self.assertEqual(context["page_title"], "Page title")
         self.assertEqual(context["error"], "boom")
+        self.assertEqual(context["step_number"], 11)
         self.assertEqual(context["step"]["description"], "d")
         self.assertEqual(context["deadline_at"], "2026-10-10 13:00:00")
         self.assertEqual(context["page_text"], "visible body text")
@@ -176,6 +177,11 @@ class BuildPauseContextTests(PauseTestBase):
         self.assertEqual(elements[0]["name"], "Verify")
         self.assertEqual(elements[0]["rect"], {"x": 10, "y": 20, "w": 100, "h": 30})
         self.assertEqual(elements[2]["actionTypes"], ["click", "fill"])
+
+    def test_step_number_defaults_to_none(self):
+        # M3 decision 8: a pause without a step carries step_number=None.
+        context = pause.build_pause_context(self.ctx, "wait_user", "p", None, None, "d")
+        self.assertIsNone(context["step_number"])
 
     def test_page_text_is_capped(self):
         self.page.body = "x" * (pause.PAUSE_PAGE_TEXT_CAP + 5000)
@@ -301,7 +307,7 @@ class WaitingLoopTests(PauseTestBase):
     def test_resume_completes_the_pause(self):
         thread, outcome = self._run_pause(
             reason="step_failed", prompt="p",
-            step_action_json=None, error="e")
+            step_action_json=None, error="e", step_number=3)
         sock_path = self._wait_for_socket()
         client = ControlClient(sock_path)
         self.assertEqual(client.request("screenshot")["screenshot"],
@@ -318,6 +324,7 @@ class WaitingLoopTests(PauseTestBase):
         self.assertEqual(run["pause_reason"], "step_failed")
         self.assertEqual(run["pause_prompt"], "p")
         self.assertTrue(run["pause_context"])
+        self.assertEqual(json.loads(run["pause_context"])["step_number"], 3)
         self.assertEqual(run["control_sock"], str(sock_path))
         self.assertFalse(sock_path.exists())
         self.assertEqual(self.db.get_task(1)["status"], "waiting")

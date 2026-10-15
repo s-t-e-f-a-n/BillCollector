@@ -108,6 +108,7 @@ class StepPauseWiringTests(unittest.TestCase):
         self.assertEqual(args[3], _FakePageState.locator_action)
         self.assertEqual(args[4], _FakePageState.error_status)
         self.assertIn("Step 7", args[2])
+        self.assertEqual(args[5], 7)  # the failing step's recipe number
 
     def test_cancel_aborts_with_terminal_outcome(self):
         fake_execute_step, _ = self._failing_execute_step()
@@ -137,6 +138,7 @@ class StepPauseWiringTests(unittest.TestCase):
         self.assertEqual(args[1], "download_failed")
         self.assertEqual(args[3], transform_step_to_json(step))
         self.assertIn("Step 14", args[2])
+        self.assertEqual(args[5], 14)  # the failing step's recipe number
 
     def test_download_failure_cancel_aborts(self):
         step = {"step": 14, "description": "Download the invoice",
@@ -749,6 +751,7 @@ class WaitUserTests(unittest.TestCase):
         self.assertEqual(args[2], "Type the code")
         self.assertEqual(args[3], transform_step_to_json(self.step))
         self.assertIsNone(args[4])  # no error on a wait_user pause
+        self.assertEqual(args[5], 11)  # the wait_user step's recipe number
         self.assertEqual(record.call_count, 1)
         state = record.call_args[0][1]
         self.assertEqual(state.locator_action, transform_step_to_json(self.step))

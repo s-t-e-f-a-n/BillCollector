@@ -392,9 +392,33 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
   the not-a-step-failure hint + disabled picker, the waiting view's
   link (text + `_props["href"]`), the ended view's link, and no link
   for a `wait_user` ended run. One test-harness note: NiceGUI's
-  `user.find(...).click()` is the synchronous programmatic click (the
-  raw `Button.clicked()` waiter hangs in the simulation). Full suite
-  green (293 + 37 subtests), ruff clean. Next: S2.4.
+   `user.find(...).click()` is the synchronous programmatic click (the
+   raw `Button.clicked()` waiter hangs in the simulation). Full suite
+   green (293 + 37 subtests), ruff clean. Next: S2.4.
+- **S2.4 done (2026-10-15, `bba9484`).** The committed S2.3 tests are
+  in (the plan's S2.4 list + the S2.3 smoke-test coverage). Editor
+  (`tests/test_bc_ui_recipes.py`, the D5.4 pattern: per-test temp
+  RECIPE_DIR, temp git repo, `git_commit_enabled` on): the `?run=`
+  failure panel renders from the seeded `pause_context` (the
+  `/runfiles` screenshot URL, the step label, the expected locator
+  chain, the error, both candidate rows, the Use buttons enabled);
+  **Use** rewrites the step's locator chain in the editor (asserted
+  on the re-parsed YAML: the candidate's method entry, the `click`
+  action kept, the later `{{PASSWORD}}` fill intact, the step tree
+  re-rendered); the rewritten content then runs through the existing
+  Validate → Save (the file written, the `recipe(<service>): …`
+  commit lands, the committed file carries the candidate's locator);
+  a failed step without a locator prefix (the `goto` step) → the
+  disabled picker + the not-repairable hint (the failure panel still
+  renders); a `wait_user` pause → the not-a-step-failure hint + the
+  disabled picker (the candidate rows still render). Session
+  (`tests/test_bc_ui_session.py`): the **Repair recipe** link is
+  offered for a `step_failed` pause — in the waiting view's pause
+  banner and in the ended view (the pause columns survive the
+  resume) — and never for the other pause reasons (no link on the
+  banner for a non-`step_failed` pause, no link on an ended
+  `wait_user` run). Full suite green (301 + 37 subtests), ruff
+  clean.
 
 ### S1 — Session view (Copilot + noVNC)
 

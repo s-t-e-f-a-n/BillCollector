@@ -204,6 +204,22 @@ independently committable and ends with the full suite green
 A fresh session resumes at the first chunk not yet committed. Commit
 style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
 
+**Progress:**
+- **S1.1 done (2026-10-15, `b40cdaf` + `23585f5`).** The session page
+  scaffold is on `/runs/<run_id>` (the M2 dashboard redirect is removed;
+  decision 2): the state machine (waiting banner with reason/prompt/
+  deadline, running, ended, 404 for an unknown id) on the ~2 s poll; the
+  header carries the task-detail link; the task-detail pause card gained
+  the **Open session** link; `format.deadline_text` is now shared
+  (task_detail's local copy removed). State-mapping note (decided in
+  S1.1): the Run row's pause columns are **not** cleared on resume (they
+  must survive for the ended view's last-pause-context), so an open run's
+  state is decided by the **control socket's liveness** — the socket
+  file is bound while the waiting loop serves and unlinked on
+  resume/cancel/timeout/shutdown; `run_state(run, sock_alive)` reads a
+  resumed run as `running` and the page self-heals on the next poll.
+  Full suite green (257 + 37 subtests), ruff clean. Next: S1.2.
+
 ### S1 — Session view (Copilot + noVNC)
 
 - **S1.1 `ui/session.py` + route:** `register_session(db)` registers

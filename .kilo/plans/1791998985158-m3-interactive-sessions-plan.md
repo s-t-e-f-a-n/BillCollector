@@ -229,14 +229,47 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
    drag + dx,dy, enabled per the element's `actionTypes`; press always
    enabled), **Resume** (primary) and **Cancel** (confirmation dialog ->
    protocol `cancel`), the ~5 s screenshot+elements poll plus the
-   immediate post-action refresh, and the ControlError degrade (notify
-   + state refresh, never a crash). An empty `elements` list renders
-   the noVNC hint (decision 1). A throwaway smoke test (deleted after
-   running; the committed S1.2 tests land in S1.4) drove the real page
-   against a stubbed client end to end and caught one bug: the
-   `do_action` signature's `text` parameter collided with the protocol's
-   `text=` argument of `fill` (renamed to `note`). Full suite green
-   (257 + 37 subtests), ruff clean. Next: S1.3.
+    immediate post-action refresh, and the ControlError degrade (notify
+    + state refresh, never a crash). An empty `elements` list renders
+    the noVNC hint (decision 1). A throwaway smoke test (deleted after
+    running; the committed S1.2 tests land in S1.4) drove the real page
+    against a stubbed client end to end and caught one bug: the
+    `do_action` signature's `text` parameter collided with the protocol's
+    `text=` argument of `fill` (renamed to `note`). Full suite green
+    (257 + 37 subtests), ruff clean. Next: S1.3.
+- **S1.3 done (2026-10-15, `ea2a03f`).** The noVNC tab, the running
+    view, and the ended view are live (M3 decisions 3, 6). noVNC:
+    `ui.html` iframe whose `src` is built **client-side** by the
+    page-level `NOVNC_SRC_SCRIPT` body script (a `MutationObserver`
+    patches every `iframe[data-novnc-port]` from
+    `window.location.hostname` + the run's websockify port — one URL
+    works for a localhost and a LAN operator; the RFB password stays in
+    noVNC's own prompt) — rendered in the waiting view (next to the
+    Copilot tab, Copilot active by default) and the running view; a
+    `novnc_port` of None renders a not-available hint instead of a dead
+    iframe. Running: read-only — the step strip on the `PageStatus` DB
+    pattern (the dashboard step strip; rebuilt only when new rows land,
+    so it fills in live; full image in a dialog on thumbnail click) +
+    the noVNC tab, Steps active by default; no action bar. Ended: the
+    result summary (result, started/ended, notes) + the last pause
+    context read-only when `pause_context` is set (`pause_context_summary`
+    parses reason, prompt, the screenshot's `/runfiles` URL, and the
+    elements as `n · role · name` lines; corrupt/missing context omits
+    the card, never crashes) — no noVNC (the display stack is reaped).
+    The smoke test caught one bug: extracting the Copilot view from
+    `render_waiting` kept its `with box:` wrapper, so the Copilot
+    content rendered into the page's content box instead of the Copilot
+    tab panel (the panel stayed empty); `render_copilot_view` now
+    renders into the current slot (the tab panel) and the smoke test
+    asserts it structurally (`panel in shot_box.ancestors()`). Verified
+    by a throwaway smoke test (deleted after running; the committed
+    S1.3 tests land in S1.4): waiting (the iframe carries
+    `data-novnc-port`, the Copilot content is inside the tab panel, the
+    stub's badge lands at the expected percentage), running (a real
+    runfiles tree renders both `/runfiles` thumbnail URLs, no action
+    bar), ended (result + the read-only last pause with the screenshot
+    URL and the element lines, no noVNC), and the novnc-port-None hint.
+    Full suite green (257 + 37 subtests), ruff clean. Next: S1.4.
 
 ### S1 — Session view (Copilot + noVNC)
 

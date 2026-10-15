@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""The session page (M3 chunks S1.1/S1.2).
+"""The session page (M3 chunks S1.1-S1.3).
 
 ``/runs/<run_id>`` is the operator's intervention page - the ntfy deep
 link target (M3 decision 2); it replaces the M2 redirect to the task
@@ -7,19 +7,32 @@ detail. The page is a state machine (M3 decision 3) polled from the DB
 at the same ~2 s regime as the other pages:
 
 - ``waiting`` -> the pause banner (reason, prompt, deadline countdown)
-  and the Copilot view (S1.2): the live screenshot with the numbered
-  overlay (decision 5), the element select (``n · role · name``), the
-  action bar (click / fill / press / drag per the element's
-  ``actionTypes``), **Resume** and **Cancel** (confirmation dialog ->
-  the protocol ``cancel``), the ~5 s screenshot/elements poll and the
-  immediate post-action refresh (decision 4); an empty ``elements``
-  list renders the noVNC hint (decision 1)
-- ``running`` -> read-only observation; the latest step screenshots and
-  the noVNC tab land in S1.3
+  and the tabs (S1.3): the Copilot view (S1.2, active by default) with
+  the live screenshot + numbered overlay (decision 5), the element
+  select (``n · role · name``), the action bar (click / fill / press /
+  drag per the element's ``actionTypes``), **Resume** and **Cancel**
+  (confirmation dialog -> the protocol ``cancel``), the ~5 s
+  screenshot/elements poll and the immediate post-action refresh
+  (decision 4), an empty ``elements`` list rendering the noVNC hint
+  (decision 1) - and the noVNC tab (decision 6)
+- ``running`` -> read-only observation (S1.3): the run's step
+  screenshots (the ``PageStatus`` DB pattern, the dashboard step strip;
+  the strip fills in live as new rows land) and the noVNC tab
+  (decision 6), the step strip active by default
 - ``ended``   -> the result (``success`` / ``failure`` / ``interrupted``
-  / ``cancelled`` / ``needs_attention``); the result summary and the
-  read-only last pause context land in S1.3
+  / ``cancelled`` / ``needs_attention``) and, when ``pause_context`` is
+  set, the last pause context read-only (reason, prompt, screenshot,
+  elements). No noVNC (the display stack is reaped)
 - an unknown run id -> the 404 label (the M2 behavior)
+
+The noVNC tab (M3 decision 6) is a full-size iframe whose ``src`` is
+built *client-side* (the ``NOVNC_SRC_SCRIPT`` body script) from
+``window.location.hostname`` and the run's websockify port (the
+iframe's ``data-novnc-port`` attribute) - one URL works for a
+localhost operator and a LAN operator (websockify listens on all
+interfaces, x11vnc is ``-localhost``). The RFB password (the
+``vnc_password`` setting) is entered in noVNC's own prompt, never in
+the URL.
 
 The Run row's pause columns are not cleared when a pause resolves (a
 resume keeps ``pause_reason`` / ``pause_context`` so the ended view can
@@ -34,6 +47,7 @@ the UI event loop; all element updates happen back on the loop.
 
 import asyncio
 import base64
+import json
 import os
 
 from fastapi import Request
@@ -44,6 +58,7 @@ from ..db import Database
 from .auth import require_auth
 from .format import deadline_text
 from .layout import build_layout
+from .runfiles import runfile_url
 
 # The ~2 s DB poll regime (the other pages' interval).
 REFRESH_INTERVAL = 2.0
@@ -69,6 +84,36 @@ BADGE_CLASSES = (
     "absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600 "
     "text-white text-xs font-bold w-6 h-6 flex items-center justify-center "
     "cursor-pointer z-10")
+
+# The noVNC src patcher (M3 decision 6): registered once per page via
+# ui.add_body_html (ui.html cannot carry scripts). A MutationObserver
+# finds every noVNC iframe (the state bodies are re-rendered on state
+# changes, so the iframe may appear after the script ran) and sets its
+# src from window.location.hostname + data-novnc-port - one URL works
+# for a localhost operator and a LAN operator.
+NOVNC_SRC_SCRIPT = """
+<script>
+(function () {
+  function patch(frame) {
+    var port = frame.getAttribute('data-novnc-port');
+    if (port && !frame.getAttribute('src')) {
+      frame.src = window.location.hostname + ':' + port +
+        '/vnc.html?autoconnect=true';
+    }
+  }
+  function patchAll() {
+    document.querySelectorAll('iframe[data-novnc-port]').forEach(patch);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', patchAll);
+  } else {
+    patchAll();
+  }
+  new MutationObserver(patchAll).observe(document.body,
+    {childList: true, subtree: true});
+})();
+</script>
+"""
 
 
 def control_sock_alive(run) -> bool:
@@ -140,6 +185,50 @@ def overlay_pct(rect, img_w: int, img_h: int) -> tuple[float, float] | None:
     return (x + w / 2) / img_w * 100, (y + h / 2) / img_h * 100
 
 
+def novnc_iframe_html(port: int) -> str:
+    """The noVNC tab's iframe (M3 decision 6): the noVNC web client,
+    whose ``src`` is built *client-side* (the page-level
+    ``NOVNC_SRC_SCRIPT``) from ``window.location.hostname`` and the
+    run's websockify port (``data-novnc-port``) - one URL works for a
+    localhost operator and a LAN operator (websockify listens on all
+    interfaces, x11vnc is ``-localhost``). The RFB password is entered
+    in noVNC's own prompt - never in the URL."""
+    return (f"<iframe data-novnc-port=\"{port}\" "
+            "class='w-full rounded' "
+            "style='height: 70vh; border: 1px solid #cbd5e1; "
+            "background: #0f172a;'></iframe>")
+
+
+def pause_context_summary(run) -> dict | None:
+    """The ended view's last pause context (M3 decision 3), parsed from
+    ``Run.pause_context``: ``reason``, ``prompt``, the screenshot's
+    ``/runfiles`` URL, and the elements as ``n · role · name`` lines.
+    None when the column is empty or the JSON is corrupt - a broken
+    context must not kill the ended view (the card is just omitted)."""
+    if not run["pause_context"]:
+        return None
+    try:
+        context = json.loads(run["pause_context"])
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(context, dict):
+        return None
+    shot = context.get("screenshot")
+    shot_path = shot.get("path") if isinstance(shot, dict) else None
+    elements = []
+    for el in context.get("elements") or []:
+        if not isinstance(el, dict):
+            continue
+        elements.append(
+            f"{el.get('n')} · {el.get('role')} · {el.get('name')}")
+    return {
+        "reason": context.get("reason"),
+        "prompt": context.get("prompt"),
+        "shot_url": runfile_url(shot_path),
+        "elements": elements,
+    }
+
+
 def control_client(sock_path: str) -> ControlClient:
     """One short-lived control-socket client (M3 decision 4): the UI
     opens a fresh client per request (the socket lives under
@@ -166,21 +255,17 @@ def fetch_copilot(sock_path: str) -> tuple[str, list]:
     return shot, elements
 
 
-def _render_state(box, run, state, refs, waiting_renderer) -> None:
-    """The state's content. ``waiting_renderer`` (the page's waiting
-    view, S1.2) renders the waiting state; running / ended are the S1.1
-    scaffold labels (S1.3 replaces their bodies). ``refs`` carries the
-    per-poll update targets across re-renders."""
+def _render_state(box, run, state, refs, renderers) -> None:
+    """The state's content (M3 decision 3): ``renderers`` maps each
+    state to the page's view renderer (waiting S1.2, running / ended
+    S1.3); ``refs`` carries the per-poll update targets across
+    re-renders (the deadline label, the Copilot timer, the step strip)."""
     refs["deadline"] = None
     refs["copilot_timer"] = None
+    refs["steps_box"] = None
+    refs["steps_sig"] = None
     with box:
-        if state == "waiting":
-            waiting_renderer(box, run, refs)
-        elif state == "running":
-            ui.label("Running").classes("text-h6").mark("session-running")
-        else:
-            ui.label(f"Finished: {run['result']}") \
-                .classes("text-h6").mark("session-ended")
+        renderers[state](box, run, refs)
 
 
 def register_session(db: Database) -> None:
@@ -193,6 +278,9 @@ def register_session(db: Database) -> None:
         if redirect is not None:
             return redirect
         build_layout()
+        # The noVNC iframes of the alive states get their src client-side
+        # (M3 decision 6): one URL works for localhost and LAN operators.
+        ui.add_body_html(NOVNC_SRC_SCRIPT)
         run = db.get_run(run_id)
         if run is None:
             ui.label(f"Unknown run id: {run_id} (404)").classes("text-red-600")
@@ -207,7 +295,7 @@ def register_session(db: Database) -> None:
                     f"{task['user'] or '—'}",
                     f"/tasks/{task['id']}").mark("session-task-link")
 
-        # ---- Waiting view (S1.2, M3 decisions 1/3/4/5) -------------------
+        # ---- State views (waiting S1.2, running / ended S1.3) ------------
         refs: dict = {}
 
         def selected_element() -> dict | None:
@@ -324,8 +412,8 @@ def register_session(db: Database) -> None:
 
         async def copilot_poll() -> None:
             """The ~5 s Copilot poll (M3 decision 4); the timer is
-            created in ``render_waiting`` and stopped in ``refresh``
-            when the run leaves the waiting state."""
+            created in ``render_copilot_view`` and stopped in
+            ``refresh`` when the run leaves the waiting state."""
             await refresh_copilot()
 
         async def do_action(action: str, note: str, **args) -> bool:
@@ -355,8 +443,8 @@ def register_session(db: Database) -> None:
         def refresh() -> None:
             """DB poll (~2 s): the state badge, the state body on a
             state change (the Copilot timer stops when the run leaves
-            the waiting state), and the deadline countdown while
-            waiting."""
+            the waiting state), the deadline countdown while waiting,
+            and the step strip while running (new PageStatus rows)."""
             run_row = db.get_run(run_id)
             if run_row is None:
                 return
@@ -370,18 +458,178 @@ def register_session(db: Database) -> None:
                 refs["copilot_timer"] = None
                 content_box.clear()
                 _render_state(content_box, run_row, new_state, refs,
-                              render_waiting)
+                              renderers)
             if new_state == "waiting" and refs.get("deadline") is not None:
                 refs["deadline"].set_text(
                     deadline_text(run_row["pause_deadline_at"]))
+            if new_state == "running" and refs.get("steps_box") is not None:
+                render_running_steps(refs)
+
+        def render_novnc(run) -> None:
+            """The noVNC tab (M3 decision 6): the client-host iframe
+            while the run is alive (rendered only in the running and
+            waiting states). No port on the row (no display was
+            allocated) -> a hint instead of a dead iframe."""
+            port = run["novnc_port"]
+            if port is None:
+                ui.label("noVNC is not available for this run.") \
+                    .classes("text-grey-7").mark("session-novnc-unavailable")
+            else:
+                ui.html(novnc_iframe_html(port), sanitize=False) \
+                    .mark("session-novnc")
+
+        def open_shot(url: str) -> None:
+            """Step thumbnail click -> the full image in a dialog (the
+            dashboard step-strip pattern)."""
+            with ui.dialog() as dlg:
+                dlg.open()
+                ui.image(url).classes("max-h-[80vh]")
+
+        def render_copilot_view(run, refs) -> None:
+            """The Copilot tab of the waiting view (S1.2, M3 decisions
+            1/4/5): the live screenshot + overlay are rebuilt on every
+            refresh; the element select and the action bar are stable
+            across refreshes (the inputs keep their text, the enabled
+            state is re-synced). Renders into the *current* slot (the
+            Copilot tab panel, decision 3) - the caller must open the
+            tab panel first. The ~5 s Copilot poll (decision 4) starts
+            here and stops in ``refresh`` when the run leaves the
+            waiting state."""
+            refs["elements"] = []
+            refs["shot_box"] = ui.column().classes("w-full") \
+                .mark("session-shot-box")
+            refs["hint"] = ui.label(EMPTY_ELEMENTS_HINT) \
+                .classes("text-grey-7").mark("session-novnc-hint")
+            refs["hint"].set_visibility(False)
+            refs["elem_select"] = ui.select(
+                options={}, value=None, label="Element") \
+                .props("clearable").mark("session-elem-select")
+            refs["elem_select"].set_visibility(False)
+            refs["elem_select"].on_value_change(
+                lambda _e: update_actionbar())
+            with ui.row().classes(
+                    "w-full flex-wrap items-center gap-2") \
+                    .mark("session-actionbar"):
+                refs["click_btn"] = ui.button("Click").props("no-caps") \
+                    .mark("session-click")
+                refs["fill_input"] = ui.input("") \
+                    .props("dense outlined").classes("w-40") \
+                    .mark("session-fill-input")
+                refs["fill_btn"] = ui.button("Fill").props("no-caps") \
+                    .mark("session-fill")
+                refs["press_input"] = ui.input("") \
+                    .props("dense outlined").classes("w-28") \
+                    .mark("session-press-input")
+                refs["press_btn"] = ui.button("Press").props("no-caps") \
+                    .mark("session-press")
+                refs["drag_dx"] = ui.number("dx", value=0,
+                                            format="%.0f") \
+                    .props("dense outlined").classes("w-20") \
+                    .mark("session-drag-dx")
+                refs["drag_dy"] = ui.number("dy", value=0,
+                                            format="%.0f") \
+                    .props("dense outlined").classes("w-20") \
+                    .mark("session-drag-dy")
+                refs["drag_btn"] = ui.button("Drag").props("no-caps") \
+                    .mark("session-drag")
+            with ui.row().classes("w-full items-center gap-2") \
+                    .mark("session-controls"):
+                refs["resume_btn"] = ui.button("Resume") \
+                    .props("no-caps color=primary") \
+                    .mark("session-resume")
+                refs["cancel_btn"] = ui.button("Cancel") \
+                    .props("no-caps color=negative") \
+                    .mark("session-cancel")
+
+            with ui.dialog() as cancel_dialog, ui.card().classes("w-96"):
+                ui.label("Cancel the run?").classes("text-h6")
+                ui.label("The pause is aborted and the run ends as "
+                         "cancelled.")
+                with ui.row().classes(
+                        "w-full justify-end items-center gap-2"):
+                    ui.button("Go back", on_click=cancel_dialog.close) \
+                        .props("flat").mark("session-cancel-go-back")
+                    cancel_ok = ui.button("Cancel run") \
+                        .mark("session-cancel-confirm") \
+                        .props("color=negative")
+
+            async def on_click(_e) -> None:
+                el = selected_element()
+                if el is None:
+                    return
+                if await do_action("click", f"Click {el['n']} sent",
+                                   n=el["n"]):
+                    await refresh_copilot()
+
+            async def on_fill(_e) -> None:
+                el = selected_element()
+                if el is None:
+                    return
+                if await do_action("fill", f"Fill {el['n']} sent",
+                                   n=el["n"],
+                                   text=str(refs["fill_input"].value
+                                             or "")):
+                    await refresh_copilot()
+
+            async def on_press(_e) -> None:
+                key = str(refs["press_input"].value or "").strip()
+                if not key:
+                    ui.notify("Enter a key to press", type="warning")
+                    return
+                if await do_action("press", f"Press {key} sent",
+                                   key=key):
+                    await refresh_copilot()
+
+            async def on_drag(_e) -> None:
+                el = selected_element()
+                if el is None:
+                    return
+
+                def num(value) -> float:
+                    try:
+                        return float(value)
+                    except (TypeError, ValueError):
+                        return 0.0
+
+                if await do_action(
+                        "drag", f"Drag {el['n']} sent", n=el["n"],
+                        dx=num(refs["drag_dx"].value),
+                        dy=num(refs["drag_dy"].value)):
+                    await refresh_copilot()
+
+            async def on_resume(_e) -> None:
+                if await do_action("resume",
+                                   "Resume sent; the run continues"):
+                    refresh()
+
+            def on_cancel(_e) -> None:
+                cancel_dialog.open()
+
+            async def on_cancel_confirm(_e) -> None:
+                cancel_dialog.close()
+                if await do_action("cancel",
+                                   "Cancel sent; the run ends"):
+                    refresh()
+
+            refs["click_btn"].on("click", on_click)
+            refs["fill_btn"].on("click", on_fill)
+            refs["press_btn"].on("click", on_press)
+            refs["drag_btn"].on("click", on_drag)
+            refs["resume_btn"].on("click", on_resume)
+            refs["cancel_btn"].on("click", on_cancel)
+            cancel_ok.on("click", on_cancel_confirm)
+
+            refs["copilot_timer"] = ui.timer(
+                COPILOT_REFRESH_INTERVAL, copilot_poll)
+            update_actionbar()
 
         def render_waiting(box, run, refs) -> None:
-            """The waiting view (M3 decision 3, S1.2): the pause banner
-            (reason, prompt, deadline countdown) and the Copilot view
-            (the live screenshot with the numbered overlay, the element
-            select, the action bar, Resume / Cancel). The ~5 s Copilot
-            poll (M3 decision 4) starts here and stops in ``refresh``
-            when the run leaves the waiting state."""
+            """The waiting view (M3 decision 3, S1.2/S1.3): the pause
+            banner (reason, prompt, deadline countdown) and the tabs -
+            the Copilot view (active by default) and the noVNC tab
+            (decision 6). The Copilot poll starts in the Copilot view
+            and stops in ``refresh`` when the run leaves the waiting
+            state."""
             with box:
                 with ui.card().classes("w-full bg-orange-50") \
                         .mark("session-pause"):
@@ -394,138 +642,118 @@ def register_session(db: Database) -> None:
                             .mark("session-pause-prompt")
                     refs["deadline"] = ui.label("") \
                         .mark("session-pause-deadline")
+                with ui.tabs().classes("w-full") as tabs:
+                    ui.tab("Copilot").mark("session-copilot-tab")
+                    ui.tab("noVNC").mark("session-novnc-tab")
+                with ui.tab_panels(tabs, value="Copilot") \
+                        .classes("w-full"):
+                    with ui.tab_panel("Copilot") \
+                            .mark("session-copilot-panel"):
+                        render_copilot_view(run, refs)
+                    with ui.tab_panel("noVNC") \
+                            .mark("session-novnc-tab-panel"):
+                        render_novnc(run)
 
-                # The Copilot view: the live screenshot + overlay are
-                # rebuilt on every refresh; the select and the action
-                # bar are stable across refreshes (the inputs keep
-                # their text, the enabled state is re-synced).
-                refs["elements"] = []
-                refs["shot_box"] = ui.column().classes("w-full") \
-                    .mark("session-shot-box")
-                refs["hint"] = ui.label(EMPTY_ELEMENTS_HINT) \
-                    .classes("text-grey-7").mark("session-novnc-hint")
-                refs["hint"].set_visibility(False)
-                refs["elem_select"] = ui.select(
-                    options={}, value=None, label="Element") \
-                    .props("clearable").mark("session-elem-select")
-                refs["elem_select"].set_visibility(False)
-                refs["elem_select"].on_value_change(
-                    lambda _e: update_actionbar())
-                with ui.row().classes(
-                        "w-full flex-wrap items-center gap-2") \
-                        .mark("session-actionbar"):
-                    refs["click_btn"] = ui.button("Click").props("no-caps") \
-                        .mark("session-click")
-                    refs["fill_input"] = ui.input("") \
-                        .props("dense outlined").classes("w-40") \
-                        .mark("session-fill-input")
-                    refs["fill_btn"] = ui.button("Fill").props("no-caps") \
-                        .mark("session-fill")
-                    refs["press_input"] = ui.input("") \
-                        .props("dense outlined").classes("w-28") \
-                        .mark("session-press-input")
-                    refs["press_btn"] = ui.button("Press").props("no-caps") \
-                        .mark("session-press")
-                    refs["drag_dx"] = ui.number("dx", value=0,
-                                                format="%.0f") \
-                        .props("dense outlined").classes("w-20") \
-                        .mark("session-drag-dx")
-                    refs["drag_dy"] = ui.number("dy", value=0,
-                                                format="%.0f") \
-                        .props("dense outlined").classes("w-20") \
-                        .mark("session-drag-dy")
-                    refs["drag_btn"] = ui.button("Drag").props("no-caps") \
-                        .mark("session-drag")
-                with ui.row().classes("w-full items-center gap-2") \
-                        .mark("session-controls"):
-                    refs["resume_btn"] = ui.button("Resume") \
-                        .props("no-caps color=primary") \
-                        .mark("session-resume")
-                    refs["cancel_btn"] = ui.button("Cancel") \
-                        .props("no-caps color=negative") \
-                        .mark("session-cancel")
+        def render_running_steps(refs) -> None:
+            """The running view's step strip (M3 decision 3, the
+            dashboard step-strip DB pattern): the run's PageStatus
+            screenshots as a compact row (full image on click),
+            rebuilt only when new rows land - the strip fills in live
+            as the run progresses (``refresh`` calls this every poll)."""
+            rows = db.list_page_status(run_id)
+            sig = tuple(r["id"] for r in rows)
+            if sig == refs.get("steps_sig"):
+                return
+            refs["steps_sig"] = sig
+            box = refs["steps_box"]
+            box.clear()
+            shots = []
+            for r in rows:
+                url = runfile_url(r["screenshot_path"])
+                if url:
+                    shots.append((r["step_number"], url))
+            with box:
+                if not shots:
+                    ui.label("No step screenshots yet.").classes(
+                        "text-grey-6").mark("session-no-steps")
+                    return
+                ui.label("Steps").classes("text-h6") \
+                    .mark("session-steps-label")
+                with ui.row().classes("flex-wrap items-end gap-2") \
+                        .mark("session-step-thumbs"):
+                    for step_no, url in shots:
+                        with ui.column().classes("items-center gap-1"):
+                            ui.image(url).classes(
+                                "h-20 cursor-pointer rounded") \
+                                .mark("session-step-thumb") \
+                                .on("click", lambda _e, u=url: open_shot(u))
+                            ui.label(
+                                str(step_no if step_no is not None
+                                    else "—")
+                            ).classes("text-xs text-grey-6")
 
-                with ui.dialog() as cancel_dialog, ui.card().classes("w-96"):
-                    ui.label("Cancel the run?").classes("text-h6")
-                    ui.label("The pause is aborted and the run ends as "
-                             "cancelled.")
-                    with ui.row().classes(
-                            "w-full justify-end items-center gap-2"):
-                        ui.button("Go back", on_click=cancel_dialog.close) \
-                            .props("flat").mark("session-cancel-go-back")
-                        cancel_ok = ui.button("Cancel run") \
-                            .mark("session-cancel-confirm") \
-                            .props("color=negative")
+        def render_running(box, run, refs) -> None:
+            """The running view (M3 decision 3, S1.3): read-only
+            observation - the step strip (the ``PageStatus`` DB
+            pattern) and the noVNC tab (decision 6), the step strip
+            active by default. The strip is updated on every poll."""
+            with box:
+                ui.label("Running").classes("text-h6") \
+                    .mark("session-running")
+                with ui.tabs().classes("w-full") as tabs:
+                    ui.tab("Steps").mark("session-steps-tab")
+                    ui.tab("noVNC").mark("session-novnc-tab")
+                with ui.tab_panels(tabs, value="Steps").classes("w-full"):
+                    with ui.tab_panel("Steps") \
+                            .mark("session-steps-panel"):
+                        refs["steps_box"] = ui.column().classes("w-full")
+                        render_running_steps(refs)
+                    with ui.tab_panel("noVNC") \
+                            .mark("session-novnc-tab-panel"):
+                        render_novnc(run)
 
-                async def on_click(_e) -> None:
-                    el = selected_element()
-                    if el is None:
-                        return
-                    if await do_action("click", f"Click {el['n']} sent",
-                                       n=el["n"]):
-                        await refresh_copilot()
-
-                async def on_fill(_e) -> None:
-                    el = selected_element()
-                    if el is None:
-                        return
-                    if await do_action("fill", f"Fill {el['n']} sent",
-                                       n=el["n"],
-                                       text=str(refs["fill_input"].value
-                                                 or "")):
-                        await refresh_copilot()
-
-                async def on_press(_e) -> None:
-                    key = str(refs["press_input"].value or "").strip()
-                    if not key:
-                        ui.notify("Enter a key to press", type="warning")
-                        return
-                    if await do_action("press", f"Press {key} sent",
-                                       key=key):
-                        await refresh_copilot()
-
-                async def on_drag(_e) -> None:
-                    el = selected_element()
-                    if el is None:
-                        return
-
-                    def num(value) -> float:
-                        try:
-                            return float(value)
-                        except (TypeError, ValueError):
-                            return 0.0
-
-                    if await do_action(
-                            "drag", f"Drag {el['n']} sent", n=el["n"],
-                            dx=num(refs["drag_dx"].value),
-                            dy=num(refs["drag_dy"].value)):
-                        await refresh_copilot()
-
-                async def on_resume(_e) -> None:
-                    if await do_action("resume",
-                                       "Resume sent; the run continues"):
-                        refresh()
-
-                def on_cancel(_e) -> None:
-                    cancel_dialog.open()
-
-                async def on_cancel_confirm(_e) -> None:
-                    cancel_dialog.close()
-                    if await do_action("cancel",
-                                       "Cancel sent; the run ends"):
-                        refresh()
-
-                refs["click_btn"].on("click", on_click)
-                refs["fill_btn"].on("click", on_fill)
-                refs["press_btn"].on("click", on_press)
-                refs["drag_btn"].on("click", on_drag)
-                refs["resume_btn"].on("click", on_resume)
-                refs["cancel_btn"].on("click", on_cancel)
-                cancel_ok.on("click", on_cancel_confirm)
-
-                refs["copilot_timer"] = ui.timer(
-                    COPILOT_REFRESH_INTERVAL, copilot_poll)
-                update_actionbar()
+        def render_ended(box, run, refs) -> None:
+            """The ended view (M3 decision 3, S1.3): the result summary
+            (result + timestamps + notes) and, when ``pause_context``
+            is set, the last pause context read-only (reason, prompt,
+            screenshot, elements). No noVNC - the display stack is
+            reaped with the run."""
+            with box:
+                with ui.card().classes("w-full").mark("session-result"):
+                    ui.label(f"Finished: {run['result']}") \
+                        .classes("text-h6").mark("session-ended")
+                    with ui.row().classes("items-center gap-4") \
+                            .mark("session-result-times"):
+                        ui.label(f"Started: {run['started_at'] or '—'}") \
+                            .mark("session-result-started")
+                        ui.label(f"Ended: {run['ended_at'] or '—'}") \
+                            .mark("session-result-ended")
+                if run["notes"]:
+                    ui.label(f"Notes: {run['notes']}") \
+                        .classes("text-grey-6").mark("session-notes")
+                summary = pause_context_summary(run)
+                if summary is not None:
+                    with ui.card().classes("w-full bg-slate-50") \
+                            .mark("session-last-pause"):
+                        ui.label("Last pause (read-only)").classes("text-h6") \
+                            .mark("session-last-pause-title")
+                        if summary["reason"]:
+                            ui.label(f"Reason: {summary['reason']}") \
+                                .mark("session-last-pause-reason")
+                        if summary["prompt"]:
+                            ui.label(f"Prompt: {summary['prompt']}") \
+                                .mark("session-last-pause-prompt")
+                        if summary["shot_url"]:
+                            ui.image(summary["shot_url"]) \
+                                .classes("max-h-[24rem]") \
+                                .mark("session-last-pause-shot")
+                        if summary["elements"]:
+                            ui.label("Elements at pause time:") \
+                                .classes("text-grey-6 mt-2") \
+                                .mark("session-last-pause-elements-label")
+                            for line in summary["elements"]:
+                                ui.label(line).classes("text-sm text-grey-7") \
+                                    .mark("session-last-pause-element")
 
         # ---- State machine (M3 decision 3, the ~2 s poll) ---------------
         state = run_state(run, control_sock_alive(run))
@@ -533,7 +761,12 @@ def register_session(db: Database) -> None:
             state, color=STATE_COLORS.get(state, "grey")).mark("session-state")
         content_box = ui.column().classes("w-full").mark("session-content")
         state_sig = {"sig": state}
-        _render_state(content_box, run, state, refs, render_waiting)
+        renderers = {
+            "waiting": render_waiting,
+            "running": render_running,
+            "ended": render_ended,
+        }
+        _render_state(content_box, run, state, refs, renderers)
         if state == "waiting" and refs.get("deadline") is not None:
             refs["deadline"].set_text(deadline_text(run["pause_deadline_at"]))
 

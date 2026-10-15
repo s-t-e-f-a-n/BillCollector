@@ -304,6 +304,22 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
     applies to the first view; it degrades to the same notify when the
     socket is gone). Full suite green (277 + 37 subtests), ruff clean.
     Next: S2 (the recipe repair flow).
+- **S2.1 done (2026-10-15, `9476c6f` + `2fbc05f`).** The additive
+    `step_number` pause-context field is in (M3 decision 8):
+    `build_pause_context` takes `step_number` (default None) and emits
+    it as a sibling of the parsed `step` payload key; `pause_loop`
+    forwards it; all three runner pause call sites (`wait_user`,
+    `step_failed`, `download_failed`) pass `step.get("step", 0)`. The
+    `pause.py` contract docstrings document the field (int, None for
+    pauses without a step; it lets a consumer find the step in the
+    recipe without parsing the prompt string). The protocol stays v1
+    (no action/message changes); older consumers ignore the unknown
+    field. The M1 contract tests updated additively where they assert
+    the payload: the shape test asserts `step_number=11`, a new
+    default-None test, the waiting-loop test asserts the field
+    persists on the Run row, and the three runner wiring tests assert
+    the passed step number (`args[5]`: 7, 14, 11). Full suite green
+    (278 + 37 subtests), ruff clean. Next: S2.2.
 
 ### S1 — Session view (Copilot + noVNC)
 

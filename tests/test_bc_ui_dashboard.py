@@ -7,8 +7,9 @@ Uses ``nicegui.testing.User`` (no browser): the main file (pytest.ini
 plus a download), running (an active run with a log file), waiting (a
 paused active run) - and check the table rows, the filters, the waiting
 badge, the sort order, the row-click navigation to the task detail
-placeholder, the log pane content, and the ``/runs/<run_id>`` deep link
-(known id redirects, unknown id 404s).
+ placeholder, and the log pane content. The ``/runs/<run_id>`` deep link
+ is the session page since M3 S1.1 (the M2 redirect is gone); its tests
+ live in ``test_bc_ui_session.py``.
 
 D3.2 adds the run actions: the row **Run now** / **Stop** buttons route
 through the ``rowaction`` CustomEvent to ``orchestrator.start_run`` /
@@ -303,20 +304,6 @@ async def test_step_strip_shows_the_followed_run_screenshots(
     # ui.image with the same source).
     user.find(kind=ui.image).click()
     assert len(user.find(kind=ui.image).elements) == 2
-
-
-async def test_unknown_run_id_shows_a_404(user, testdb, tmp_path):
-    _seed(testdb, tmp_path)
-    await _login(user, testdb)
-    await user.open("/runs/9999")
-    await user.should_see("Unknown run id: 9999 (404)")
-
-
-async def test_known_run_id_redirects_to_the_task_detail(user, testdb, tmp_path):
-    seed = _seed(testdb, tmp_path)
-    await _login(user, testdb)
-    await user.open(f"/runs/{seed['run_idle']}")
-    await user.should_see(f"Task {seed['idle']}: svc-a / user1", retries=10)
 
 
 async def test_run_now_calls_start_run(user, testdb, tmp_path, monkeypatch):

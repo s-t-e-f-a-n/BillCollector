@@ -267,6 +267,10 @@ async def test_pause_section_shows_prompt_deadline_and_screenshot(
     assert "remaining" in deadline_label.text
     (shot,) = user.find(marker="detail-pause-shot").elements
     assert shot.source == f"/runfiles/{run}/pause_1.png"
+    # M3 S1.1: the card links to the session page (the intervention
+    # target, decision 2).
+    user.find(marker="detail-pause-open").click()
+    await user.should_see(f"Run {run}", retries=10)
 
 
 async def test_downloads_page_lists_rows_with_the_duplicate_badge(

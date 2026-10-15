@@ -267,9 +267,43 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
     `data-novnc-port`, the Copilot content is inside the tab panel, the
     stub's badge lands at the expected percentage), running (a real
     runfiles tree renders both `/runfiles` thumbnail URLs, no action
-    bar), ended (result + the read-only last pause with the screenshot
-    URL and the element lines, no noVNC), and the novnc-port-None hint.
-    Full suite green (257 + 37 subtests), ruff clean. Next: S1.4.
+     bar), ended (result + the read-only last pause with the screenshot
+     URL and the element lines, no noVNC), and the novnc-port-None hint.
+     Full suite green (257 + 37 subtests), ruff clean. Next: S1.4.
+- **S1.4 done (2026-10-15, `14ad3b4`).** The committed tests for
+    S1.1-S1.3 land in
+    `tests/test_bc_ui_session.py` (M3 decision 11; the M2 `/runs`
+    redirect test already moved with the route in S1.1). Unit —
+    `png_dims` (IHDR parse; missing/truncated/non-PNG/no-IHDR/zero-size
+    rejected), `overlay_pct` (center math, zero-size and non-numeric
+    guards), `pause_context_summary` (parse + the /runfiles URL;
+    missing/corrupt/non-dict → None); the state mapping is the S1.1
+    `run_state` test. UI (a seeded `waiting` Run + a **stubbed
+    `control_client` factory**, the D3.2 shared-module pattern): the
+    banner fields, the three overlay badges at the rect-center
+    percentages (55.00/20.00, 50.00/47.50, 30.00/75.00), the
+    `n · role · name` select, the badge tap → select + the per-
+    `actionTypes` enable sync, every action dispatches the protocol
+    arguments (`click n`, `fill n + text`, `press key`, `drag n + dx +
+    dy`), `resume` dispatches and `cancel` requires the confirmation
+    (nothing is sent before it), a `ControlError` from the stub degrades
+    to a notify + state refresh on **both** the fetch and the action
+    path (the page never crashes, decision 4), the empty-elements noVNC
+    hint (the select hides, decision 1), the noVNC iframe HTML carries
+    the websockify port and `novnc_port` None renders the unavailable
+    hint; a `running` run against a real runfiles tree (both step
+    thumbnail `/runfiles` URLs, no action bar, the noVNC tab present);
+    an `ended` run with a `pause_context` (result + notes + the
+    read-only last-pause card: reason, prompt, the screenshot's
+    /runfiles URL, the `n · role · name` lines, no noVNC); unknown id →
+    404. One production fix surfaced while writing the tests: the
+    waiting view fetched the screenshot/elements only on the first ~5 s
+    tick, so an operator arriving via the ntfy deep link saw an empty
+    page for up to 5 s — `session_page` is now async and awaits an
+    **initial `refresh_copilot()`** (decision 4's immediate refresh
+    applies to the first view; it degrades to the same notify when the
+    socket is gone). Full suite green (277 + 37 subtests), ruff clean.
+    Next: S2 (the recipe repair flow).
 
 ### S1 — Session view (Copilot + noVNC)
 

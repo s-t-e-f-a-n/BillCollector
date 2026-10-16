@@ -471,10 +471,14 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
   ntfy deep-link target); full suite green.
 - **Verify (manual):** scratch env + mock portal: a `testautopause`
   pause → the ntfy deep link (or `/runs/<id>`) opens the session page;
-  Copilot selects "I am not a robot" → click → refresh → "Verified" →
-  click → resume → `success` (the M2 driver script is no longer needed);
-  a `testhappy` run shows the read-only step screenshots + noVNC
-  observation; after the run: the ended view.
+  Copilot selects "I am not a robot" → click (the post-action re-scan
+  shows the button replaced by "Verified" — the operator does **not**
+  click "Verified" itself: its `onclick` navigates to the portal
+  dashboard and the re-executed step 11 would no longer find the
+  button) → resume → the step re-executes and clicks "Verified" →
+  `success` (the M2 driver script is no longer needed); a `testhappy`
+  run shows the read-only step screenshots + noVNC observation; after
+  the run: the ended view.
 
 ### S2 — Recipe repair flow
 
@@ -541,13 +545,18 @@ change, run for the gate) + ruff clean.
   link opens the session page directly; a second browser/incognito
   proves it).
 - **S3.3 Guide: Acceptances 1–2:** step 4 (Acceptance 1 `testautopause`:
-  3× step failure → `waiting` → Copilot select "I am not a robot" →
-  click → refresh → select "Verified" → click → **Resume** → the step
-  re-executes → `success`, the download tracked) + step 5 (Acceptance 2
-  `testwaituser`: `wait_user` pause → read the 6-digit code from the
-  session screenshot (the context `page_text` has it too) → Copilot
-  **fill** the code into the "verification code" textbox → click
-  "Verify" → **Resume** → `success` + download).
+  the step-3 pause → session page → Copilot select "I am not a robot" →
+  click (the button is replaced in place by "Verified"; the immediate
+  post-action re-scan shows it — the operator does **not** click
+  "Verified" itself: its `onclick` navigates to the portal dashboard and
+  the re-executed step 11 would no longer find the button) → **Resume**
+  → the step re-executes and clicks "Verified" → `success`, the download
+  tracked) + step 5 (Acceptance 2 `testwaituser`: `wait_user` pause →
+  read the 6-digit code from the session screenshot (the context
+  `page_text` has it too) → Copilot **fill** the code into the
+  "verification code" textbox → click "Verify" (the form navigates to
+  the dashboard) → **Resume** (no `until` — the step completes
+  immediately) → `success` + download).
 - **S3.4 Guide: Acceptances 3–5:** step 6 (Acceptance 3
   `testcaptchadrag`: `wait_user` pause → the element list is **empty**
   (the hint shows) → **noVNC tab** → drag the slider all the way right

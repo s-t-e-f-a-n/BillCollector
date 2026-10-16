@@ -411,14 +411,19 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
   a failed step without a locator prefix (the `goto` step) → the
   disabled picker + the not-repairable hint (the failure panel still
   renders); a `wait_user` pause → the not-a-step-failure hint + the
-  disabled picker (the candidate rows still render). Session
-  (`tests/test_bc_ui_session.py`): the **Repair recipe** link is
-  offered for a `step_failed` pause — in the waiting view's pause
-  banner and in the ended view (the pause columns survive the
-  resume) — and never for the other pause reasons (no link on the
-  banner for a non-`step_failed` pause, no link on an ended
-  `wait_user` run). Full suite green (301 + 37 subtests), ruff
-  clean.
+   disabled picker (the candidate rows still render). Session
+   (`tests/test_bc_ui_session.py`): the **Repair recipe** link is
+   offered for a `step_failed` pause — in the waiting view's pause
+   banner and in the ended view (the pause columns survive the
+   resume) — and never for the other pause reasons (no link on the
+   banner for a non-`step_failed` pause, no link on an ended
+   `wait_user` run). Full suite green (301 + 37 subtests), ruff
+   clean.
+- **S3 partitioned (2026-10-16).** The S3 exit pass guide is
+  partitioned into S3.1–S3.5 (small, independently committable
+  portions of the guide; the prior single-chunk attempts hit the model
+  output limit). S3.1: the guide skeleton + prerequisites + steps
+  0–1.
 
 ### S1 — Session view (Copilot + noVNC)
 
@@ -502,57 +507,64 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
 
 ### S3 — Wave 1 exit pass (recorded manual)
 
-- **Guide:** new file `.kilo/plans/1791<ts>-m3-wave1-exit-pass-guide.md`
-  in the D6.4 guide's pattern. Prerequisites: the dev host stack
-  (Xvfb/x11vnc/websockify/novnc), the LAN Vaultwarden Layer B items
-  (`testhappy`, `testautopause`, `testwaituser`, `testcaptchadrag` /
-  `user1`), repo on `dev` clean (scenario 7 lands a real recipe commit
-  — keep or revert afterwards), ports free (8787, 18766, 6080+, 5900+,
-  display :99), the WSLg `/tmp/.X11-unix` remount one-liner, the
-  browser-build hardlink, scratch root `/tmp/bc-d64`. No driver script
-  needed (the Copilot UI is the client); the control socket is
-  documented as the fallback (M1 client).
-- **Steps** (fresh scratch env; tasks created via the UI):
-  1. Login + imported tasks; create `testhappy`, `testautopause`,
-     `testwaituser`, `testcaptchadrag` (`user1`), enabled.
-  2. ntfy deep link: set `ui_base_url` in Settings; a `testautopause`
-     pause pushes ntfy — the link opens the session page directly
-     (a second browser/incognito proves it).
-  3. **Acceptance 1 — `testautopause`:** 3× step failure → `waiting` →
-     Copilot: select "I am not a robot" → click → refresh → select
-     "Verified" → click → **Resume** → the step re-executes →
-     `success`, the download tracked.
-  4. **Acceptance 2 — `testwaituser`:** `wait_user` pause → read the
-     6-digit code from the session screenshot (the context `page_text`
-     has it too) → Copilot: **fill** the code into the "verification
-     code" textbox → click "Verify" → **Resume** → `success` +
-     download.
-  5. **Acceptance 3 — `testcaptchadrag`:** `wait_user` pause → the
-     element list is **empty** (the hint shows) → **noVNC tab** → drag
-     the slider all the way right ("Verified") → back to the session
-     page → **Resume** → `success` + download.
-  6. **Acceptances 4+5 — persistent profile + dedup:** `testhappy`
-     run 1: the consent banner shows (the graceful "Reject" row);
-     run 2: the banner is absent; run 2's downloads carry the
-     duplicate badge (sha256, `duplicate_of` → run 1's rows).
-  7. **Acceptance 6 — changed website:** `POST /admin/happy/mutate`
-     `{"login_button": "Sign in"}` → `testhappy` Run now → the login
-     step fails 3× → pause with failure context → session page →
-     **Repair recipe** → the failure panel (screenshot, step,
-     candidates) → **Use** the "Sign in" button → Validate → Save →
-     `git log` shows `recipe(testhappy): …` (`git show --stat HEAD` =
-     the recipe file only) → Run now → `success` →
-     `POST /admin/happy/reset`.
-  8. Read-only running view + ended view + noVNC observation, as
-     observed during steps 3–7.
-  9. Final DB checks (no run left `running`/`waiting`; the
-     `cancelled`/`needs_attention` rows only if exercised; dedup
-     pointers; `profile_reset_at` where set) + record the outcome in
-     this plan (`*Done (<date>): …*`) and commit the pass artifacts;
-     decide on the scenario-7 recipe commit (keep/revert, a
-     description-level change).
+The deliverable is the guide file (the D6.4 guide's pattern); the live
+pass is then run by the operator over the guide's steps and recorded in
+the guide's review log across sessions (the M2 D6.4 pattern). Partitioned
+into S3.1–S3.5 so each sub-chunk is a small, independently committable
+portion of the guide — the prior single-chunk attempts hit the model
+output limit. Each sub-chunk ends with the full suite green (doc-only
+change, run for the gate) + ruff clean.
+
+- **S3.1 Guide skeleton + setup steps:** new file
+  `.kilo/plans/1791<ts>-m3-wave1-exit-pass-guide.md`: header + review
+  log, prerequisites (dev host stack Xvfb/x11vnc/websockify/novnc; LAN
+  Vaultwarden Layer B items `testhappy`/`testautopause`/`testwaituser`/
+  `testcaptchadrag` `user1`; repo on `dev` clean — step 8 lands a real
+  recipe commit, keep or revert afterwards; ports free 8787, 18766,
+  6080+, 5900+, display :99; the WSLg `/tmp/.X11-unix` remount one-liner;
+  the browser-build hardlink; scratch root `/tmp/bc-d64`), step 0 (mock
+  portal, terminal 1), step 1 (scratch env + daemon, terminal 2).
+- **S3.2 Guide: login + ntfy deep link:** step 2 (login + imported
+  tasks; create `testhappy`, `testautopause`, `testwaituser`,
+  `testcaptchadrag` (`user1`) via the UI, enabled) + step 3 (set
+  `ui_base_url` in Settings; a `testautopause` pause pushes ntfy — the
+  link opens the session page directly; a second browser/incognito
+  proves it).
+- **S3.3 Guide: Acceptances 1–2:** step 4 (Acceptance 1 `testautopause`:
+  3× step failure → `waiting` → Copilot select "I am not a robot" →
+  click → refresh → select "Verified" → click → **Resume** → the step
+  re-executes → `success`, the download tracked) + step 5 (Acceptance 2
+  `testwaituser`: `wait_user` pause → read the 6-digit code from the
+  session screenshot (the context `page_text` has it too) → Copilot
+  **fill** the code into the "verification code" textbox → click
+  "Verify" → **Resume** → `success` + download).
+- **S3.4 Guide: Acceptances 3–5:** step 6 (Acceptance 3
+  `testcaptchadrag`: `wait_user` pause → the element list is **empty**
+  (the hint shows) → **noVNC tab** → drag the slider all the way right
+  ("Verified") → back to the session page → **Resume** → `success` +
+  download) + step 7 (Acceptances 4+5 persistent profile + dedup:
+  `testhappy` run 1 the consent banner shows (the graceful "Reject"
+  row); run 2 the banner is absent; run 2's downloads carry the
+  duplicate badge (sha256, `duplicate_of` → run 1's rows)).
+- **S3.5 Guide: Acceptance 6 + close + appendix:** step 8 (Acceptance 6
+  changed website: `POST /admin/happy/mutate` `{"login_button": "Sign
+  in"}` → `testhappy` Run now → the login step fails 3× → pause with
+  failure context → session page → **Repair recipe** → the failure panel
+  (screenshot, step, candidates) → **Use** the "Sign in" button →
+  Validate → Save → `git log` shows `recipe(testhappy): …` (`git show
+  --stat HEAD` = the recipe file only) → Run now → `success` →
+  `POST /admin/happy/reset`) + step 9 (read-only running view + ended
+  view + noVNC observation, as observed during steps 4–8) + step 10
+  (final DB checks — no run left `running`/`waiting`, dedup pointers,
+  `profile_reset_at` where set — + record the outcome + keep/revert the
+  scenario-7 recipe commit) + Appendix A (the control socket as the
+  fallback M1 client — the Copilot UI is the primary client, no driver
+  script needed).
 - **Baseline (M3 / Wave 1 exit):** all six acceptance scenarios green
   from the web UI; this plan recorded; full suite green.
+- **Verify (manual):** the live pass over the guide's steps 0–10,
+  recorded in the guide's review log across sessions (the M2 D6.4
+  pattern).
 
 ## M3 exit (v3, unchanged)
 

@@ -424,6 +424,16 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
   portions of the guide; the prior single-chunk attempts hit the model
   output limit). S3.1: the guide skeleton + prerequisites + steps
   0–1.
+- **S3.2 done (2026-10-16).** Guide steps 2–3 are in: step 2 (login + the 11 imported tasks; **Add task** ×4 —
+  `testhappy`/`testautopause`/`testwaituser`/`testcaptchadrag`
+  (`user1`), enabled, the derived recipe filenames) and step 3 (set
+  `ui_base_url`; `testautopause` Run now → 3× step 11 failure →
+  `waiting` + the detail pause card with the **Open session** link;
+  the ntfy push carries the deep link
+  `<ui_base_url>/runs/<run_id>` — the second-browser/incognito check
+  proves it lands on the session page, not the dashboard; the pause
+  stays open for step 4; the Xvfb failure mode is documented here as
+  the first run). Full suite green, ruff clean. Next: S3.3.
 
 ### S1 — Session view (Copilot + noVNC)
 

@@ -166,3 +166,98 @@ If the run fails with `Xvfb :99 did not create /tmp/.X11-unix/X99 within
 `sudo mount -o remount,rw /tmp/.X11-unix && sudo chmod 1777 /tmp/.X11-unix`
 (remounting rw is the essential part; the chmod only matters on WSL
 builds that mount the dir at 775), then Run now again.
+
+## Step 4 — Acceptance 1: resolve the `testautopause` pause via Copilot (plan step 3)
+
+Still on the session page from step 3 (the deep link in the second
+browser/incognito window): the pause is open, the state badge is
+`waiting`. The **Copilot** tab is active by default; it carries the
+live screenshot (the "Security check" page) with the numbered overlay,
+the element select, the action bar, and **Resume**/**Cancel**. The
+**noVNC** tab is available but not needed here — this is the case where
+Copilot can express the intervention.
+
+1. **Element select** (`n · role · name`, the number is the badge on
+   the screenshot): pick `1 · button · I am not a robot` — or tap its
+   numbered badge on the screenshot (the badge tap selects the element
+   into the action bar, mobile-first). For a button the action bar
+   enables **Click**.
+2. **Click** → notify `Click 1 sent` → the immediate post-action
+   refresh re-fetches the screenshot and elements: the button was
+   **replaced in place** by "Verified" (the page's JS swaps it), so
+   the fresh screenshot shows "Verified" and the element select now
+   offers `1 · button · Verified`.
+3. **Do not click "Verified" itself**: its `onclick` navigates to the
+   portal dashboard, and the re-executed step 11
+   (`get_by_role button "Verified" → click`) would no longer find the
+   button — the pause would recur. Leave the page as-is.
+4. **Resume** (primary button) → notify `Resume sent; the run
+   continues` → within the ~2 s poll the state badge flips to
+   `running`: the read-only running view (the step strip fills in live;
+   the noVNC tab stays available for observation). Step 11 re-executes
+   and clicks "Verified" — the page navigates to the portal dashboard —
+   then steps 12–14 (account, invoices, download) and step 15 (close).
+
+Check:
+
+- the session page flips to the **ended** view: `Finished: success`
+  with the started/ended timestamps, plus the **Last pause
+  (read-only)** card (the pause columns survive the resume): reason
+  `step_failed`, the prompt, the pause screenshot, and the elements at
+  pause time (`1 · button · I am not a robot`); no noVNC tab (the
+  display stack is reaped with the run);
+- dashboard: the `testautopause` row is `idle` again, `[0 waiting]`;
+  task detail: the run's history row is `success`, the step table
+  carries the step-11 failure row plus the clean re-execution row
+  (one row per step, its final outcome), and the run's **download**
+  `invoice_autopause_user1_1.pdf` is tracked (sha256 + size) in the
+  run's download section and on the downloads page.
+
+## Step 5 — Acceptance 2: the `testwaituser` wait_user pause (plan step 4)
+
+Dashboard: row **Run now** on `testwaituser`. The run performs the
+login and OTP steps (1–10) on its own; step 11 is a `wait_user` step,
+and the runner pauses **before** executing it (the step is consumed on
+resume, not re-executed — the operator's work happens during the
+pause):
+
+- the task flips to **`waiting`** (the second pause of the pass); the
+  ntfy push arrives on the topic with the deep link — open it (or
+  navigate to `/runs/<run_id>`): the session page lands on the waiting
+  view;
+- the pause banner: reason `wait_user`, prompt `Type the 6-digit code
+  shown on the page, then press Verify`, the deadline countdown
+  (30:00);
+- the Copilot screenshot shows the "Security check" page **with the
+  6-digit code displayed on it** (plus the "verification code" textbox
+  and the "Verify" button). The code is readable in the screenshot (the
+  pause context's `page_text` carries it too, for a machine client).
+
+Resolve it from Copilot — this is the human-reads-the-CAPTCHA case the
+recipe cannot express:
+
+1. Read the 6-digit code from the session screenshot.
+2. Select the textbox in the element select
+   (`1 · textbox · verification code` — or tap its badge). A textbox
+   enables **Click** and **Fill** in the action bar. Type the code
+   into the fill text input, then **Fill** → notify `Fill 1 sent` →
+   the refresh shows the code in the textbox.
+3. Select the "Verify" button (`2 · button · Verify`) → **Click** →
+   notify `Click 2 sent` → the form POSTs and the page navigates to
+   the portal dashboard.
+4. **Resume** → the `wait_user` step is **consumed, not re-executed**
+   (no `until` — it completes immediately on resume); steps 12–15
+   follow → `success`.
+
+Check:
+
+- the ended view: `Finished: success` + the **Last pause (read-only)**
+  card (reason `wait_user`, the prompt, the screenshot **with the code
+  visible**, the elements `1 · textbox · verification code` and
+  `2 · button · Verify`);
+- the run's **download** `invoice_waituser_user1_1.pdf` is tracked;
+  the dashboard row is `idle` again.
+
+Failure mode: a mistyped code → the form re-renders with "Invalid code"
+(the page stays put) — correct the code (select the textbox, **Fill**
+again) and click Verify again, **before** the Resume.

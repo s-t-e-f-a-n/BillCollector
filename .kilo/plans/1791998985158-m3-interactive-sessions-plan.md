@@ -434,6 +434,33 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
   proves it lands on the session page, not the dashboard; the pause
   stays open for step 4; the Xvfb failure mode is documented here as
   the first run). Full suite green, ruff clean. Next: S3.3.
+- **S3.3 done (2026-10-16).** Guide steps 4–5 are in: step 4
+  (Acceptance 1 `testautopause`: the step-3 pause resolved from the
+  session page's Copilot tab — element select / badge tap on
+  `1 · button · I am not a robot`, **Click** (notify + the immediate
+  post-action re-scan shows the button replaced in place by
+  "Verified"), the do-not-click-"Verified" warning (its `onclick`
+  navigates to the portal dashboard and the re-executed step 11 would
+  no longer find the button), **Resume** → the running view → the step
+  re-executes and clicks "Verified" → the ended view: `Finished:
+  success` + the Last pause (read-only) card (the pause columns survive
+  the resume), the step-11 failure row plus the clean re-execution row
+  (one PageStatus row per step, its final outcome), the
+  `invoice_autopause_user1_1.pdf` download tracked) and step 5
+  (Acceptance 2 `testwaituser`: the `wait_user` pause lands **before**
+  step 11 (the step is consumed on resume, not re-executed — the
+  operator's work happens during the pause); the ntfy deep link to the
+  waiting view; the 6-digit code read from the session screenshot (the
+  context `page_text` carries it too); **Fill** the code into
+  `1 · textbox · verification code` → **Click** `2 · button · Verify`
+  (the form navigates to the portal dashboard) → **Resume** (no
+  `until` — the step completes immediately) → the ended view
+  `success` + the `invoice_waituser_user1_1.pdf` download; the
+  mistyped-code failure mode: the form re-renders "Invalid code",
+  correct and retry before the Resume). Both plan locations of the
+  autopause flow were fixed to this proven flow (the S3.3 section and
+  the S1 Verify (manual) block). Full suite green, ruff clean. Next:
+  S3.4.
 
 ### S1 — Session view (Copilot + noVNC)
 

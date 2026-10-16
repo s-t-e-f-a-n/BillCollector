@@ -124,7 +124,10 @@ timestamp from the live APScheduler job (not `—`). Duplicate
 `/settings`: set `ui_base_url` to `http://127.0.0.1:18766` → Save →
 notify; reload → the value persists (round-trip). Without it, the deep
 link in the ntfy push is a relative path (`/runs/<id>`), not a full URL a
-phone can open.
+phone can open. Also flip **Git auto-commit** on → Save → notify
+`git_commit_enabled saved`; reload → the switch stays on (round-trip).
+Step 8's repair Save lands the `recipe(testhappy): …` commit only when it
+is on (the default is off).
 
 Note: pause pushes go to `$NTFY_HOST` (default `https://ntfy.sh`) on the
 `ntfy_topic` setting (default `billcollector`), best-effort — a missed
@@ -357,5 +360,189 @@ Check:
   **`duplicate of #N`** badge (N = run 1's Download row id), with the same
   filename and the same truncated sha256 (first 12 chars).
 - (Optional, falsifiability:) task detail → **Reset profile** → confirm →
-  the profile directory is deleted and the next run cold-starts **with the
-  consent banner back** (the same loop the M2 pass's step 9 exercised).
+   the profile directory is deleted and the next run cold-starts **with the
+   consent banner back** (the same loop the M2 pass's step 9 exercised).
+
+## Step 8 — Acceptance 6: changed website + recipe repair (plan step 6)
+
+The DOM-change friction point, resolved through the recipe-repair flow (the
+primary no-YAML path: the candidate picker, preloaded from the paused run's
+failure context). The mutation lives in the mock portal's memory only (fresh
+per portal start), so the drill is: mutate → run → repair → cancel the
+stale run → re-run → reset.
+
+1. **Mutate** the landing page (terminal 3, or a curl from any terminal):
+
+```bash
+curl -s -X POST http://127.0.0.1:8787/admin/happy/mutate \
+  -H 'Content-Type: application/json' \
+  -d '{"login_button": "Sign in"}'
+```
+
+→ `{"ok": true, "overrides": {"login_button": "Sign in"}}`. The landing
+submit button now reads "Sign in"; the recipe's step 8 ("Submit the login
+form.") still expects `get_by_role button "Log in"`.
+
+2. Dashboard: row **Run now** on `testhappy`. Steps 1–7 execute (landing,
+consent banner, the form fields); step 8 fails 3× — the `Log in` button no
+longer exists — and the task flips to **`waiting`** (the fourth pause of
+the pass). The ntfy push with the deep link arrives on the topic; terminal
+2 logs `Run <id> paused (step_failed): …`.
+
+3. Open the session page (the deep link, or `/runs/<run_id>`): the pause
+banner shows reason `step_failed`, the prompt (`Step 8: Submit the login
+form. - failed after 3 attempts. Fix the page (or repair the recipe), then
+resume.`), the deadline countdown — and, because this is a `step_failed`
+pause, the **Repair recipe** link (the primary path; the Copilot tab is
+available, but the fix is the recipe's locator, not a page state).
+
+4. **Repair recipe** → `/recipes/testhappy?run=<run_id>`: the editor loads
+`recipe-pw__testhappy.yaml` with a red **failure panel** above it (title
+`Failure (run N)`):
+
+- the failure screenshot (the landing page with the **Sign in** button) via
+  its `/runfiles` URL;
+- the step label: `Step 8: Submit the login form.`;
+- the expected locator (mono): `get_by_role(role=button, name=Log in)`;
+- the error (the step-8 locator timeout);
+- the candidate rows for the pause page — one per interactive element
+  (`n · role · name (locatorType)`), each with a **Use** button — including
+  the `n · button · Sign in (get_by_role)` row.
+
+5. **Use** on the Sign in row → the editor reloads with the rewritten YAML:
+step 8's locator prefix is replaced with the candidate's locator
+(`get_by_role` with `role: "button"`, `name: "Sign in"`, `exact: true`) and
+the `click` action is kept; the result label says what was replaced. (The
+advanced path: fine-tune the YAML by hand.)
+
+6. **Validate** → OK; **Save** → notify saved. Check the repo (repo root):
+
+```bash
+git log --oneline -1     # recipe(testhappy): edited via UI
+git show --stat HEAD     # only apps/recipes_playwright/recipe-pw__testhappy.yaml
+```
+
+**Warning** (the M2 step-8 pattern): the recipe directory is fixed to
+`apps/recipes_playwright` and the commit targets the repo root, so this
+lands on the **real `dev` branch** (no scratch redirect). Unlike M2's
+description-only change, this locator repair is only valid while the
+mutation is active — after the reset in 8.9, the portal's button is back to
+"Log in" and the repaired recipe would fail. Revert it with a new commit
+after the pass (no amends) — the keep/revert decision is step 10.
+
+7. Back on the session page: **Cancel** → the confirmation dialog ("Cancel
+the run? … the run ends as cancelled.") → **Cancel run** → notify `Cancel
+sent; the run ends` → the run ends **`cancelled`**, the task flips to
+`idle` (the display stack is reaped). The session page flips to the ended
+view: `Finished: cancelled` + the **Last pause (read-only)** card — the
+pause columns survive the cancel, so the **Repair recipe** link is still
+offered on it.
+
+(While the run is `waiting`, the dashboard's **Run now** refuses —
+`testhappy: not started (already running/waiting?)` — the claim inside
+`start_run` is the double-start guard; the cancel is what frees the task
+for the re-run.)
+
+8. **Run now** again (the dashboard row, or the per-task button the recipe
+editor offers after the save) → the run with the repaired recipe: step 8
+finds the **Sign in** button → the login (steps 9–10, the OTP) → the
+dashboard → the downloads (steps 15–16) → close (17) → **`success`**. The
+two downloads are byte-stable → the same sha256 as step 7's run 1 →
+recorded as **duplicates** of run 1's rows (dedup key = task + sha256; the
+consumer hook is not re-run for them).
+
+9. **Reset** the portal:
+
+```bash
+curl -s -X POST http://127.0.0.1:8787/admin/happy/reset
+```
+
+→ `{"ok": true}` (the overrides are cleared; the landing button is back to
+"Log in").
+
+## Step 9 — Running view + ended view + noVNC observation
+
+Verified as observed during steps 4–8 (the S1.3 views, not new scenarios):
+
+- **running** (e.g. during the login/OTP steps of any `testhappy` run, or
+  right after a **Resume** while the run continues): the session page is
+  read-only — the step strip fills in live with the run's step screenshots
+  (one `PageStatus` row per step, its final outcome; thumbnail click → the
+  full image in a dialog), the **noVNC** tab shows the live Xvfb screen
+  (the operator observes without intervening), the **Steps** tab is active
+  by default, no action bar;
+- **ended** (steps 4–6 and 8): `Finished: <result>` with the
+  started/ended timestamps + the **Last pause (read-only)** card for the
+  paused runs (reason, prompt, the pause screenshot, the elements at pause
+  time as `n · role · name` lines — the drag pause of step 6 shows none,
+  its list was empty) and, for the `step_failed` runs, the **Repair
+  recipe** link (it survives the resume/cancel); no noVNC tab (the display
+  stack is reaped with the run).
+
+Record any deviation from this in the review log.
+
+## Step 10 — Final DB checks + record
+
+```bash
+sqlite3 /tmp/bc-d64/db/bc.db <<'SQL'
+SELECT id, task_id, result, display, novnc_port FROM Run ORDER BY id;
+SELECT id, filename, size, sha256, duplicate_of_id FROM Download ORDER BY id;
+SELECT key, value FROM Settings;
+SELECT id, service, user, status, enabled, profile_reset_at FROM Task;
+SQL
+```
+
+Expect (7 runs, 9 downloads):
+
+- no run left `running`/`waiting`: 6× `success` + 1× `cancelled` (step
+  8's pre-repair run); all tasks `idle`;
+- downloads: one per paused task (`invoice_autopause_user1_1.pdf`,
+  `invoice_waituser_user1_1.pdf`, `invoice_captchadrag_user1_1.pdf`) +
+  6× `testhappy` (step 7 run 1's two clean, step 7 run 2's and the
+  post-repair run's four with `duplicate_of_id` → run 1's rows);
+- Settings: `ui_base_url = http://127.0.0.1:18766`,
+  `git_commit_enabled = true`;
+- `profile_reset_at` set for `testhappy`/`user1` only if step 7's optional
+  Reset profile was exercised.
+
+Then:
+
+- record the outcome in the M3 plan
+  (`.kilo/plans/1791998985158-m3-interactive-sessions-plan.md`, the S3
+  progress section) and commit it with the pass artifacts;
+- stop the daemon (terminal 2: `kill <daemon pid>` → the log shows
+  `Scheduler has been shut down`, then `serve stopped: scheduler stopped,
+  runners terminated`); kill the mock portal (terminal 1);
+  `rm -rf /tmp/bc-d64`;
+- decide on step 8's recipe commit: **revert** (recommended — the mutation
+  is in-memory and gone with the portal; the repaired locator points at a
+  button that no longer exists) with a new commit restoring
+  `name: "Log in"`, or keep it. No amends.
+
+## Appendix A — the control socket as the fallback client
+
+The Copilot UI is the primary intervention client (the session page's
+tabs); no driver script is needed for this pass. If a session page ever
+misbehaves (stale state, a mis-rendered view), the per-run control socket
+is the M1 fallback: JSON lines over
+`<BC_DATA_DIR>/runs/run-<run_id>.sock` (the `<run_id>` is the `<id>` in
+terminal 2's `Run <id> paused …` line). Actions: `screenshot`, `elements`,
+`context`, `click {n}`, `fill {n, text}`, `press {key}`, `drag {n, dx,
+dy}`, `resume`, `cancel` (protocol v1; `context` returns the same machine-
+readable pause payload the detail pause card and the failure panel show).
+
+```bash
+# list the numbered elements of the pause page (the package is not
+# pip-installed in the venv - PYTHONPATH=apps, run from the repo root)
+PYTHONPATH=apps apps/.venv/bin/python - <<'PY'
+from billcollector.control import ControlClient
+c = ControlClient("/tmp/bc-d64/data/runs/run-<run_id>.sock")
+for el in c.request("elements")["elements"]:
+    print(el["n"], el["role"], el.get("name", ""))
+PY
+```
+
+The M2 D6.4 guide's driver
+(`.kilo/plans/1791829791901-m2-d64-exit-pass-guide.md`, Appendix A) is the
+same client as a script file — reuse it if a multi-call resolution is
+needed.

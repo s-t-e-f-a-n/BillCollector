@@ -482,8 +482,39 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
   **duplicates** of run 1's rows (`duplicate_of_id`), the consumer hook not
   re-run; the check covers the task-detail step rows + the `duplicate of
   #N` badge in the Downloads section / `/downloads`, and the optional
-  **Reset profile** falsifiability). Full suite green, ruff clean. Next:
-  S3.5.
+   **Reset profile** falsifiability). Full suite green, ruff clean. Next:
+   S3.5.
+- **S3.5 done (2026-10-16).** The guide is complete (steps 8–10 +
+  Appendix A): step 8 (Acceptance 6 changed website: `POST
+  /admin/happy/mutate {"login_button": "Sign in"}` → `testhappy` Run now →
+  step 8 ("Submit the login form.") fails 3× → `waiting` with the
+  `step_failed` pause → the session page's **Repair recipe** link → the
+  editor's failure panel (the `/runfiles` screenshot, the step label, the
+  expected locator `get_by_role(role=button, name=Log in)`, the error, the
+  candidate rows) → **Use** the `n · button · Sign in (get_by_role)` row
+  (step 8's locator prefix rewritten, the `click` kept) → Validate → Save →
+  `recipe(testhappy): edited via UI` commit (`git show --stat HEAD` = the
+  recipe file only) → **Cancel** the stale run (while `waiting`, Run now
+  refuses — the `start_run` claim guard — the cancel frees the task) → Run
+  now on the repaired recipe → `success` (the two byte-stable downloads
+  dedup against step 7 run 1's rows) → `POST /admin/happy/reset`; the
+  warning: the repaired locator is only valid while the mutation is active
+  → the keep/revert decision is step 10, revert recommended) and step 9
+  (the read-only running view + the ended view + the noVNC observation, as
+  observed during steps 4–8) + step 10 (the final DB checks — 7 runs, no
+  `running`/`waiting`, 6× `success` + 1× `cancelled`; 9 downloads, 4
+  `duplicate_of_id` pointers; Settings; `profile_reset_at` where set — +
+  record the outcome + stop the daemon/portal, clean the scratch root,
+  keep/revert the step-8 recipe commit) + Appendix A (the control socket as
+  the fallback M1 client — the Copilot UI is the primary client, no driver
+  script needed; the M2 driver is the same client as a script file). One
+  guide fix landed with the chunk: step 3 (the settings step) now flips
+  **Git auto-commit** on — the step-8 repair Save lands the
+  `recipe(testhappy): …` commit only when `git_commit_enabled` is on (the
+  default is off). Full suite green, ruff clean. The guide (steps 0–10 +
+  Appendix A) is the S3 deliverable; the live pass is run by the operator
+  over the guide's steps and recorded in the guide's review log across
+  sessions (the M2 D6.4 pattern).
 
 ### S1 — Session view (Copilot + noVNC)
 

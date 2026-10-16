@@ -459,8 +459,31 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
   mistyped-code failure mode: the form re-renders "Invalid code",
   correct and retry before the Resume). Both plan locations of the
   autopause flow were fixed to this proven flow (the S3.3 section and
-  the S1 Verify (manual) block). Full suite green, ruff clean. Next:
-  S3.4.
+   the S1 Verify (manual) block). Full suite green, ruff clean. Next:
+   S3.4.
+- **S3.4 done (2026-10-16).** Guide steps 6–7 are in: step 6
+  (Acceptance 3 `testcaptchadrag`: the `wait_user` pause lands **before**
+  step 11 on the drag page — the knob (`<div id="knob">`, pointer-event
+  JS) is not scannable, so the element list is **empty** and the Copilot
+  tab shows the noVNC hint (decision 1); the operator switches to the
+  **noVNC** tab (the live Xvfb screen), drags the slider all the way right
+  (pct ≥ 0.98 → "Verified" → the portal dashboard), back to Copilot →
+  **Resume** (no `until` — the step is consumed, not re-executed) → steps
+  12–15 → `success` + the `invoice_captchadrag_user1_1.pdf` download; the
+  ended view's Last-pause card shows no "Elements at pause time" lines; the
+  partial-drag and deadline-lapse failure modes) and step 7 (Acceptances
+  4+5 `testhappy` ×2: run 1 fresh profile — the consent banner shows and
+  the graceful step 2 clicks "Reject" cleanly, the login (steps 3–10) sets
+  the session cookie, the two byte-stable downloads tracked; run 2 warm
+  profile — the banner is absent (the one-year consent cookie persisted in
+  `profiles/testhappy_user1/`), the graceful step 2 is a graceful-error row
+  and the login re-runs (the session-scoped cookie is gone — the mock
+  demands a login every run), the same sha256 downloads are recorded as
+  **duplicates** of run 1's rows (`duplicate_of_id`), the consumer hook not
+  re-run; the check covers the task-detail step rows + the `duplicate of
+  #N` badge in the Downloads section / `/downloads`, and the optional
+  **Reset profile** falsifiability). Full suite green, ruff clean. Next:
+  S3.5.
 
 ### S1 — Session view (Copilot + noVNC)
 

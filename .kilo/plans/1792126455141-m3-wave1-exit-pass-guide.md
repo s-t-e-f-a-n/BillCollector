@@ -261,3 +261,101 @@ Check:
 Failure mode: a mistyped code → the form re-renders with "Invalid code"
 (the page stays put) — correct the code (select the textbox, **Fill**
 again) and click Verify again, **before** the Resume.
+
+## Step 6 — Acceptance 3: the `testcaptchadrag` drag CAPTCHA via noVNC (plan step 5)
+
+Dashboard: row **Run now** on `testcaptchadrag`. The run performs steps 1–10
+on its own (landing, the consent banner [graceful], the login, the OTP,
+"Check and log in" — after which the mock redirects to
+`/captchadrag/drag`), then pauses **before** step 11: step 11 is a
+`wait_user` step and the runner pauses before executing it (the operator's
+work happens during the pause):
+
+- the task flips to **`waiting`** (the third pause of the pass); the ntfy
+  push with the deep link arrives on the topic — open it (or navigate to
+  `/runs/<run_id>`): the session page lands on the waiting view;
+- the pause banner: reason `wait_user`, prompt `Drag the slider all the way
+  to the right`, the deadline countdown (30:00);
+- the **Copilot** tab (active by default) shows the "Security check" page
+  with the slider (the 300 px track, the blue knob at the left edge) — and
+  in place of the element select, the **noVNC hint**: "No interactive
+  elements were detected on this page. Use the noVNC view to operate the
+  page directly." The knob (`<div id="knob">`, pointer-event JS) is not a
+  scannable interactive element, so the element list is **empty** (the
+  expected state — the protocol stays v1, the drag goes through noVNC). The
+  action bar is disabled.
+
+Resolve it through noVNC — this is the case Copilot cannot express:
+
+1. Switch to the **noVNC** tab: the noVNC iframe (the run's websockify
+   port) shows the live Xvfb screen — the same "Security check" page.
+2. Drag the slider knob all the way to the right (press the knob, drag to
+   the right edge of the track). At the far right the page shows
+   **"Verified"** and navigates to the portal dashboard.
+3. Back to the **Copilot** tab, **Resume** → the `wait_user` step is
+   **consumed, not re-executed** (no `until` — it completes immediately on
+   resume); steps 12–15 (account, invoices, download, close) follow →
+   `success`.
+
+Check:
+
+- the ended view: `Finished: success` + the **Last pause (read-only)** card
+  (reason `wait_user`, the prompt, the screenshot showing the slider page;
+  no "Elements at pause time" lines — the list at pause time was empty);
+- the run's **download** `invoice_captchadrag_user1_1.pdf` is tracked
+  (sha256 + size) in the run's download section and on the downloads page;
+- dashboard: the `testcaptchadrag` row is `idle` again, `[0 waiting]`.
+
+Failure mode: a partial drag (the knob released short of the right edge)
+leaves the page in place without "Verified" — drag again from the noVNC tab,
+then Resume. If the pause deadline (30:00) lapses instead, the run ends
+`needs_attention`.
+
+## Step 7 — Acceptances 4+5: the `testhappy` persistent profile + download dedup (plan steps 6+7)
+
+Two runs of the same task prove both: the per-task profile persists across
+runs (the consent cookie survives; the session cookie does not), and the
+byte-stable mock downloads dedup by sha256.
+
+**Run 1** — dashboard row **Run now** on `testhappy` (the task has not run
+yet in the pass, so its profile is fresh):
+
+- the run performs the full happy path: the consent **banner shows** on the
+  landing (fresh profile) → the graceful step 2 clicks "Reject" (a clean
+  row) → the login (steps 3–10; the mock sets the session cookie) → the
+  popup close (11) → account/invoices (12–13) → the downloads (15
+  `invoice_happy_user1_1.pdf`, 16 `contract_info_happy_user1.pdf`) → close
+  (17);
+- the run ends **`success`**; the browser closes at step 17 — the
+  session-scoped cookie is gone, the one-year consent cookie persists in
+  the task's profile directory
+  (`/tmp/bc-d64/browser/profiles/testhappy_user1/`).
+
+**Run 2** — row **Run now** again on the same task:
+
+- the consent **banner is absent** (the consent cookie was read from the
+  profile) → the graceful step 2 finds no "Reject" button and is recorded
+  as a **graceful-error row** (the run continues, no pause);
+- the **login re-runs** (the session cookie did not persist — the mock
+  demands a login on every run): steps 3–10 execute cleanly again (had the
+  session cookie survived, step 1 would land on the dashboard and step 3
+  would pause with `step_failed`);
+- the downloads: the same byte-stable PDFs → the same sha256 as run 1 →
+  run 2's two Download rows are recorded as **duplicates** of run 1's rows
+  (`duplicate_of_id` → run 1's row ids); the consumer hook is not re-run
+  for them;
+- the run ends **`success`**.
+
+Check:
+
+- task detail `testhappy` → Run history: both runs `success`; expanding run
+  2 shows the graceful-error row on step 2 (the banner absent) and clean
+  rows on the login steps (the login re-ran);
+- the task detail's **Downloads** section (and the `/downloads` page,
+  filtered to the task): run 1's two rows carry no duplicate badge (`—` in
+  the Duplicate column); run 2's two rows carry the orange outlined
+  **`duplicate of #N`** badge (N = run 1's Download row id), with the same
+  filename and the same truncated sha256 (first 12 chars).
+- (Optional, falsifiability:) task detail → **Reset profile** → confirm →
+  the profile directory is deleted and the next run cold-starts **with the
+  consent banner back** (the same loop the M2 pass's step 9 exercised).

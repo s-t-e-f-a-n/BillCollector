@@ -20,7 +20,10 @@ confirmation.
 - PR refs are inspection-only: fetched as `refs/pr/N`, never merged into the
   Gitea lineage, never pushed anywhere. Integration is file-level
   application on Gitea `dev`.
-- Never apply files under `.kilo/`, `.private/`, `.vscode/` from a PR head.
+- Never apply files under `.kilo/`, `.private/`, `.vscode/`, `openwiki/`,
+  `AGENTS.md`, `.openwikiignore`, or `.github/workflows/` from a PR head
+  (maintainer-private agent context; a community PR adding them is flagged,
+  not integrated).
 - All public-facing text (CHANGELOG, README, PR comments) is sanitized: no
   Gitea host, NAS details, or private paths.
 - Validation runs on the exact `dev` tree that will be promoted, from the
@@ -74,8 +77,9 @@ questions.
    - added/modified public path -> candidate;
    - deleted but already absent from current `github/main` -> comparison
      artifact (fork-behind-base noise), skip;
-   - any path under `.kilo/`, `.private/`, `.vscode/` -> flag, never
-     auto-apply.
+    - any path under `.kilo/`, `.private/`, `.vscode/`, `openwiki/`,
+      `AGENTS.md`, `.openwikiignore`, or `.github/workflows/` -> flag, never
+      auto-apply.
 5. Conflict + pre-image check against Gitea `dev`: for each candidate, is the
    `dev` file byte-identical to the PR head (skip), byte-identical to the PR
    base pre-image (hunk applies cleanly), or diverged (needs manual
@@ -193,8 +197,9 @@ Gate: user confirms the docs.
    a release is decided separately.
 3. Mirror (deploy skill Stage 3): `bash .private/sync_github.sh`; public
    gate: `git ls-remote github refs/heads/main` shows the new hash, GitHub
-   `main` listing has no `.kilo` / `.vscode` / `.private`, and the integrated
-   content is present.
+    `main` listing has no `.kilo` / `.vscode` / `.private` / `openwiki` /
+    `AGENTS.md` / `.openwikiignore` / `.github/workflows/`, and the integrated
+    content is present.
 4. Close the PR (user confirms the exact comment text first): `POST
    .../issues/N/comments` (mirror flow explained, content confirmed in
    place, nits noted) + `PATCH .../pulls/N` `{"state":"closed"}` — closed

@@ -19,8 +19,9 @@ rolls back, or publishes release notes without the gate confirmation.
 - `github` = sanitized public mirror of Gitea `main` only; hashes differ from
   Gitea by design (sanitize-by-amend). Never merge/fetch between the two repos.
 - Never commit directly to `main`; promotion is `--ff-only`.
-- `.kilo/`, `.vscode/`, `.private/` must never reach GitHub (`STRIP` in
-  `.private/sync_github.sh`).
+- `.kilo/`, `.vscode/`, `.private/`, `openwiki/`, `AGENTS.md`,
+  `.openwikiignore`, and `.github/workflows/openwiki-update.yml` must never
+  reach GitHub (`STRIP` in `.private/sync_github.sh`).
 - `sync_github.sh` works in a throwaway worktree; the main working tree and the
   current branch are never touched. Re-runs are idempotent (committer date
   pinned).
@@ -93,7 +94,8 @@ re-test). Steps 1-6 then carry it to `main`, so the tag in step 7 includes it.
    - `git ls-remote github refs/heads/main` -> new hash (differs from Gitea
      main, by design).
    - `git ls-remote github refs/tags` -> tag present (if released).
-   - GitHub file listing for `main`: no `.kilo`, `.vscode`, `.private`.
+    - GitHub file listing for `main`: no `.kilo`, `.vscode`, `.private`,
+      `openwiki`, `AGENTS.md`, `.openwikiignore`, and no `.github/workflows/`.
 3. No re-test of the code: the ff-only merge guarantees main's tree is identical
    to the tested dev tip, and the mirror only strips folders.
 
@@ -150,5 +152,11 @@ call happens before the user has reviewed the suggested body.
 - `sync_github.sh` killed mid-run (SIGKILL) -> `git worktree prune` cleans the
   leak.
 - Re-running `sync_github.sh` is safe (idempotent) - use it to re-verify.
+- Sync run with a stale local `sync_github.sh` (STRIP is read from the working
+  tree at run time) -> a private path leaks into the pushed tip. The Stage 3
+  listing check is the safety net. On detection: re-run `sync_github.sh` (the
+  amend removes the file from the tip); if a release tag points at the leaked
+  tip, remove/re-tag the GitHub tag; any history purge is a manual user
+  decision, reported first.
 - Harness exit 3 -> a real run holds `apps/.bc.lock`; stop the running app
   first.

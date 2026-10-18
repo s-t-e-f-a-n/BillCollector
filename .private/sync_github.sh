@@ -9,7 +9,10 @@ cd "$(git rev-parse --show-toplevel)"
 TAG="${1:-}"
 
 # Paths to keep off the public face (GitHub)
-STRIP=( ".kilo" ".vscode" ".private" )
+# STRIP is read from the local working tree at run time: the local script
+# must be current before a sync (a stale copy can leak a private path).
+STRIP=( ".kilo" ".vscode" ".private" "openwiki" "AGENTS.md" \
+        ".openwikiignore" ".github/workflows/openwiki-update.yml" )
 
 # Always mirror what is actually published on Gitea
 git fetch origin --prune

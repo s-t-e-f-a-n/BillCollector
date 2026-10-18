@@ -1,7 +1,7 @@
 ---
 type: "Reference"
 title: "Development and Deployment"
-description: The three delivery surfaces of BillCollector - install_local.sh for the local development stack, the single billcollector:latest image with its BuildKit layer-cache ordering and NAS bind-mount setup, and deploy_remote.sh's tag-aware remote deploy and one-command rollback - plus the trunk-based release model, the sanitized public mirror, and the environment surface (apps/.env, BC_* path overrides, the Settings table, .dockerignore).
+description: The three delivery surfaces of BillCollector - install_local.sh for the local development stack, the single billcollector:latest image with its BuildKit layer-cache ordering and NAS bind-mount setup, and deploy_remote.sh's tag-aware remote deploy and one-command rollback - plus the trunk-based release model, the sanitized public mirror (sync script STRIP list covering the private agent-context artifacts, no CI pipeline), and the environment surface (apps/.env, BC_* path overrides, the Settings table, .dockerignore).
 sources:
   - id: openwiki-source-715dace563ef484b6e8bd1e2
     resource: repo://.dockerignore
@@ -11,6 +11,8 @@ sources:
     resource: repo://.github/workflows/openwiki-update.yml
   - id: openwiki-source-24ab4189bdb4c88cf13b5a90
     resource: repo://.private/sync_github.sh
+  - id: openwiki-source-8037e2358a2c4f9b2c722a11
+    resource: repo://AGENTS.md
   - id: openwiki-source-7308510f0f15f7fde3619a18
     resource: repo://apps/.env.example
   - id: openwiki-source-23bdbbfe00829612394eb2b1
@@ -39,10 +41,10 @@ sources:
     resource: repo://install_local.sh
   - id: openwiki-source-23775c3de52f3ab95a13cb8b
     resource: repo://README.md
-generated: { by: "openwiki/0.7.2", at: "2026-10-18T05:11:23.466Z" }
+generated: { by: "openwiki/0.7.2", at: "2026-10-18T11:52:37.839Z" }
 verified:
   - by: openwiki/0.7.2
-    at: 2026-10-18T05:11:23.466Z
+    at: 2026-10-18T11:52:37.839Z
 ---
 
 
@@ -160,18 +162,19 @@ Development is trunk-based with release tags ([README](../../README.md#developme
 
 - **`main`** is the verified production state: it only moves forward once a milestone has been validated in a production run, so `main` is always safe to deploy from.
 - **Release tags** (e.g. `v0.3`, `v0.4`) are snapshots of validated releases, for pinning a deployment or rolling it back — either by pointing `GIT_BRANCH` at the tag in `deploy_remote.sh`'s `.env` and re-running, or by checking the tag out in a clone and rebuilding the image.
-- There is **no CI pipeline**: changes are validated in the [local regression test environment](../../README.md#local-regression-test-environment) and in production runs before being integrated. (The only workflow in `.github/workflows/` is the scheduled wiki refresh, not a build/test pipeline.)
+- There is **no CI pipeline**: changes are validated in the [local regression test environment](../../README.md#local-regression-test-environment) and in production runs before being integrated. The private upstream's only workflow is the scheduled wiki refresh (`openwiki-update.yml`), which is not a build/test pipeline — and because it is private agent context that the mirror sync strips, the public mirror publishes without any `.github/workflows/` entries at all.
 
 ## Public mirror model
 
-Day-to-day development happens on a private upstream repository that is not mirrored here. Once a milestone has been validated, it is promoted to the private production branch and the public copy is updated accordingly, so `main` reflects the published production state, not in-flight work.
+Day-to-day development happens on a private upstream repository that is not mirrored here. Once a milestone has been validated, it is promoted to the private production branch and a maintainer-only sync script — which itself lives only in the private copy, never in the public repository — refreshes the public GitHub mirror, so `main` reflects the published production state, not in-flight work.
 
-The public copy is a **sanitized mirror**, refreshed by a maintainer-only sync script that stays out of the public repository itself:
+The public copy is a **sanitized mirror**. The sync script:
 
-- It fetches the published branch of the private upstream and checks it out **detached in a throwaway git worktree** — the main working tree and the current branch are never touched.
-- It strips the internal directories `.kilo`, `.vscode`, `.private`, and `openwiki` from the staging area before publication (so the wiki tree itself ships only in the private copy).
-- If anything was removed, it amends the tip commit reusing its original message and author and **pinning the committer date to the source commit**, so the amend is deterministic — re-running the sync must not rewrite the public branch to a new hash.
-- It force-pushes the sanitized state to the public `main`; with an optional tag argument it also force-pushes the matching release tag. The sanitized commit's hash differs from the private tip by design, so a tag on the public repository points at the sanitized commit, not the private one.
+- Fetches the private upstream and checks the published branch out **detached in a throwaway git worktree** (removed by an `EXIT` trap) — the main working tree and the current branch are never touched.
+- Strips a fixed `STRIP` path list from the staging area (`git rm -r --cached --ignore-unmatch`): the private directories `.kilo`, `.vscode`, `.private`, and `openwiki`, plus `AGENTS.md`, `.openwikiignore`, and the scheduled wiki-refresh workflow `.github/workflows/openwiki-update.yml`. Per AGENTS.md's *Private agent artifacts* section, those files are private agent context — the wiki is refreshed locally, and the workflow is kept in the private repository only as the record of the setup — so the public mirror publishes neither the wiki tree, the agent-instruction file, nor the workflow.
+- `STRIP` is read from the local working tree at run time, so the local copy of the script must be current before a sync — a stale copy strips fewer paths and could leak a private path to the public mirror.
+- Only if the removals changed the staging area does it amend the tip commit — `--no-edit` keeps the original message, the author is pinned to a fixed public identity, and the committer date is **pinned to the source commit** (`GIT_COMMITTER_DATE` set from `git log -1 --format=%ct`) so the amend is deterministic: re-running the sync must not rewrite the public branch to a new hash.
+- Force-pushes the sanitized state to the public `main`; with an optional tag argument it also force-pushes the matching release tag. The sanitized commit's hash differs from the private tip by design, so a tag on the public repository points at the sanitized commit, not the private one.
 
 The repository must stay publishable as-is: no internal hostnames, paths, or personal setup details may appear in public sources. The `SOURCE` build arg in the `Dockerfile` likewise points at the public repository.
 

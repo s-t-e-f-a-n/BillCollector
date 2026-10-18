@@ -34,12 +34,13 @@ sources:
     resource: repo://BillCollector.sh
   - id: openwiki-source-23775c3de52f3ab95a13cb8b
     resource: repo://README.md
-generated: { by: "openwiki/0.7.2", at: "2026-10-18T05:11:23.466Z" }
+generated: { by: "openwiki/0.7.2", at: "2026-10-18T11:52:37.839Z" }
 ---
 
 
 # Run Lifecycle: Scheduling, Locking, and Step Recording
 
+<!-- openwiki: broken internal link [pause-repair.md] file "pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 BillCollector runs documents in two coexisting modes, and both have a full run lifecycle: the **batch mode** is a cron-launched, one-shot, headless process that walks every (service, user) pair of an INI file, while the **daemon mode** is a long-running NiceGUI server that schedules one isolated runner subprocess per Task. This page traces a run from the moment a schedule fires (or a cron line invokes the wrapper) through claim, spawn, the step loop, and Run finalization, in both modes, and marks where pauses are entered. The state machines and shared contracts are summarized on [Architecture Overview](../architecture/overview.md); the protocol and schema contracts are on [Shared Interfaces](../architecture/shared-interfaces.md); the pause/repair loop itself is covered on [Pause and Repair](pause-repair.md).
 
 The two modes share the SQLite file (`apps/db/bc.db`, WAL mode, `busy_timeout=30000`), the vault client, the recipe files, the `PageState` scan, and the success contract (a run is `success` only when it completed without aborting **and** at least one file downloaded with `result == "success"`), but they write different tables and guard against double starts with different locks.
@@ -114,6 +115,7 @@ The retry budget is set by `step_attempts(graceful)`: **graceful** steps (`grace
 
 ### Where pauses are entered
 
+<!-- openwiki: broken internal link [pause-repair.md] file "pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 A stuck run pauses instead of aborting. There are exactly three pause entry points, all funneling into `pause_loop` in `billcollector/pause.py` (the full pause/repair loop, the control socket, and the context contract are on [Pause and Repair](pause-repair.md)):
 
 | Entry point | Reason | Triggered when |
@@ -187,6 +189,7 @@ sequenceDiagram
     MON->>MON: release slot, release claim
 ```
 
+<!-- openwiki: broken internal link [pause-repair.md] file "pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 *Caption: the daemon run lifecycle from a fired cron job to Run finalization; the pause entry points (marked) hand control to the pause loop documented on [Pause, Intervention & Recipe Repair](pause-repair.md).*
 
 ## Configuration knobs that shape the lifecycle
@@ -211,6 +214,7 @@ Paths are redirectable with `BC_*` environment variables (`BC_DATA_DIR`, `BC_DB_
 
 - [Architecture Overview](../architecture/overview.md) - the two modes, the shared components, and the top-level invariants.
 - [Shared Interfaces](../architecture/shared-interfaces.md) - the schema, control protocol, recipe, and exit-code contracts.
+<!-- openwiki: broken internal link [pause-repair.md] file "pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Pause, Intervention & Recipe Repair](pause-repair.md) - the pause loop, the versioned control socket, and the operator intervention flow.
 - [Recipe System](../concepts/recipes.md) - what the step loop executes.
 - [Vault Transport and Security](../concepts/vault-transport.md) - the preflight both modes run.

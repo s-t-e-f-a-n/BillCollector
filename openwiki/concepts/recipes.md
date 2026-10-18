@@ -30,7 +30,7 @@ sources:
     resource: repo://apps/recipes_playwright/recipe-pw__testwaituser.yaml
   - id: openwiki-source-15bb91349133f738d2eaa49d
     resource: repo://apps/recipes_playwright/recipe-pw-schema.yaml
-generated: { by: "openwiki/0.7.2", at: "2026-10-18T05:11:23.466Z" }
+generated: { by: "openwiki/0.7.2", at: "2026-10-18T11:52:37.839Z" }
 verified:
   - by: openwiki/0.7.2
     at: 2026-10-18T05:11:23.466Z
@@ -162,6 +162,7 @@ Every executed step is recorded (batch: one row per step in the `PageStatus_<ser
 `graceful: true` has one meaning on both consumers, and the two step loops implement graceful identically: a failure of that step is **recorded in the log and the database, and the run continues with the next step**; without it (the default), a failure aborts the run. The difference is what a non-graceful failure costs first:
 
 - **Batch engine** (`perform_actions`): no pause and no retry — the failure raises `StepAbortError`, which is recorded against the failing step (its `PageState` is carried on the exception) before the run aborts.
+<!-- openwiki: broken internal link [../workflows/pause-repair.md] file "../workflows/pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - **Daemon runner** (`_run_recipe`): a non-graceful step re-executes the **full method chain up to `MAX_STEP_ATTEMPTS` (3)** attempts; if it still fails (or the download fails) it does not abort immediately but **pauses the run** (`reason=step_failed` / `download_failed`) so an operator can fix the page or repair the recipe via the UI. Resume re-executes the step from the beginning with a fresh attempt budget, cancel ends the run `cancelled`, and the pause deadline ends it `needs_attention`. The pause/repair mechanics are covered on [Pause, Intervention & Recipe Repair](../workflows/pause-repair.md).
 
 Graceful steps are **single-attempt in both consumers and never pause**: the runner's `step_attempts` returns 1 for a graceful step regardless of `MAX_STEP_ATTEMPTS`, and a graceful failure is logged and recorded exactly like a non-graceful one — it simply does not raise.
@@ -216,6 +217,7 @@ The recipe editor page (`/recipes/<service>`, `apps/billcollector/ui/recipes.py`
 
 - **Save = validate → atomic write → optional commit.** Validation failure writes nothing. The write is `save_recipe`: the text is validated again at the write site, then written to a temp file **in the same directory** and moved over the recipe with `os.replace`, so the file is never left half-written.
 - **Git auto-commit.** When the `git_commit_enabled` setting is truthy (default `false`), the saved file is committed by `billcollector/gitcommit.git_commit`, which stages **exactly that file** (never `git add -A` — unrelated dirty files must not be swept into the commit) with the message `recipe(<service>): <summary>`, where the summary is the first changed service description, else `edited via UI`. A no-op save (nothing to commit) is a success, not an error.
+<!-- openwiki: broken internal link [../workflows/pause-repair.md] file "../workflows/pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - **Repair entry point.** Opened with `?run=<run_id>` (the **Repair recipe** link on a paused run's session page), the editor preloads a failure panel from the run's pause context — failure screenshot, failed step, expected locator chain, and candidate elements. **Use** on a candidate replaces the failed step's locator prefix with the candidate's locator (`apply_candidate_to_step` in `billcollector/recipes.py`; the input document is never mutated, and steps without a locator prefix or nested `expect_download` steps are not repair targets), after which the normal Validate → Save → commit flow applies. The full pause/repair mechanics are covered on [Pause, Intervention & Recipe Repair](../workflows/pause-repair.md).
 - After a successful save the page shows a **Run now** button per task of the service.
 
@@ -248,5 +250,7 @@ For the UI path, the equivalent check is `billcollector.recipes.validate_recipe(
 - [Shared Interfaces (Contracts)](../architecture/shared-interfaces.md) — the recipe contract's invariants and enforcement points
 - [Architecture Overview](../architecture/overview.md) — the batch engine and daemon runner side by side
 - [Run Lifecycle](../workflows/run-lifecycle.md) — what wraps the recipe step loop (vault preflight, display, run row)
+<!-- openwiki: broken internal link [../workflows/pause-repair.md] file "../workflows/pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Pause, Intervention & Recipe Repair](../workflows/pause-repair.md) — step failures, the control protocol, and the candidate-replacement repair flow
+<!-- openwiki: broken internal link [../ui/web-ui.md] file "../ui/web-ui.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Web UI Pages](../ui/web-ui.md) — the recipe editor page in the UI

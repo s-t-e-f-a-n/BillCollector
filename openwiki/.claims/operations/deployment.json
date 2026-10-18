@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:de59d51fd14f928abb50f7b53093463ed6c4a226ebe83494f2335cc874b761b3",
+  "pageVersion": "sha256:dcff0d3a48509fd3a18bf87f6d954eab52113bac86bfb19c189d0454d9002cc1",
   "claims": [
     {
       "id": "claim_efd1280e4e7a41aa8b4ce385a24d3101",
@@ -130,11 +130,15 @@
     },
     {
       "id": "claim_943e54c15e7b430a8850c62feebcb5d3",
-      "statement": "This repository is a sanitized public mirror of a private upstream: day-to-day development happens on the upstream, validated milestones are promoted to its production branch, and a maintainer-only sync script (stored in the private copy, not in the public repository) refreshes the public main — it checks the published branch out detached in a throwaway git worktree, strips the internal directories .kilo, .vscode, .private, and openwiki from the staging area, amends the tip commit only if files were removed (reusing the existing message/author and pinning the committer date to the source commit so the amend is deterministic), force-pushes the sanitized state to the public main, and optionally force-pushes a matching release tag whose sanitized hash differs from the private tip by design; the public main thus reflects the published production state, and the repository must stay publishable as-is with no internal hostnames or personal setup details.",
+      "statement": "This repository is a sanitized public mirror of a private upstream: day-to-day development happens on the upstream, validated milestones are promoted to its production branch, and a maintainer-only sync script (stored in the private copy, not in the public repository) refreshes the public main — it checks the published branch out detached in a throwaway git worktree (cleaned up by an EXIT trap), strips a fixed STRIP path list from the staging area (git rm -r --cached --ignore-unmatch): the private directories .kilo, .vscode, .private, and openwiki plus the private agent-context files AGENTS.md, .openwikiignore, and the scheduled wiki-refresh workflow .github/workflows/openwiki-update.yml (per AGENTS.md's private-agent-artifacts section, kept private so the mirror publishes neither the wiki tree, the agent-instruction file, nor the workflow); only if the removals changed the staging area does it amend the tip commit (--no-edit keeps the original message, the author is pinned to a fixed public identity, and the committer date is pinned to the source commit so the amend is deterministic); it then force-pushes the sanitized state to the public main and optionally force-pushes a matching release tag whose sanitized hash differs from the private tip by design; the public main thus reflects the published production state, and the repository must stay publishable as-is with no internal hostnames or personal setup details.",
       "evidence": [
         {
-          "resource": "repo://.private/sync_github.sh#L1-L43",
-          "version": "repo-lines-v1:sha256:e947091076c2ad73538b825da44fd5f2a641813120634c26506bfe214b6ead11:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFkOTVmYzA0YTgwYzk1MmY0OWNlNDE4ODYyN2M1M2IwZmJlOGM0NDA0MWI5NTJkNTkyYWNkMWRlOTk4NjE0NjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhY2JkZjBiMWI4ZWM3NzQwZWYxYjZkYTMwZmFjY2RhZmQwMTI1ZmMyODE0Y2U2OTRlOWVmYWJlMDI0OWY3MWYifQ"
+          "resource": "repo://.private/sync_github.sh#L11-L46",
+          "version": "repo-lines-v1:sha256:c685feb848507721022f0286e9508fe37100a7c4c9aa630bea939c6c32ed4cb8:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0ZDY3YjcxM2YxYTA5NTQ3N2RlYmUyMmFjYjEyNDgwMTU2YjZiMjBhYmQxMWEzN2RmODM0MzFlNmMwNGRmODgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE0MzQxNWJmMmMzZDk2ZTUzMzAzNGZhYjA2Zjg3NmFhODViYzkzNDUxYzkxZjhiZDg3YmU3YjJhYWE4OTQxMWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhY2JkZjBiMWI4ZWM3NzQwZWYxYjZkYTMwZmFjY2RhZmQwMTI1ZmMyODE0Y2U2OTRlOWVmYWJlMDI0OWY3MWYifQ"
+        },
+        {
+          "resource": "repo://AGENTS.md#L18-L28",
+          "version": "repo-lines-v1:sha256:100d6acd53e7c5170e516501bdd1de9fc5ba3d7f1fd8049d60f34552bed17329:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlMzIxOTYzNmVmYTY5YmRmZTBjN2ExOWJmZjNmZTg4Nzk1MDQ3NDNlMjg4NGFjZmJjNjQ5YjVhNjYwMGZkOWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIzMzhmY2M5ODgwZjYxOWExMGEwYzIwZDVmYTk1NjM4ODNlNDM1NzcwNjg4ZjA0ZTBmYjUwZTU3YzM5MWY3YTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY5MzkxMmNkM2MzM2VkZmQyM2QzNzY0ZTE3YWIyOTc0N2IzNzkzNzQyMzZjNjRhNzZiMGE1ZmZlNDhhZDM4MGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ3N2ZlNTZjZTJhNmUzNjdmODEyZGNjMTExNTM1NGQ1MTNmZjZkYTQzOWZiNWMyY2ZhYjEzZWYyNDg3Nzg0NDkifQ"
         },
         {
           "resource": "repo://README.md#L346-L353",
@@ -235,6 +239,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-18T05:11:23.466Z"
+    "at": "2026-10-18T11:52:37.839Z"
   }
 }

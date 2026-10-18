@@ -7,7 +7,7 @@ the six Wave 1 acceptance scenarios (M3 plan S3) driven **from the web UI**
 the control socket is documented as the fallback in Appendix A). The M3 plan
 is `.kilo/plans/1791998985158-m3-interactive-sessions-plan.md`; the M2 exit
 pass guide it mirrors is
-`.kilo/plans/1791829791901-m2-d64-exit-pass-guide.md`.
+`.kilo/plans/completed/1791829791901-m2-d64-exit-pass-guide.md`.
 
 ## Review log
 
@@ -15,7 +15,7 @@ Cross-session tracker for the manual pass: every observation lands here with a
 status; an entry moves to `resolved` only once the fix is in and the next pass
 re-verifies it. Newest pass last.
 
-(No passes recorded yet — the guide is being written in S3.1–S3.5; the live
+(No passes recorded yet — the guide is complete (S3.5 done 2026-10-16); the live
 pass is recorded here as it runs.)
 
 ## Prerequisites
@@ -543,6 +543,6 @@ PY
 ```
 
 The M2 D6.4 guide's driver
-(`.kilo/plans/1791829791901-m2-d64-exit-pass-guide.md`, Appendix A) is the
+(`.kilo/plans/completed/1791829791901-m2-d64-exit-pass-guide.md`, Appendix A) is
 same client as a script file — reuse it if a multi-call resolution is
 needed.

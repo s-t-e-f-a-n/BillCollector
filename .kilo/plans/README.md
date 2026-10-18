@@ -15,6 +15,7 @@ paths, so a moved file gains the `completed/` prefix.
 
 | File | Role |
 |---|---|
-| `1790364274061-billcollector-nicegui-daemon-plan.md` | Master daemon plan (v3): M0/M1 done, M2 in progress, M3/M4 open |
-| `1791705823133-m2-ui-core-plan.md` | M2 execution plan (chunks D1–D6, in progress) |
-| `1790468502492-gui-concept-dashboard-spec.md` | GUI concept + dashboard spec — reference for M2 (D2) and M3 (session view) |
+| `1790364274061-billcollector-nicegui-daemon-plan.md` | Master daemon plan (v3): M0/M1/M2 done, M3 in progress (live Wave 1 exit pass pending), M4 + post-Wave 1 flowcool concessions open |
+| `1791998985158-m3-interactive-sessions-plan.md` | M3 execution plan: S1/S2 done, S3 exit pass in progress |
+| `1792126455141-m3-wave1-exit-pass-guide.md` | M3 Wave 1 exit pass operator guide (complete; live pass pending) |
+| `1790468502492-gui-concept-dashboard-spec.md` | GUI concept + dashboard spec — design reference (implemented in M2 D2 + M3 S1) |

@@ -2,8 +2,8 @@
 
 Master plan: `.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md`
 (v3, M3 section — items 1–5 and the Wave 1 exit). M2 execution plan:
-`.kilo/plans/1791705823133-m2-ui-core-plan.md` (chunks D1–D6). M2 exit pass
-guide: `.kilo/plans/1791829791901-m2-d64-exit-pass-guide.md`.
+`.kilo/plans/completed/1791705823133-m2-ui-core-plan.md` (chunks D1–D6). M2 exit
+pass guide: `.kilo/plans/completed/1791829791901-m2-d64-exit-pass-guide.md`.
 
 **Goal:** the Wave 1 exit — all three friction points (DOM change,
 ads/cookie forms, CAPTCHAs) are demonstrable end-to-end by a human from the

@@ -1,5 +1,22 @@
 # Private AI-coding artifacts: Gitea/GitHub boundary strategy
 
+## Delivered
+
+- **Delivered (2026-10-18).** Seven commits `105f30d..c6ff24f` on Gitea `dev`
+  (pushed). `STRIP` in `.private/sync_github.sh` covers the 7 private paths (read
+  from the working tree at run time); `openwiki/`, `AGENTS.md`, `.openwikiignore`,
+  and `.github/workflows/openwiki-update.yml` are versioned private-only;
+  `openwiki/.run.json` is gitignored; the deploy and pr-review skills are extended
+  to the full private set; the local `openwiki code --update` refresh documents
+  the 7-path `STRIP` in `openwiki/operations/deployment.md`. Validation: 7-path
+  STRIP dry-run clean in a throwaway worktree; `git ls-files` lists exactly the
+  committed set minus `.run.json`. The GitHub mirror is untouched until the next
+  promotion (the extended Stage 3 listing check is the gate). Follow-up:
+  `.kilo/plans/1792337230912-openwiki-boundary-followup.md` — A: the inert
+  workflow secrets were never created (0 secrets / 0 variables on both repos,
+  nothing to delete); C: the openwiki usage policy landed in `AGENTS.md`
+  (commit `63474d1`).
+
 ## Goal
 
 Make the private/public split for local AI-coding artifacts explicit and durable:

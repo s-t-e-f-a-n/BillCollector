@@ -153,6 +153,16 @@ def test_pause_context_summary_degrades_on_missing_or_corrupt():
         {"pause_context": "[1, 2]"}) is None  # not a dict
 
 
+# ---- NOVNC_SRC_SCRIPT (the iframe src patcher, M3 decision 6) ------------
+
+def test_novnc_src_script_builds_an_absolute_url():
+    """The noVNC iframe ``src`` must be an absolute URL: the patcher
+    prefixes the ``http://`` scheme to ``window.location.hostname`` (websockify
+    serves the noVNC client on plain HTTP). A relative URL (the M3 Wave 1
+    pass regression) is resolved against the session page and 404s."""
+    assert "'http://' + window.location.hostname" in session.NOVNC_SRC_SCRIPT
+
+
 # ---- fixtures and seeds --------------------------------------------------
 
 @pytest.fixture

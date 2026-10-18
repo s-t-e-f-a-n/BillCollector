@@ -105,7 +105,7 @@ NOVNC_SRC_SCRIPT = """
   function patch(frame) {
     var port = frame.getAttribute('data-novnc-port');
     if (port && !frame.getAttribute('src')) {
-      frame.src = window.location.hostname + ':' + port +
+      frame.src = 'http://' + window.location.hostname + ':' + port +
         '/vnc.html?autoconnect=true';
     }
   }

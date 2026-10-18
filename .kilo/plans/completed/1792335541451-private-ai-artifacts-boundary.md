@@ -12,7 +12,7 @@
   STRIP dry-run clean in a throwaway worktree; `git ls-files` lists exactly the
   committed set minus `.run.json`. The GitHub mirror is untouched until the next
   promotion (the extended Stage 3 listing check is the gate). Follow-up:
-  `.kilo/plans/1792337230912-openwiki-boundary-followup.md` — A: the inert
+  `.kilo/plans/completed/1792337230912-openwiki-boundary-followup.md` — A: the inert
   workflow secrets were never created (0 secrets / 0 variables on both repos,
   nothing to delete); C: the openwiki usage policy landed in `AGENTS.md`
   (commit `63474d1`).

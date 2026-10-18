@@ -5,7 +5,7 @@ fast and display-independent; this pass is the real-browser proof. It covers
 the six Wave 1 acceptance scenarios (M3 plan S3) driven **from the web UI**
 (the session page's Copilot + noVNC is the client — no driver script needed,
 the control socket is documented as the fallback in Appendix A). The M3 plan
-is `.kilo/plans/1791998985158-m3-interactive-sessions-plan.md`; the M2 exit
+is `.kilo/plans/completed/1791998985158-m3-interactive-sessions-plan.md`; the M2 exit
 pass guide it mirrors is
 `.kilo/plans/completed/1791829791901-m2-d64-exit-pass-guide.md`.
 
@@ -13,10 +13,84 @@ pass guide it mirrors is
 
 Cross-session tracker for the manual pass: every observation lands here with a
 status; an entry moves to `resolved` only once the fix is in and the next pass
-re-verifies it. Newest pass last.
+re-verifies it. `expected` = the behavior is verified as by design (no fix; the
+entry stays as documentation for future passes). Newest pass last.
 
-(No passes recorded yet — the guide is complete (S3.5 done 2026-10-16); the live
-pass is recorded here as it runs.)
+### Pass 1 (started 2026-10-18)
+
+Progress: steps 0–10 complete (pass 1 done 2026-10-18) — step 8: the
+mutation (8.1) put run 10 (testhappy, task 12) into a pause at step 8
+(step_failed); the recipe repair (8.3–8.6) landed commit b0bba08; run 10
+was cancelled (8.7); the post-repair re-run run 11 (8.8) ended `success`
+with both downloads as duplicates of #5/#6; the repair commit was
+reverted per the step-10 decision (afca745, no amend). The 8.9 portal
+reset was covered by the portal stop (the in-memory override died with
+it); step 9 was observed during steps 4–8 (no separate action); the
+step-10 DB checks matched the Expect block (11 runs / 13 downloads);
+the scratch env was cleaned.
+
+Run map (the pass took 10 runs, not the canonical 5 — the extra runs all
+ended `success` and every repeat download deduped): run 1 testautopause
+(the step-4 pause + resolve); run 2 testwaituser (the step-5 wait_user
+pause, then a second step_failed pause at step 12 — see the entry below);
+run 3 testcaptchadrag (paused, then killed by the daemon restart for the
+noVNC fix → `interrupted`, the stale `run-3.sock` — see the entry below);
+runs 4+5 testcaptchadrag (the step-6 re-run after the fix, and a repeat,
+both `success`); runs 6+7 testhappy (step 7's runs 1+2 — DB run 7's log
+matched the plan's run-2 signature: the step-2 graceful-error row, the
+login re-run, the two `duplicate of #N` download rows, `success`); run 8
+testcaptchadrag (repeat, `success`); run 9 testhappy (repeat, `success`,
+both downloads duplicates of #5/#6); run 10 testhappy (the step-8 drill — display :100, websockify 6081,
+paused 2026-10-18 23:29 local, cancelled 23:34 per 8.7); run 11 testhappy
+(the post-repair re-run, 8.8 — `success`, both downloads duplicates of
+#5/#6).
+
+- **noVNC tab 404 (step 6)** — `resolved` (2026-10-18). Switching to the
+  noVNC tab 404'd: NiceGUI logged
+  `http://127.0.0.1:18766/runs/127.0.0.1:6080/vnc.html?autoconnect=true not
+  found`. Cause: the `NOVNC_SRC_SCRIPT` src patcher
+  (`apps/billcollector/ui/session.py`) built the iframe's `src` from
+  `window.location.hostname + ':' + port` **without a scheme**, so the
+  browser resolved it as a *relative* URL against the session page. Fix:
+  one line — prefix `http://` (websockify serves the noVNC client on plain
+  HTTP). The session UI tests pass; step 6 re-ran cleanly after the daemon
+  restart. Landed with the pass artifacts (commit `c3cc2ee`; the
+  regression test in `tests/test_bc_ui_session.py` pins the
+  absolute-URL build).
+- **`Processing Step 1` lines after steps 15/16 (step 7, run 2)** —
+  `expected`. The daemon log shows `Processing Step 15` →
+  `Processing Step 1` → the download → `Processing Step 16` →
+  `Processing Step 1` → the download. Recipe steps 15/16 are
+  `expect_download` steps whose nested sub-steps (the link click that
+  triggers the download, `recipe-pw__testhappy.yaml`) are numbered `1`
+  under their parent — the `Processing Step 1` lines are those sub-steps,
+  not a re-execution of the recipe's step 1.
+- **Step 17 screenshot warning (step 7, run 2)** — `expected`.
+  `Step 17 screenshot failed (run continues): Page.screenshot: Target
+  page, context or browser has been closed`: recipe step 17 (`close`)
+  closes the browser, so the post-step screenshot has nothing to capture;
+  the runner logs a warning, the step still succeeds, and the run ends
+  `success`.
+- **Run 2's double pause + the `press` key error (step 5)** —
+  `expected`. Two operator-side hiccups, both absorbed by the pause flow,
+  no product defect: (a) the first code entry used the **Press** action
+  with the digit string (`Control action press failed: Keyboard.press:
+  Unknown key: "830702"`) — `press` sends keys; the 6-digit code goes
+  through **Fill** (as the step 5 text says); (b) after the resume, step
+  12 (the "My account" link) failed 3× and paused again (step_failed) —
+  the page had not reached the dashboard (the first pause's Verify click
+  had not navigated); the operator re-did it from the session page during
+  the second pause and resumed → `success`. The step_failed pause
+  correctly caught the post-resume page state.
+- **Stale `run-3.sock` after the daemon restart (step 6)** — `open`
+  (no fix in this pass; no UI impact). The control socket is documented
+  to be unlinked on shutdown (the `control_sock_alive` docstring in
+  `apps/billcollector/ui/session.py`), but the restart that applied the
+  noVNC fix killed run 3 mid-pause and left `data/runs/run-3.sock`
+  behind (the run row is `interrupted`, set by the orchestrator's
+  shutdown hook). The UI is unaffected: `run_state` reads `ended` from
+  the result before the socket check, so `/runs/3` renders the ended
+  view; the file is cosmetic and dies with `rm -rf /tmp/bc-d64`.
 
 ## Prerequisites
 
@@ -25,8 +99,12 @@ pass is recorded here as it runs.)
 - LAN Vaultwarden with the Layer B items for `testhappy`, `testautopause`,
   `testwaituser`, `testcaptchadrag` (all `user1`), reachable as configured in
   `apps/.env` (`BW_API_URL`, `BW_API_HOST`).
-- Repo on `dev`, working tree clean — **step 8 lands a real git commit on
-  this branch** (see the warning there).
+- Repo on `dev` — **step 8 lands a real git commit on this branch** (see
+  the warning there). A dirty working tree is fine as long as the
+  **index is clean** (the noVNC fix from the review log may sit unstaged
+  until step 10): the auto-commit stages exactly the recipe file and then
+  commits the index, so any file left staged would be swept into the
+  commit — before the Save, `git status` must show nothing staged.
 - `apps/.venv` with the runtime dependencies installed.
 - Ports free: 8787 (mock portal), 18766 (scratch UI), 6080+ (websockify),
   5900+ (x11vnc), X display :99.
@@ -384,10 +462,13 @@ submit button now reads "Sign in"; the recipe's step 8 ("Submit the login
 form.") still expects `get_by_role button "Log in"`.
 
 2. Dashboard: row **Run now** on `testhappy`. Steps 1–7 execute (landing,
-consent banner, the form fields); step 8 fails 3× — the `Log in` button no
-longer exists — and the task flips to **`waiting`** (the fourth pause of
-the pass). The ntfy push with the deep link arrives on the topic; terminal
-2 logs `Run <id> paused (step_failed): …`.
+the form fields; the consent **banner is absent** — the profile cookie
+from step 7 persists — so the graceful step 2 is a graceful-error row and
+the run continues); step 8 fails 3× — the `Log in` button no longer exists
+(`waiting for get_by_role("button", name="Log in")`) — and the task flips
+to **`waiting`**. The ntfy push with the deep link arrives on the topic;
+terminal 2 logs `Run <id> paused (step_failed): …`. Pass actual: run 10
+(display :100, websockify 6081), paused 2026-10-18 23:29 local.
 
 3. Open the session page (the deep link, or `/runs/<run_id>`): the pause
 banner shows reason `step_failed`, the prompt (`Step 8: Submit the login
@@ -424,11 +505,14 @@ git show --stat HEAD     # only apps/recipes_playwright/recipe-pw__testhappy.yam
 
 **Warning** (the M2 step-8 pattern): the recipe directory is fixed to
 `apps/recipes_playwright` and the commit targets the repo root, so this
-lands on the **real `dev` branch** (no scratch redirect). Unlike M2's
-description-only change, this locator repair is only valid while the
-mutation is active — after the reset in 8.9, the portal's button is back to
-"Log in" and the repaired recipe would fail. Revert it with a new commit
-after the pass (no amends) — the keep/revert decision is step 10.
+lands on the **real `dev` branch** (no scratch redirect). The commit
+stages exactly the recipe file and then commits the index — with a clean
+index (see the prerequisites) it contains only the recipe; the
+`git show --stat HEAD` above is the proof. Unlike M2's description-only
+change, this locator repair is only valid while the mutation is active —
+after the reset in 8.9, the portal's button is back to "Log in" and the
+repaired recipe would fail. Revert it with a new commit after the pass
+(no amends) — the keep/revert decision is step 10.
 
 7. Back on the session page: **Cancel** → the confirmation dialog ("Cancel
 the run? … the run ends as cancelled.") → **Cancel run** → notify `Cancel
@@ -491,24 +575,30 @@ SELECT key, value FROM Settings;
 SELECT id, service, user, status, enabled, profile_reset_at FROM Task;
 SQL
 ```
+Expect (11 runs, 13 downloads — the pass took 11 runs; see the run map in
+the review log):
 
-Expect (7 runs, 9 downloads):
-
-- no run left `running`/`waiting`: 6× `success` + 1× `cancelled` (step
-  8's pre-repair run); all tasks `idle`;
-- downloads: one per paused task (`invoice_autopause_user1_1.pdf`,
-  `invoice_waituser_user1_1.pdf`, `invoice_captchadrag_user1_1.pdf`) +
-  6× `testhappy` (step 7 run 1's two clean, step 7 run 2's and the
-  post-repair run's four with `duplicate_of_id` → run 1's rows);
+- no run left `running`/`waiting`: 9× `success` (runs 1, 2, 4, 5, 6, 7, 8,
+  9 + the post-repair run 11) + 1× `cancelled` (run 10, step 8's
+  pre-repair run) + 1× `interrupted` (run 3, killed by the daemon restart
+  for the noVNC fix); all tasks `idle`;
+- downloads: 13 rows — 5 clean (D1 `invoice_autopause_user1_1.pdf`, D2
+  `invoice_waituser_user1_1.pdf`, D3 `invoice_captchadrag_user1_1.pdf`,
+  D5+D6 the step-7 run-1 `testhappy` pair) + 8 duplicates with
+  `duplicate_of_id` (D4+D9 → D3, the two extra captchadrag runs; D7+D8,
+  D10+D11, D12+D13 → D5/D6, the extra and the post-repair `testhappy`
+  runs);
 - Settings: `ui_base_url = http://127.0.0.1:18766`,
   `git_commit_enabled = true`;
-- `profile_reset_at` set for `testhappy`/`user1` only if step 7's optional
-  Reset profile was exercised.
+- `profile_reset_at` null for all tasks (step 7's optional Reset profile
+  was not exercised — the consent banner stayed absent through run 10).
 
 Then:
 
+- commit the noVNC src fix (`apps/billcollector/ui/session.py`, the
+  review log's step-6 entry — the pass's only code artifact);
 - record the outcome in the M3 plan
-  (`.kilo/plans/1791998985158-m3-interactive-sessions-plan.md`, the S3
+   (`.kilo/plans/completed/1791998985158-m3-interactive-sessions-plan.md`, the S3
   progress section) and commit it with the pass artifacts;
 - stop the daemon (terminal 2: `kill <daemon pid>` → the log shows
   `Scheduler has been shut down`, then `serve stopped: scheduler stopped,

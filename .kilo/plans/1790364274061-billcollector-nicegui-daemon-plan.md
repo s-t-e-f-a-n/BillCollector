@@ -116,10 +116,11 @@ Consequences:
 
 ## Wave 1 — objective and acceptance
 
-**Scope:** M1 (daemon core) + M2 (UI core) + M3 (interactive sessions). M0, M1 and
-M2 are done (status below); M3 is in progress (the live Wave 1 exit pass is
-pending); M4 (adoption for other users) and the post-Wave 1 flowcool concessions
-are the follow-ups.
+**Scope:** M1 (daemon core) + M2 (UI core) + M3 (interactive sessions). M0, M1, M2
+and M3 are done (status below); the live Wave 1 exit pass is complete
+(2026-10-18) and the NAS deploy (Post-Wave 1 item C) is the remaining half of the
+Wave 1 exit; M4 (adoption for other users) and the post-Wave 1 flowcool
+concessions are the follow-ups.
 Wave 1's focus is the three current complicating circumstances, each made operable by a
 human from the web UI:
 
@@ -1181,11 +1182,13 @@ edit → save → validation → git commit works.
 
 ### M3 — Interactive sessions
 
-> **Status (2026-10-16):** S1 (session view) + S2 (recipe repair flow) done and
-> committed (2026-10-15); S3 Wave 1 exit pass — operator guide complete (2026-10-16),
-> **live pass pending** (operator-driven, recorded in the guide's review log).
-> Execution plan: `.kilo/plans/1791998985158-m3-interactive-sessions-plan.md`;
-> exit pass guide: `.kilo/plans/1792126455141-m3-wave1-exit-pass-guide.md`.
+> **Status (2026-10-18): done.** S1 (session view) + S2 (recipe repair flow) done
+> and committed (2026-10-15); S3 Wave 1 exit pass — operator guide complete
+> (2026-10-16), live pass 1 complete (2026-10-18: steps 0–10, all six acceptance
+> scenarios green from the web UI; the outcome is recorded in the guide's review
+> log). Execution plan:
+> `.kilo/plans/completed/1791998985158-m3-interactive-sessions-plan.md`; exit pass
+> guide: `.kilo/plans/completed/1792126455141-m3-wave1-exit-pass-guide.md`.
 
 1. Copilot UI on the control socket: screenshot + numbered overlays (bounding boxes),
    click/fill/press/drag, resume; "what to do" layout; mobile-first; read-only running
@@ -1241,7 +1244,9 @@ timezone from the daemon's locale.
 
 **C — Deploy timeline (PS: "2–3 more days").** Not a feature: the in-progress daemon
 deployment (Wave 1 exit = the M3 Wave 1 exit pass + the NAS deploy via the deploy
-skill). No new work beyond finishing that.
+skill). No new work beyond finishing that. Status (2026-10-18): the pass half is
+done (the M3 Wave 1 exit pass, live pass 1); the NAS deploy via the deploy skill is
+the open half.
 
 **Confirmed decisions**
 

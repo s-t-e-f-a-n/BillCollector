@@ -12,8 +12,8 @@ file, and refresh the plans README. No source code is touched.
 | `1790364274061-…nicegui-daemon-plan.md` (master) | M2 "in progress"; M1 status frozen at C1–C4 (2026-10-10); M3 has no status line | M0/M1/M2 **done**; M3 **in progress** (S1/S2 done 2026-10-15; S3 guide done 2026-10-16, live pass pending); M4 open | yes |
 | `1791705823133-m2-ui-core-plan.md` | progress records only | **Delivered** — D6.4 exit pass complete 2026-10-14, suite 253/253, ruff clean | yes (no top status; belongs in `completed/`) |
 | `1791829791901-m2-d64-exit-pass-guide.md` | "exit pass complete" (review log) | **Delivered** — pass 2026-10-14 complete; two findings stay open in its review log (#1 thumbnail width, deferred cosmetic; #11 display-lock leak, fix candidate recorded) | no (belongs in `completed/`) |
-| `1791998985158-m3-interactive-sessions-plan.md` | S1.1–S2.4 done, S3.1–S3.5 done, "live pass is run by the operator" | matches | no (only M2 cross-refs gain a prefix if moved) |
-| `1792126455141-m3-wave1-exit-pass-guide.md` | "No passes recorded yet — the guide is being written in S3.1–S3.5" | guide is **complete** (S3.5 done 2026-10-16); live pass pending | yes (that one sentence) |
+| `completed/1791998985158-m3-interactive-sessions-plan.md` | S1.1–S2.4 done, S3.1–S3.5 done, "live pass is run by the operator" | matches | no (only M2 cross-refs gain a prefix if moved) |
+| `completed/1792126455141-m3-wave1-exit-pass-guide.md` | "No passes recorded yet — the guide is being written in S3.1–S3.5" | guide is **complete** (S3.5 done 2026-10-16); live pass pending | yes (that one sentence) |
 | `1790468502492-gui-concept-dashboard-spec.md` | "Session 1 delivered; the dashboard spec is implemented in M2" | fully implemented (M2 D2 done; M3 S1 session view done 2026-10-15) — design reference | status line stale |
 | `1792189620000-flowcool-concessions-realization.md` | DRAFT; cites `1792185181020-discussion-8-flowcool-reply.md` as "commitments source (completed)" | that referenced reply plan **no longer exists on disk** (never committed; only the concessions file is untracked in git) | merge + delete |
 | `README.md` | Active table lists 3 plans, "M2 in progress, M3/M4 open"; omits both M3 files + the concessions plan | stale | yes (rewrite) |
@@ -71,15 +71,15 @@ file, and refresh the plans README. No source code is touched.
      "> **Status (2026-10-16):** S1 (session view) + S2 (recipe repair flow) done and
      committed (2026-10-15); S3 Wave 1 exit pass — operator guide complete (2026-10-16),
      **live pass pending** (operator-driven, recorded in the guide's review log).
-     Execution plan: `.kilo/plans/1791998985158-m3-interactive-sessions-plan.md`;
-     exit pass guide: `.kilo/plans/1792126455141-m3-wave1-exit-pass-guide.md`."
+      Execution plan: `.kilo/plans/completed/1791998985158-m3-interactive-sessions-plan.md`;
+      exit pass guide: `.kilo/plans/completed/1792126455141-m3-wave1-exit-pass-guide.md`."
    - Insert the new section below **after the M4 section** (exact text to paste):
      → see "Section to insert" at the end of this plan.
 
-3. **M3 plan** (`1791998985158-m3-interactive-sessions-plan.md`): lines 5–6 — add the
+3. **M3 plan** (`completed/1791998985158-m3-interactive-sessions-plan.md`): lines 5–6 — add the
    `completed/` prefix to the M2 plan and the M2 D6.4 guide paths.
 
-4. **M3 Wave 1 exit pass guide** (`1792126455141-m3-wave1-exit-pass-guide.md`):
+4. **M3 Wave 1 exit pass guide** (`completed/1792126455141-m3-wave1-exit-pass-guide.md`):
    - lines 10 and 546: add the `completed/` prefix to the M2 D6.4 guide path.
    - review log (lines 18–19): "the guide is being written in S3.1–S3.5" → "the guide is
      complete (S3.5 done 2026-10-16)".
@@ -111,8 +111,8 @@ file, and refresh the plans README. No source code is touched.
    | File | Role |
    |---|---|
    | `1790364274061-billcollector-nicegui-daemon-plan.md` | Master daemon plan (v3): M0/M1/M2 done, M3 in progress (live Wave 1 exit pass pending), M4 + post-Wave 1 flowcool concessions open |
-   | `1791998985158-m3-interactive-sessions-plan.md` | M3 execution plan: S1/S2 done, S3 exit pass in progress |
-   | `1792126455141-m3-wave1-exit-pass-guide.md` | M3 Wave 1 exit pass operator guide (complete; live pass pending) |
+    | `completed/1791998985158-m3-interactive-sessions-plan.md` | M3 execution plan: S1/S2 done, S3 exit pass in progress |
+    | `completed/1792126455141-m3-wave1-exit-pass-guide.md` | M3 Wave 1 exit pass operator guide (complete; live pass pending) |
    | `1790468502492-gui-concept-dashboard-spec.md` | GUI concept + dashboard spec — design reference (implemented in M2 D2 + M3 S1) |
 
 ## Section to insert (master plan, after the M4 section)

@@ -512,9 +512,18 @@ style: `feat:`/`test:`/`doc:` + `(M3 chunk S<n>)`.
   **Git auto-commit** on — the step-8 repair Save lands the
   `recipe(testhappy): …` commit only when `git_commit_enabled` is on (the
   default is off). Full suite green, ruff clean. The guide (steps 0–10 +
-  Appendix A) is the S3 deliverable; the live pass is run by the operator
-  over the guide's steps and recorded in the guide's review log across
-  sessions (the M2 D6.4 pattern).
+   Appendix A) is the S3 deliverable; the live pass is run by the operator
+   over the guide's steps and recorded in the guide's review log across
+   sessions (the M2 D6.4 pattern).
+- **S3 done (2026-10-18).** Live pass 1 complete (the operator drove the
+  guide's steps; the guide's review log is the record): steps 0–10, all
+  six Wave 1 acceptance scenarios green from the web UI; 11 runs /
+  13 downloads per the review log and the step-10 DB checks (9×
+  `success` + 1× `cancelled` + 1× `interrupted`; 5 clean + 8
+  duplicates); one code fix landed from the review log (the noVNC src
+  scheme, `c3cc2ee` + the regression test); the step-8 recipe repair
+  commit was reverted (`afca745`); the scratch env was cleaned; the
+  pass artifacts are committed.
 
 ### S1 — Session view (Copilot + noVNC)
 

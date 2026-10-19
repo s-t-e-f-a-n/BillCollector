@@ -55,6 +55,7 @@ starlette==1.7.0
 tinycss2==1.5.1
 typing-inspection==0.4.4
 typing_extensions==4.16.0
+tzdata==2026.5
 tzlocal==5.4.4
 urllib3==2.8.0
 uvicorn==0.54.0

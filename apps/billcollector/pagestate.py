@@ -64,6 +64,8 @@ class PageState:
           origin at the top-left of the viewport) - used to position the
           Copilot overlay and for the pause context.
         - actionTypes: "textbox" elements get ["click", "fill"]; all others get ["click"].
+        - id: (optional) The element's static markup id, when present. Metadata
+          only: no locator candidate is generated from it.
         - For a link (role "link"), if available, an extra "url" key holds the element's href.
 
         This function is generic and does not depend on any fixed element. It uses a broad DOM traversal (querySelectorAll("*"))
@@ -265,6 +267,9 @@ class PageState:
                     "rect": rect,
                     "actionTypes": actions
                 }
+                id_attr = data.get("id", "")
+                if id_attr:
+                    entry["id"] = id_attr
                 if role_val == "link" and href.strip():
                     entry["url"] = sanitize_url(href.strip())
                 results.append(entry)

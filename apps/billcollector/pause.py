@@ -66,6 +66,8 @@ def _number_elements(entries):
         }
         if entry.get("url"):
             item["url"] = entry["url"]
+        if entry.get("id"):
+            item["id"] = entry["id"]
         numbered.append(item)
     return numbered
 

@@ -34,6 +34,11 @@ CREATE TABLE IF NOT EXISTS Task (
     status TEXT NOT NULL DEFAULT 'idle',
     profile_dir TEXT,
     profile_reset_at TEXT,
+    login_failures INTEGER NOT NULL DEFAULT 0,
+    login_failure_limit INTEGER NOT NULL DEFAULT 2,
+    login_locked INTEGER NOT NULL DEFAULT 0,
+    login_cycle_active INTEGER NOT NULL DEFAULT 0,
+    login_pending_run_id INTEGER,
     created_at TEXT,
     updated_at TEXT,
     UNIQUE (service, user)
@@ -113,6 +118,23 @@ class Database:
         if "profile_reset_at" not in cols:
             self.conn.execute(
                 "ALTER TABLE Task ADD COLUMN profile_reset_at TEXT")
+        for name, definition in {
+            "login_failures": "INTEGER NOT NULL DEFAULT 0",
+            "login_failure_limit": "INTEGER NOT NULL DEFAULT 2",
+            "login_locked": "INTEGER NOT NULL DEFAULT 0",
+            "login_cycle_active": "INTEGER NOT NULL DEFAULT 0",
+            "login_pending_run_id": "INTEGER",
+        }.items():
+            if name not in cols:
+                self.conn.execute(f"ALTER TABLE Task ADD COLUMN {name} {definition}")
+
+        if "login_cycle_active" not in cols:
+            # Old candidates cannot distinguish a cleared limit-one task from
+            # success. Preserve its cap conservatively until fresh session proof.
+            self.conn.execute(
+                """UPDATE Task SET login_cycle_active=1
+                   WHERE login_failures>0 OR login_locked=1
+                     OR login_pending_run_id IS NOT NULL OR login_failure_limit=1""")
 
     # ---- Task -------------------------------------------------------------
     def create_task(self, service, user, recipe_file=None, enabled=False,
@@ -181,8 +203,75 @@ class Database:
         orchestration flow)."""
         cur = self.conn.execute(
             """UPDATE Task SET status='running', updated_at=?
-               WHERE id=? AND status NOT IN ('running','waiting')""",
+               WHERE id=? AND status NOT IN ('running','waiting')
+                 AND login_locked=0 AND login_pending_run_id IS NULL""",
             (now(), task_id))
+        self.conn.commit()
+        return cur.rowcount == 1
+
+    def release_task_run(self, task_id):
+        """Do not let a rejected contender release another runner's task."""
+        self.conn.execute(
+            """UPDATE Task SET status='idle', updated_at=? WHERE id=?
+               AND NOT EXISTS (SELECT 1 FROM Run WHERE task_id=? AND result IS NULL)""",
+            (now(), task_id, task_id))
+        self.conn.commit()
+
+    def reserve_login_attempt(self, task_id, run_id, limit):
+        """Commit the attempt before dispatch. An uncertain submit consumes it."""
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise ValueError("login failure limit must be a positive integer")
+        cur = self.conn.execute(
+            """UPDATE Task SET login_failures=login_failures+1, login_cycle_active=1,
+                   login_failure_limit=CASE WHEN login_failures>0 OR login_cycle_active=1
+                     THEN MIN(login_failure_limit,?) ELSE ? END,
+                   login_pending_run_id=?, updated_at=?
+               WHERE id=? AND login_locked=0 AND login_pending_run_id IS NULL
+                   AND login_failures < CASE WHEN login_failures>0 OR login_cycle_active=1
+                     THEN MIN(login_failure_limit,?) ELSE ? END""",
+            (limit, limit, run_id, now(), task_id, limit, limit))
+        reserved = cur.rowcount == 1
+        if not reserved:
+            self.conn.execute(
+                """UPDATE Task SET login_locked=1, login_cycle_active=1,
+                       login_failure_limit=MIN(login_failure_limit,?), updated_at=?
+                   WHERE id=? AND login_pending_run_id IS NULL
+                     AND login_failures>=MIN(login_failure_limit,?)""",
+                (limit, now(), task_id, limit))
+        self.conn.commit()
+        return reserved
+
+    def settle_login_attempt(self, task_id, run_id):
+        """Consume an unproven submission once, including crash recovery."""
+        cur = self.conn.execute(
+            """UPDATE Task SET login_pending_run_id=NULL,
+                   login_locked=CASE WHEN login_failures>=login_failure_limit
+                                     THEN 1 ELSE login_locked END,
+                   updated_at=? WHERE id=? AND login_pending_run_id=?""",
+            (now(), task_id, run_id))
+        self.conn.commit()
+        return cur.rowcount == 1
+
+    def login_succeeded(self, task_id, run_id):
+        """Only an explicit session proof resets the consecutive budget."""
+        cur = self.conn.execute(
+            """UPDATE Task SET login_failures=0, login_locked=0, login_cycle_active=0,
+                   login_pending_run_id=NULL, updated_at=? WHERE id=?
+                   AND login_locked=0
+                   AND (login_pending_run_id IS NULL OR login_pending_run_id=?)
+                   AND EXISTS (SELECT 1 FROM Run WHERE id=? AND task_id=?
+                               AND result IS NULL)""",
+            (now(), task_id, run_id, run_id, task_id))
+        self.conn.commit()
+        return cur.rowcount == 1
+
+    def clear_login_lock(self, task_id):
+        """Grant one further attempt. Preserve profile and scheduling intent."""
+        cur = self.conn.execute(
+            """UPDATE Task SET login_locked=0, login_cycle_active=1,
+                   login_failures=MAX(0, login_failure_limit-1), updated_at=?
+               WHERE id=? AND status='idle' AND login_locked=1
+                   AND login_pending_run_id IS NULL""", (now(), task_id))
         self.conn.commit()
         return cur.rowcount == 1
 

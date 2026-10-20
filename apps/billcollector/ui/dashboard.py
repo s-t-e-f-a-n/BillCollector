@@ -58,6 +58,7 @@ REFRESH_INTERVAL = 2.0
 COLUMNS = [
     {"name": "task", "label": "Service / User", "field": "task"},
     {"name": "status", "label": "Status", "field": "status"},
+    {"name": "login", "label": "Login", "field": "login"},
     {"name": "last_run", "label": "Last run", "field": "last_run"},
     {"name": "next_run", "label": "Next run", "field": "next_run"},
     {"name": "session", "label": "Session", "field": "session"},
@@ -95,7 +96,7 @@ ROW_BODY = """
              outline>{{ props.row[col.name] }}</q-badge>
      <span v-else-if="col.name === 'actions'">
        <q-btn size="sm" color="primary" label="Run now"
-              :disable="props.row.status === 'running' || props.row.status === 'waiting'"
+              :disable="props.row.login_blocked || props.row.status === 'running' || props.row.status === 'waiting'"
               @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'run', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
        <q-btn size="sm" color="negative" label="Stop"
               :disable="props.row.status !== 'running'"
@@ -180,6 +181,9 @@ def build_rows(db: Database, scheduler: TaskScheduler,
             "user": task["user"],
             "task": f"{task['service']} / {task['user'] or '—'}",
             "status": task["status"],
+            "login_blocked": bool(task["login_locked"] or task["login_pending_run_id"] is not None),
+            "login": ("blocked" if task["login_locked"] else
+                      "pending" if task["login_pending_run_id"] is not None else "available"),
             "last_run": _last_run_cell(latest),
             "next_run": next_run(scheduler, task["id"]),
             "session": _session_cell(task, latest),
@@ -344,6 +348,9 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
                     continue
                 if not task["enabled"]:
                     skipped.append(f"{row['task']} (disabled)")
+                    continue
+                if task["login_locked"] or task["login_pending_run_id"] is not None:
+                    skipped.append(f"{row['task']} (login blocked)")
                     continue
                 if task["status"] in ("running", "waiting"):
                     skipped.append(f"{row['task']} (active)")

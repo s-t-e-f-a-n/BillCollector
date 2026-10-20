@@ -236,6 +236,41 @@ async def test_reset_profile_confirms_then_resets(user, testdb, tmp_path):
     assert user.notify.contains("Profile reset")
 
 
+async def test_login_clear_grants_one_attempt_and_preserves_configuration(user, testdb, tmp_path):
+    profile = tmp_path / "login-profile"
+    profile.mkdir()
+    (profile / "cookie-proof").write_text("synthetic")
+    task = testdb.create_task("svc-login", "user1", enabled=True,
+                              cron="0 4 * * *", profile_dir=str(profile))
+    testdb.update_task(task, login_failures=2, login_locked=1)
+    await _login(user, testdb)
+    await user.open(f"/tasks/{task}")
+    (run_btn,) = user.find(marker="detail-run").elements
+    (clear_btn,) = user.find(marker="detail-login-clear").elements
+    assert not run_btn.enabled
+    assert clear_btn.enabled
+    await user.should_see("Login: blocked")
+    user.find(marker="detail-login-clear").click()
+    await user.should_see("Allow one more login attempt?")
+    user.find(marker="detail-login-confirm").click()
+    row = testdb.get_task(task)
+    assert row["login_locked"] == 0
+    assert row["login_failures"] == 1
+    assert row["enabled"] == 1 and row["cron"] == "0 4 * * *"
+    assert (profile / "cookie-proof").read_text() == "synthetic"
+    assert run_btn.enabled
+    assert not clear_btn.enabled
+
+
+async def test_login_clear_is_unavailable_while_task_is_active(user, testdb):
+    task = testdb.create_task("svc-login-active", "user1")
+    testdb.update_task(task, login_failures=2, login_locked=1, status="waiting")
+    await _login(user, testdb)
+    await user.open(f"/tasks/{task}")
+    (clear_btn,) = user.find(marker="detail-login-clear").elements
+    assert not clear_btn.enabled
+
+
 async def test_pause_section_shows_prompt_deadline_and_screenshot(
         user, testdb, tmp_path):
     """While the run is waiting: the pause card shows the reason, the
@@ -304,3 +339,16 @@ async def test_downloads_page_lists_rows_with_the_duplicate_badge(
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
+
+
+async def test_login_pending_is_distinct_from_blocked(user, testdb):
+    task = testdb.create_task("svc-login-pending", "user1")
+    run = testdb.create_run(task)
+    testdb.update_task(task, login_pending_run_id=run)
+    await _login(user, testdb)
+    await user.open(f"/tasks/{task}")
+    await user.should_see("Login: pending")
+    (run_btn,) = user.find(marker="detail-run").elements
+    (clear_btn,) = user.find(marker="detail-login-clear").elements
+    assert not run_btn.enabled
+    assert not clear_btn.enabled

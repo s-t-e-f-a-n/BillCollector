@@ -163,6 +163,7 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
         recipe_path = task["recipe_file"] or str(
             config.recipe_path_for(task["service"]))
         recipe_state = "" if Path(recipe_path).exists() else " (missing)"
+        login_status = ui.label().mark("detail-login-status")
         ui.label(f"Recipe: {Path(recipe_path).name}{recipe_state}"
                  ).mark("detail-recipe-label")
 
@@ -171,6 +172,7 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
             run_btn = ui.button("Run now").mark("detail-run").props("color=primary")
             stop_btn = ui.button("Stop").mark("detail-stop").props("color=negative")
             reset_btn = ui.button("Reset profile").mark("detail-reset")
+            clear_login_btn = ui.button("Clear login block").mark("detail-login-clear")
             ui.link("Recipe", f"/recipes/{task['service']}").mark("detail-recipe")
 
         async def on_run_now(_e) -> None:
@@ -217,6 +219,24 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
         run_btn.on("click", on_run_now)
         stop_btn.on("click", on_stop)
         reset_btn.on("click", on_reset)
+
+        def on_clear_login(_e):
+            with ui.dialog() as dialog, ui.card():
+                ui.label("Allow one more login attempt?")
+                ui.label("Check the credentials first. Manual browser submissions are not counted.")
+
+                def confirm():
+                    cleared = db.clear_login_lock(task_id)
+                    ui.notify("One login attempt allowed" if cleared else
+                              "Not cleared: task must be idle and blocked")
+                    dialog.close()
+                    refresh()
+
+                ui.button("Cancel", on_click=dialog.close)
+                ui.button("Allow one attempt", on_click=confirm).mark("detail-login-confirm")
+            dialog.open()
+
+        clear_login_btn.on("click", on_clear_login)
 
         # ---- Pause section (read-only, M2; resolution is M3) -------------
         pause_box = ui.column().classes("w-full").mark("detail-pause-box")
@@ -395,7 +415,14 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
             status_badge.set_text(status)
             status_badge.props(
                 f"color={STATUS_COLORS.get(status, 'grey')}")
-            run_btn.set_enabled(status not in ("running", "waiting"))
+            blocked = bool(task["login_locked"] or task["login_pending_run_id"] is not None)
+            login_state = ("blocked" if task["login_locked"] else
+                           "pending" if task["login_pending_run_id"] is not None else "available")
+            login_status.set_text(
+                f"Login: {login_state} · "
+                f"Unproven attempts: {task['login_failures']}/{task['login_failure_limit']}")
+            run_btn.set_enabled(status not in ("running", "waiting") and not blocked)
+            clear_login_btn.set_enabled(status == "idle" and bool(task["login_locked"]))
             stop_btn.set_enabled(status == "running")
             reset_btn.set_enabled(status == "idle")
             render_pause()

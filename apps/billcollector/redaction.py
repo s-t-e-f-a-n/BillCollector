@@ -72,9 +72,20 @@ def failure_category(method, error):
 
 
 def failure_record(method, error=None, category=None):
-    """Return safe structural evidence for one failed recipe method."""
+    """Return safe structural evidence for one failed recipe method.
+
+    For a strict-mode violation the record additionally carries the resolved
+    element count parsed from the exception message (``resolved_count``, an
+    int only): it distinguishes a stale locator (0 or 1 match) from an
+    ambiguous one (several matches). No message text is retained.
+    """
     safe_method = method if isinstance(method, str) and _METHOD_RE.fullmatch(method) else "unknown"
     safe_category = category or failure_category(safe_method, error)
     if safe_category not in FAILURE_CATEGORIES:
         safe_category = "other"
-    return {"method": safe_method, "category": safe_category}
+    record = {"method": safe_method, "category": safe_category}
+    if safe_category == "strict-mode" and error is not None:
+        match = re.search(r"resolved to (\d+) elements", str(error))
+        if match:
+            record["resolved_count"] = int(match.group(1))
+    return record

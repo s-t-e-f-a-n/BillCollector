@@ -1,11 +1,12 @@
 # PR #17 refined — redact retained browser evidence (head `170a366`) + post-attach self-healing improvements
 
-> Status: VALIDATED (2026-10-20) — verdict **approve**; S4 applied and
+> Status: DELIVERED (2026-10-20) — verdict **approve**; S4 applied and
 > verified on head `170a366`; R1 + R2 implemented in the working tree; S5
 > evidence collected on the final tree (unit, full suite, live regression,
 > ruff, bandit) and the deployment skip user-confirmed at the S5 close-out
-> gate (2026-10-20). Remaining: the S7 commit sequence (PR integration →
-> R1 → R2), the PR reply (Section 5), and PR close.
+> gate (2026-10-20). S7 executed: 6 commits on `dev` (PR integration → R1 →
+> R2), promoted to `main` (ff-only), sanitized mirror published to GitHub
+> `main`, PR #17 answered and closed without merge (Section 15).
 > This plan **supersedes**
 > `.kilo/plans/1792475813001-pr17-browser-evidence-redaction-review.md`
 > (review of old head `3967bf3`), which is kept as history.
@@ -356,3 +357,45 @@ the exact tree being promoted (no tree move since the Section 8 evidence).
   the Section 11 deployment skip → Status: VALIDATED.
 - Remaining: the S7 commit sequence (PR integration → R1 → R2), the PR
   reply (Section 5 suggested text), and PR close.
+
+## 15. S7 delivery log (2026-10-20, 20:42–20:55Z)
+
+- 20:42: S7 preflight: PR head still `170a366` (`git ls-remote github
+  refs/pull/17/head`); the working tree byte-identical to the S5-validated
+  tree (8 tracked files PR-clean vs head, the 2 untracked files carrying
+  only the planned R1/R2 hunks); `dev` in sync with `origin/dev`
+  (`2e456b7`), no unpushed commits.
+- Commit sequence on `dev` (6 commits, user-confirmed per item; every
+  intermediate state green — the PR's modified test expectations force
+  code+tests into one commit for the integration):
+  - `dbde7c5` fix: redact retained browser evidence (10 files at exact PR
+    head content, +558/−30 — the PR's stated size)
+  - `cac24fd` doc: changelog: redact retained browser evidence (issue #10)
+  - `8fadf17` feat: pagestate: retain element id as additive metadata (R1)
+  - `eaba744` test: pagestate: cover id metadata in redaction and pause
+    suites (R1)
+  - `ea75774` feat: redaction: retain strict-mode resolved count in failure
+    records (R2)
+  - `98af41f` test: redaction: cover strict-mode resolved count in failure
+    records (R2)
+- Post-commit verification: tree clean; tip byte-identical to the validated
+  tree (5 R1/R2-touched files `cmp`-clean against the S5-era copies; diff vs
+  head = exactly the R1/R2 hunks + CHANGELOG); the 4 modules re-run on the
+  committed tip: `80 passed, 9 subtests` (matches Section 8).
+- Push: `origin/dev` `2e456b7..98af41f`.
+- Promotion (user-gated, deploy skill Stage 2): `main` `3b406f0..98af41f`
+  (ff-only; `git diff main dev` empty, status clean); no tag (no release
+  decided).
+- Mirror (deploy skill Stage 3): `sync_github.sh` → GitHub `main`
+  `c539b3420d0495ee6c4133e88e3a74e6e98740ad`; public gate passed — top-level
+  and `.github` listings free of `.kilo` / `.vscode` / `.private` /
+  `openwiki` / `AGENTS.md` / `.openwikiignore` / `workflows`, and all 10 PR
+  files (incl. `apps/billcollector/redaction.py`) present.
+- PR close (user-confirmed comment text): comment
+  `https://github.com/s-t-e-f-a-n/BillCollector/pull/17#issuecomment-6301263351`
+  (both confirmations per Section 5, the mirror-flow note, informational
+  F1/F2 notes); `PATCH .../pulls/17` → `state: closed`, `merged: false` at
+  20:54Z — closed without merge; the change reached GitHub via the mirror,
+  keeping public history canonical.
+- Section 13 open item remains open: the F2 follow-up issue (residual
+  raw-exception log sites) was not filed; optional and non-blocking.

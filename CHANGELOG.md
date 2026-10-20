@@ -9,6 +9,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Self-hosted daemon with a NiceGUI web UI: `python3 -m billcollector serve`
+  (binds `127.0.0.1:8000` by default; `--host`/`--port` or `BC_UI_HOST`
+  override). On the first start it imports the `[Playwright]` sections of
+  `bc_default.ini`/`bc_test.ini` as tasks (each (service, user) pair becomes
+  one task, initially disabled with a default monthly cron) and shows a
+  set-password form (or seeds the password from `BC_UI_PASSWORD` in
+  `apps/.env`).
+- Per-task cron scheduling: the Task table in `bc.db` is the source of truth;
+  the daemon rebuilds its scheduler jobs from it on every start, and a missed
+  run coalesces into a single catch-up run.
+- Dashboard: all tasks with their status, last/next run, and latest download,
+  a live log pane, Run now / Stop actions, and a `waiting` badge for paused
+  runs; per-task run history with step records, step screenshots, and
+  downloads; a session page (`/runs/<id>`) for one live run - while the run is
+  paused it offers a "Copilot" view (screenshot, numbered interactive
+  elements, click/fill/press/drag, Resume / Cancel) and a noVNC tab showing
+  the actual browser window, plus a Repair link into the recipe editor for
+  step failures.
+- Recipe editor (`/recipes/<service>`) with schema validation and an optional
+  git auto-commit for UI edits; a downloads page; a settings page (UI
+  password, ntfy topic, pause deadline, max concurrency, download directory,
+  UI base URL, VNC password, git auto-commit).
+- Pause subsystem: a non-graceful step that still fails after 3 attempts, a
+  failed download, or an explicit `wait_user` recipe step pauses the run (the
+  task shows `waiting`) instead of aborting - it stores a machine-readable
+  pause context on the run, pushes an ntfy notification with a deep link to
+  the session page, and waits until the operator resumes or cancels, or the
+  pause deadline passes (default 1800 s, configurable in Settings).
+- New recipe method `wait_user`: an explicit pause point with an optional
+  `prompt` and an optional `until` locator (the pause completes when that
+  element appears, or on resume).
+- ntfy push notifications for pause events (`ntfy_topic` setting; `NTFY_HOST`
+  environment variable, default `https://ntfy.sh`).
+- `python3 -m billcollector run <task_id>`: execute a single task run from the
+  command line (e.g., from cron) without the daemon.
+- Pytest suite covering the daemon modules and the UI pages (dev-only, not
+  part of the docker image) and a ruff lint setup for the maintained source.
+
 ### Changed
 
 - Deploys now reuse the BuildKit layer cache: the changing `REVISION` build
@@ -27,7 +67,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   mount targets are no longer hardcoded: `CONSUMER_DIR`/`DB_DIR` are read from
   the environment or a `.env` file next to the script (validated before the
   build), and `SKIP_MOUNT_SETUP=1` skips the mount step for local image
-  builds. `deploy_remote.sh` forwards the two variables to the NAS.
+   builds. `deploy_remote.sh` forwards the two variables to the NAS.
+- The shared foundation (database, vault client, page-state recording,
+  downloads, notifications, control protocol) was extracted into the
+  `apps/billcollector/` package, which the batch entry points
+  (`BillCollector.py`, `BillCollectorServices_pw.py`) now import as well; the
+  cron-driven batch path is unchanged.
+- The single-service manual run UI (`apps/bc_ui.py`, added in v0.3) is
+  replaced by the daemon web UI.
 
 ### Removed
 
@@ -42,9 +89,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   committed value was always stale; the deployed commit stays visible in the
   deploy log.
 - `doc/TODO.txt` (stale scratch notes).
+- `apps/bc_ui.py` - the v0.3 single-service manual run UI, replaced by the
+  daemon web UI.
 
 ### Fixed
 
+- Pinned `tzdata` in `apps/requirements.txt` so the Python dependency check in
+  the image build passes.
 - Avoid recommended development packages in the initial Python APT install,
   keeping DejaVu fonts explicit to preserve browser/UI font fallback.
 - Check Python dependencies at build time and remove pip/wheel installers from

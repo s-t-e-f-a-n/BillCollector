@@ -16,4 +16,4 @@ paths, so a moved file gains the `completed/` prefix.
 | File | Role |
 |---|---|
 | `1790364274061-billcollector-nicegui-daemon-plan.md` | Master daemon plan (v3): M0–M3 done (Wave 1 exit pass complete 2026-10-18; NAS deploy pending), M4 + post-Wave 1 flowcool concessions open |
-| `1790468502492-gui-concept-dashboard-spec.md` | GUI concept + dashboard spec — design reference (implemented in M2 D2 + M3 S1) |
+| `1792384312843-wave1-nas-deploy.md` | Wave 1 NAS deploy: Stages 0–3 done (anchor tag, promotion to `main` `3b406f0`, GitHub mirror); Stage 4 NAS deploy + daemon cutover pending |

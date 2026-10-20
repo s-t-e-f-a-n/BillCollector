@@ -8,7 +8,7 @@
 > R2), promoted to `main` (ff-only), sanitized mirror published to GitHub
 > `main`, PR #17 answered and closed without merge (Section 15).
 > This plan **supersedes**
-> `.kilo/plans/1792475813001-pr17-browser-evidence-redaction-review.md`
+> `.kilo/plans/completed/1792475813001-pr17-browser-evidence-redaction-review.md`
 > (review of old head `3967bf3`), which is kept as history.
 >
 > Refinement direction (agreed with the maintainer, 2026-10-20): accept the

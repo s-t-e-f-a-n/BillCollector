@@ -357,9 +357,9 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
 - `Run(id, task_id, pid, display, novnc_port, log_path, control_sock, started_at,
   ended_at, result, pause_reason, pause_prompt, pause_context, pause_deadline_at,
   notes)` — `pause_context` = the machine-readable intervention context JSON (see
-  "Intervention architecture"). Note: the dashboard-spec Session 1 DDL
-  (`1790468502492-gui-concept-dashboard-spec.md`, not yet implemented) gains these two
-  columns when that session runs.
+  "Intervention architecture"). The dashboard-spec Session 1 DDL
+  (`.kilo/plans/completed/1790468502492-gui-concept-dashboard-spec.md`,
+  delivered in M1, 2026-10-11) added these two columns.
 - `PageStatus(id, run_id, step_number, locator_action, interactive_elements,
   screenshot_path, error)` — **one** table, replacing table-per-run
 - `Download(id, run_id, task_id, url, filename, size, sha256, saved_path, created_at,
@@ -416,8 +416,8 @@ reuses shared `vault.py` / `downloads.py` instead of its own copies (from M0/M1)
 ### UI pages (NiceGUI)
 
 > The dashboard is specified in detail (and is the GUI concept focus) in
-> `.kilo/plans/1790468502492-gui-concept-dashboard-spec.md` — it supersedes the
-> dashboard line below.
+> `.kilo/plans/completed/1790468502492-gui-concept-dashboard-spec.md` — it
+> supersedes the dashboard line below.
 
 - **Login:** `@ui.page('/login')`; app-level HTTP middleware on the NiceGUI app
   (Starlette `SessionMiddleware`) redirects all pages except login/static/`/_alive`;

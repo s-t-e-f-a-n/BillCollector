@@ -246,6 +246,38 @@ class PageStateRetentionTests(unittest.TestCase):
             for entry in entries
         ))
 
+    def test_id_is_retained_as_additive_metadata_only_when_present(self):
+        page = SyntheticPage()
+        page.elements = [
+            {
+                "tag": "input", "inputType": "text", "innerText": "",
+                "computedText": "", "ariaLabel": "User", "title": "",
+                "placeholder": "", "id": "user", "onclick": "",
+                "contenteditable": False, "href": "", "value": "",
+                "labelText": "", "rect": {"x": 0, "y": 0, "w": 1, "h": 1},
+            },
+            {
+                "tag": "input", "inputType": "text", "innerText": "",
+                "computedText": "", "ariaLabel": "Code", "title": "",
+                "placeholder": "", "id": "", "onclick": "",
+                "contenteditable": False, "href": "", "value": "",
+                "labelText": "", "rect": {"x": 0, "y": 5, "w": 1, "h": 1},
+            },
+        ]
+
+        entries = PageState("synthetic", 5, page).interactive_elements
+        with_id = [e for e in entries if e["name"] == "User"]
+        without_id = [e for e in entries if e["name"] == "Code"]
+        self.assertTrue(with_id)
+        self.assertTrue(without_id)
+        self.assertTrue(all(e.get("id") == "user" for e in with_id))
+        self.assertTrue(all("id" not in e for e in without_id))
+        for entry in entries:
+            self.assertEqual(
+                list(entry)[:5],
+                ["role", "name", "locator", "rect", "actionTypes"],
+            )
+
 
 class BrowserDomScanRetentionTests(unittest.TestCase):
     """Run the real DOM scan script in Chromium against a local page."""

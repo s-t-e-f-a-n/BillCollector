@@ -209,6 +209,19 @@ class BuildPauseContextTests(PauseTestBase):
         self.assertIsNone(context["screenshot"]["path"])
         self.assertIsNone(context["screenshot"]["data"])
 
+    def test_context_elements_carry_the_optional_id(self):
+        # ELEMENTS[1] (the input) gets a markup id; ELEMENTS[0] (the button)
+        # has none, so its entries must not gain an "id" key.
+        self.page.elements[1]["id"] = "otp-input"
+        context = pause.build_pause_context(
+            self.ctx, "wait_user", "p", None, None, "d")
+        elements = context["elements"]
+        self.assertEqual([e["n"] for e in elements], [1, 2, 3, 4])
+        self.assertEqual(elements[2]["id"], "otp-input")
+        self.assertEqual(elements[3]["id"], "otp-input")
+        self.assertNotIn("id", elements[0])
+        self.assertNotIn("id", elements[1])
+
 
 class PersistPauseTests(PauseTestBase):
     def test_persist_pause_writes_run_row_and_task_status(self):

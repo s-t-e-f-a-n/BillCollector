@@ -102,9 +102,11 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/method"
+      steps:
+        type: array
+        items:
+          $ref: "#/definitions/nestedStep"
     allOf:
-      - not:
-          required: [ steps ]
       - not:
           required: [ methods ]
           properties:

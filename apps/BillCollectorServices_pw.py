@@ -227,10 +227,15 @@ def perform_actions(bcs):
                     bcs.run_table = bcs.db.create_service_run_table(service_name)
                     service_files = []
                     service_aborted = False
+                    collection_filenames = set()
 
                     def download_collection(locator, options):
                         """Legacy batch adapter for one bounded collection."""
-                        collection_filenames = set()
+                        collection_filenames.update(
+                            entry["suggested_filename"]
+                            for entry in service_files
+                            if entry.get("result") == "success"
+                        )
 
                         def save_collection_download(download):
                             filename = str(download.suggested_filename)

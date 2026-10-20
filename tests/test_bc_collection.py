@@ -36,6 +36,8 @@ class _Events:
         self.listeners.setdefault(name, []).append(callback)
 
     def remove_listener(self, name, callback):
+        if getattr(self, "remove_error", False):
+            raise RuntimeError("remove failed")
         self.listeners[name].remove(callback)
 
     def emit(self, name, value):
@@ -157,6 +159,8 @@ class _Popup(_Events):
         return self.closed
 
     def close(self):
+        if getattr(self, "close_error", False):
+            raise RuntimeError("close failed")
         self.closed = True
 
 
@@ -284,7 +288,7 @@ class DownloadAllTests(unittest.TestCase):
             for index in range(3)
         ])
         saved = []
-        with self.assertRaisesRegex(CollectionError, "cannot preserve"):
+        with self.assertRaisesRegex(CollectionError, "must leave more than 90 ms"):
             download_all(page, context, listing, saved.append, {
                 "key_attribute": "data-key",
                 "max_items": 3,
@@ -293,6 +297,32 @@ class DownloadAllTests(unittest.TestCase):
             })
         self.assertEqual(listing.handles, [])
         self.assertEqual(saved, [])
+
+    def test_primary_error_survives_listener_and_restoration_cleanup_failures(self):
+        page, context, listing = self.setup_listing([{
+            "data-key": "one", "navigate": True,
+        }])
+        page.remove_error = True
+        page.go_back = mock.Mock(side_effect=RuntimeError("restore failed"))
+
+        with self.assertLogs(collection_module.logger, level="WARNING") as logs:
+            with self.assertRaisesRegex(CollectionError, "produced 0 files"):
+                download_all(
+                    page, context, listing, lambda item: item, self.options
+                )
+
+        self.assertIn("listener removal", " ".join(logs.output))
+        self.assertIn("listing restoration", " ".join(logs.output))
+
+        page, context, listing = self.setup_listing([{
+            "data-key": "one", "dispose_error": True,
+        }])
+        with self.assertLogs(collection_module.logger, level="WARNING") as logs:
+            with self.assertRaisesRegex(CollectionError, "produced 0 files"):
+                download_all(
+                    page, context, listing, lambda item: item, self.options
+                )
+        self.assertIn("element-handle disposal", " ".join(logs.output))
 
     def test_slow_persistence_reserves_all_remaining_event_windows(self):
         page, context, listing = self.setup_listing([
@@ -501,6 +531,23 @@ services:
         self.assertFalse(ok)
         self.assertIsNone(data)
 
+        recursive = copy.deepcopy(base)
+        recursive["services"][0]["steps"] = [{
+            "step": 1,
+            "methods": [{"method": "expect_download"}],
+            "steps": [{
+                "step": 2,
+                "methods": [{"method": "expect_download"}],
+                "steps": [{
+                    "step": 3,
+                    "methods": [{"method": "click"}],
+                }],
+            }],
+        }]
+        ok, error, data = recipes.validate_recipe(yaml.safe_dump(recursive))
+        self.assertTrue(ok, error)
+        self.assertIsNotNone(data)
+
     def test_runner_dispatches_terminal_action_on_resolved_locator(self):
         locator = object()
 
@@ -672,7 +719,7 @@ services:
                 runner._execute_step(ctx, step)
         self.assertEqual(process.call_count, 1)
 
-    def test_daemon_adapter_keeps_partial_result_and_rejects_name_collision(self):
+    def test_daemon_adapter_keeps_partial_result_and_rejects_run_name_collision(self):
         first = SimpleNamespace(suggested_filename="invoice.pdf")
         second = SimpleNamespace(suggested_filename="invoice.pdf")
         ctx = SimpleNamespace(
@@ -685,9 +732,12 @@ services:
             db=object(),
         )
 
+        calls = 0
+
         def exercise(_page, _context, _locator, save, _options):
-            save(first)
-            save(second)
+            nonlocal calls
+            calls += 1
+            save(first if calls == 1 else second)
 
         with mock.patch.object(
             runner.downloads, "track_download", return_value={
@@ -697,12 +747,15 @@ services:
         ) as track, mock.patch.object(
             runner.collection, "download_all", side_effect=exercise
         ):
+            actions = runner._collection_actions(ctx)
+            options = {
+                "key_attribute": "href", "max_items": 2,
+                "timeout_ms": 10, "event_window_ms": 2,
+            }
+            actions["download_all"](object(), options)
             with self.assertRaisesRegex(CollectionError, "duplicate"):
                 runner._collection_actions(ctx)["download_all"](
-                    object(), {
-                        "key_attribute": "href", "max_items": 2,
-                        "timeout_ms": 10, "event_window_ms": 2,
-                    }
+                    object(), options
                 )
 
         self.assertEqual(track.call_count, 1)

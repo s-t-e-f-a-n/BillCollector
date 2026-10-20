@@ -8,6 +8,7 @@ capture, and restoration after a download navigates away from the listing.
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 
@@ -22,6 +23,8 @@ COLLECTION_LOCATOR_METHODS = frozenset({
     "get_by_title", "get_by_placeholder", "get_by_test_id",
 })
 COLLECTION_ACTION_METHODS = frozenset({"click_until_absent", "download_all"})
+
+logger = logging.getLogger(__name__)
 
 _READ_KEYS = """(elements, attribute) => elements.map(
     element => element.getAttribute(attribute))"""
@@ -219,11 +222,26 @@ def _require_event_budget(deadline, count, index, event_window_ms):
     required = (count - index) * event_window_ms
     if required >= remaining:
         raise CollectionError(
-            "download_all browser timeout cannot preserve the "
-            f"remaining {count - index} event windows after "
-            f"{index} of {count} items"
+            "download_all timeout_ms must leave more than "
+            f"{required} ms for the remaining {count - index} "
+            f"event windows after {index} of {count} items; "
+            f"only {remaining} ms remain"
         )
     return remaining - required
+
+
+def _cleanup_preserving(primary_error, description, action):
+    """Run cleanup without replacing an exception from the main operation."""
+    try:
+        action()
+    except Exception:
+        if primary_error is None:
+            raise
+        logger.warning(
+            "%s failed while preserving the primary collection error",
+            description,
+            exc_info=True,
+        )
 
 
 def _download_one(page, context, target, save_download, index, count,
@@ -240,6 +258,7 @@ def _download_one(page, context, target, save_download, index, count,
         new_page.on("download", on_download)
 
     interrupted = False
+    primary_error = None
     page.on("download", on_download)
     context.on("page", on_page)
     try:
@@ -270,6 +289,9 @@ def _download_one(page, context, target, save_download, index, count,
     except RunInterrupted:
         interrupted = True
         raise
+    except Exception as error:
+        primary_error = error
+        raise
     finally:
         if interrupted:
             # Browser teardown belongs to the runner after a shutdown signal.
@@ -283,19 +305,34 @@ def _download_one(page, context, target, save_download, index, count,
                 except Exception:
                     interrupted = True
         else:
-            page.remove_listener("download", on_download)
-            context.remove_listener("page", on_page)
+            _cleanup_preserving(
+                primary_error,
+                "page download-listener removal",
+                lambda: page.remove_listener("download", on_download),
+            )
+            _cleanup_preserving(
+                primary_error,
+                "context page-listener removal",
+                lambda: context.remove_listener("page", on_page),
+            )
             for popup in popups:
                 if not popup.is_closed():
-                    popup.close()
-            if page.url != listing_url:
-                remaining = _remaining_ms(total_deadline)
-                if remaining == 0:
-                    raise CollectionError(
-                        "download_all browser timeout expired before restoring "
-                        "the listing"
+                    _cleanup_preserving(
+                        primary_error, "popup close", popup.close
                     )
-                _restore_listing(page, listing_url, remaining)
+            if page.url != listing_url:
+                def restore_listing():
+                    remaining = _remaining_ms(total_deadline)
+                    if remaining == 0:
+                        raise CollectionError(
+                            "download_all browser timeout expired before "
+                            "restoring the listing"
+                        )
+                    _restore_listing(page, listing_url, remaining)
+
+                _cleanup_preserving(
+                    primary_error, "listing restoration", restore_listing
+                )
 
 
 def download_all(page, context, locator, save_download, options):
@@ -357,6 +394,7 @@ def download_all(page, context, locator, save_download, options):
                 f"download item {index + 1} of {count} disappeared"
             )
         interrupted = False
+        primary_error = None
         try:
             if target.evaluate(_READ_KEY, key_attribute) != expected_key:
                 raise CollectionError(
@@ -377,9 +415,14 @@ def download_all(page, context, locator, save_download, options):
         except RunInterrupted:
             interrupted = True
             raise
+        except Exception as error:
+            primary_error = error
+            raise
         finally:
             if interrupted:
                 _dispose_best_effort(target)
             else:
-                target.dispose()
+                _cleanup_preserving(
+                    primary_error, "element-handle disposal", target.dispose
+                )
     return records

@@ -188,6 +188,7 @@ class _RunContext:
         self.debug = debug
         self.eof_noticed = False
         self.files_downloaded = []
+        self.collection_filenames = set()
         self.context = None
         self.page = None
         self.bcs = ServiceObj(
@@ -500,7 +501,15 @@ def _process_step(bcs, step, collection_actions=None):
 def _collection_actions(ctx):
     """Runner adapters for the shared bounded collection actions."""
 
-    collection_filenames = set()
+    collection_filenames = getattr(ctx, "collection_filenames", None)
+    if collection_filenames is None:
+        collection_filenames = set()
+        ctx.collection_filenames = collection_filenames
+    collection_filenames.update(
+        entry["suggested_filename"]
+        for entry in getattr(ctx, "files_downloaded", ())
+        if entry.get("result") == "success"
+    )
 
     def paginate(locator, options):
         return collection.click_until_absent(ctx.page, locator, options)

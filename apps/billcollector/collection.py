@@ -234,6 +234,8 @@ def _cleanup_preserving(primary_error, description, action):
     """Run cleanup without replacing an exception from the main operation."""
     try:
         action()
+    except RunInterrupted:
+        raise
     except Exception:
         if primary_error is None:
             raise
@@ -245,7 +247,8 @@ def _cleanup_preserving(primary_error, description, action):
 
 
 def _download_one(page, context, target, save_download, index, count,
-                  total_deadline, event_window_ms):
+                  total_deadline, event_window_ms, *, budget_index=None,
+                  budget_count=None):
     listing_url = page.url
     observed = []
     popups = []
@@ -262,8 +265,12 @@ def _download_one(page, context, target, save_download, index, count,
     page.on("download", on_download)
     context.on("page", on_page)
     try:
+        if budget_index is None:
+            budget_index = index
+        if budget_count is None:
+            budget_count = count
         click_timeout = _require_event_budget(
-            total_deadline, count, index, event_window_ms
+            total_deadline, budget_count, budget_index, event_window_ms
         )
         target.click(timeout=click_timeout)
         full_event_deadline = time.monotonic() + event_window_ms / 1000
@@ -335,7 +342,8 @@ def _download_one(page, context, target, save_download, index, count,
                 )
 
 
-def download_all(page, context, locator, save_download, options):
+def download_all(page, context, locator, save_download, options,
+                 *, completed_keys=None):
     """Download every item from one stable, explicitly keyed locator.
 
     The initial ordered key set is the contract for the whole action.  The
@@ -368,12 +376,22 @@ def download_all(page, context, locator, save_download, options):
 
     keys = _snapshot(locator, key_attribute)
     _validate_snapshot(keys, max_items)
+    if completed_keys is None:
+        completed_keys = set()
     records = []
     count = len(keys)
-    _require_event_budget(total_deadline, count, 0, event_window_ms)
-    for index, expected_key in enumerate(keys):
+    pending = [
+        (index, key) for index, key in enumerate(keys)
+        if key not in completed_keys
+    ]
+    pending_count = len(pending)
+    if pending_count:
         _require_event_budget(
-            total_deadline, count, index, event_window_ms
+            total_deadline, pending_count, 0, event_window_ms
+        )
+    for pending_index, (index, expected_key) in enumerate(pending):
+        _require_event_budget(
+            total_deadline, pending_count, pending_index, event_window_ms
         )
         while _snapshot(locator, key_attribute) != keys:
             if _remaining_ms(total_deadline) == 0:
@@ -384,7 +402,7 @@ def download_all(page, context, locator, save_download, options):
             page.wait_for_timeout(50)
 
         handle_timeout = _require_event_budget(
-            total_deadline, count, index, event_window_ms
+            total_deadline, pending_count, pending_index, event_window_ms
         )
         target = locator.nth(index).element_handle(
             timeout=handle_timeout
@@ -400,16 +418,23 @@ def download_all(page, context, locator, save_download, options):
                 raise CollectionError(
                     f"download list changed after {index} of {count} items"
                 )
+            def save_completed(download):
+                record = save_download(download)
+                completed_keys.add(expected_key)
+                return record
+
             records.append(
                 _download_one(
                     page,
                     context,
                     target,
-                    save_download,
+                    save_completed,
                     index,
                     count,
                     total_deadline,
                     event_window_ms,
+                    budget_index=pending_index,
+                    budget_count=pending_count,
                 )
             )
         except RunInterrupted:

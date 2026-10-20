@@ -189,6 +189,7 @@ class _RunContext:
         self.eof_noticed = False
         self.files_downloaded = []
         self.collection_filenames = set()
+        self.collection_completed_keys = {}
         self.context = None
         self.page = None
         self.bcs = ServiceObj(
@@ -498,7 +499,7 @@ def _process_step(bcs, step, collection_actions=None):
     return page_state
 
 
-def _collection_actions(ctx):
+def _collection_actions(ctx, step=None):
     """Runner adapters for the shared bounded collection actions."""
 
     collection_filenames = getattr(ctx, "collection_filenames", None)
@@ -510,6 +511,11 @@ def _collection_actions(ctx):
         for entry in getattr(ctx, "files_downloaded", ())
         if entry.get("result") == "success"
     )
+    completed_by_step = getattr(ctx, "collection_completed_keys", None)
+    if completed_by_step is None:
+        completed_by_step = {}
+        ctx.collection_completed_keys = completed_by_step
+    completed_keys = completed_by_step.setdefault(id(step), set())
 
     def paginate(locator, options):
         return collection.click_until_absent(ctx.page, locator, options)
@@ -533,7 +539,12 @@ def _collection_actions(ctx):
 
     def download(locator, options):
         return collection.download_all(
-            ctx.page, ctx.context, locator, save_download, options
+            ctx.page,
+            ctx.context,
+            locator,
+            save_download,
+            options,
+            completed_keys=completed_keys,
         )
 
     return {
@@ -634,7 +645,7 @@ def _execute_step(ctx, step, parent_step=None, single_attempt=False):
     for attempt in range(1, attempts + 1):
         try:
             state = _process_step(
-                ctx.bcs, step, collection_actions=_collection_actions(ctx)
+                ctx.bcs, step, collection_actions=_collection_actions(ctx, step)
             )
         except StepAbortError as e:
             if attempt < attempts:

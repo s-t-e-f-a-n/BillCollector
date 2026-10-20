@@ -437,6 +437,55 @@ class DownloadAllTests(unittest.TestCase):
             )
         self.assertEqual(saved, ["one"])
 
+    def test_resume_skips_keys_persisted_before_partial_failure(self):
+        page, context, listing = self.setup_listing([
+            {"data-key": "one", "download": "one"},
+            {"data-key": "two"},
+        ])
+        saved = []
+        completed = set()
+
+        with self.assertRaisesRegex(CollectionError, "produced 0 files"):
+            download_all(
+                page,
+                context,
+                listing,
+                lambda item: saved.append(item) or item,
+                self.options,
+                completed_keys=completed,
+            )
+
+        self.assertEqual(saved, ["one"])
+        self.assertEqual(completed, {"one"})
+        listing.items[1]["download"] = "two"
+
+        records = download_all(
+            page,
+            context,
+            listing,
+            lambda item: saved.append(item) or item,
+            self.options,
+            completed_keys=completed,
+        )
+
+        self.assertEqual(records, ["two"])
+        self.assertEqual(saved, ["one", "two"])
+        self.assertEqual(completed, {"one", "two"})
+        self.assertEqual(listing.clicked, ["one", "two", "two"])
+
+    def test_cleanup_shutdown_overrides_primary_collection_error(self):
+        page, context, listing = self.setup_listing([{
+            "data-key": "one",
+        }])
+        page.remove_listener = mock.Mock(
+            side_effect=RunInterrupted("cleanup stop")
+        )
+
+        with self.assertRaisesRegex(RunInterrupted, "cleanup stop"):
+            download_all(
+                page, context, listing, lambda item: item, self.options
+            )
+
     def test_shutdown_interrupt_is_not_converted_to_collection_failure(self):
         page, context, listing = self.setup_listing([
             {"data-key": "one", "interrupt": True, "dispose_error": True},
@@ -734,9 +783,13 @@ services:
 
         calls = 0
 
-        def exercise(_page, _context, _locator, save, _options):
+        completed_sets = []
+
+        def exercise(_page, _context, _locator, save, _options,
+                     *, completed_keys):
             nonlocal calls
             calls += 1
+            completed_sets.append(completed_keys)
             save(first if calls == 1 else second)
 
         with mock.patch.object(
@@ -759,6 +812,7 @@ services:
                 )
 
         self.assertEqual(track.call_count, 1)
+        self.assertIs(completed_sets[0], completed_sets[1])
         self.assertEqual(ctx.files_downloaded, [{
             "url": "https://example.test/invoice",
             "suggested_filename": "invoice.pdf",

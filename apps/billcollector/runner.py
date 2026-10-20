@@ -48,6 +48,7 @@ from .db import Database, now
 from .interrupt import RunInterrupted
 from .pagestate import PageState
 from .pause import pause_loop
+from .redaction import failure_category, failure_record
 from .vault import (
     VAULT_MAX_ATTEMPTS,
     VAULT_RETRY_BACKOFF,
@@ -381,10 +382,9 @@ def _process_step(bcs, step):
     for method_entry in step["methods"]:
         method_name = method_entry.get("method")
         arguments = method_entry.get("arguments", [])
-        processed_args = [process_argument(arg, bcs) for arg in arguments]
 
         if not method_name:
-            fail_step(f"method: {method_name}, message: Method entry missing 'method' key: {method_entry}")
+            fail_step(failure_record(None, category="other"))
             break  # Stop the method chain (graceful failure).
 
         # Special handling for "expect_download".
@@ -392,12 +392,15 @@ def _process_step(bcs, step):
             if "steps" in step and step["steps"]:
                 page_state.set_error(step_results)
             else:
-                page_state.set_error("error: No nested steps provided for 'expect_download'.")
+                page_state.set_error({
+                    "error": [failure_record("expect_download", category="download")]
+                })
             break
         # Standard handling of methods
         else:
-            method_executor = getattr(previous_result, method_name, None)
             try:
+                processed_args = [process_argument(arg, bcs) for arg in arguments]
+                method_executor = getattr(previous_result, method_name, None)
                 if method_executor is None:
                     raise AttributeError(f"Method '{method_name}' not found on {type(previous_result).__name__}.")
                 if callable(method_executor):
@@ -416,7 +419,7 @@ def _process_step(bcs, step):
             except RunInterrupted:
                 raise  # a shutdown signal is not a step failure to retry
             except Exception as e:
-                fail_step({"method": method_name, "message": str(e)})
+                fail_step(failure_record(method_name, e))
                 break  # Stop the method chain (graceful failure).
             else:
                 page_state.set_error(step_results)
@@ -647,7 +650,9 @@ def _execute_step_with_pause(ctx, step):
                 error = e.page_state.error_status
             else:
                 step_action_json = transform_step_to_json(step)
-                error = str(e)
+                method = next((entry.get("method") for entry in step.get("methods", [])
+                               if entry.get("method")), None)
+                error = {"error": [failure_record(method, category="other")]}
             prompt = _step_prompt(step, f"failed after {MAX_STEP_ATTEMPTS} attempts. "
                                        "Fix the page (or repair the recipe), then resume.")
             outcome = pause_loop(ctx, "step_failed", prompt, step_action_json, error,
@@ -667,8 +672,13 @@ def _handle_download_with_pause(ctx, step):
         except StepAbortError as e:
             prompt = _step_prompt(step, "the download failed. "
                                        "Fix the page (or repair the recipe), then resume.")
+            if e.page_state is not None:
+                error = e.page_state.error_status
+            else:
+                error = {"error": [failure_record(
+                    "expect_download", category="download")]}
             outcome = pause_loop(ctx, "download_failed", prompt,
-                                  transform_step_to_json(step), str(e),
+                                  transform_step_to_json(step), error,
                                   step.get("step", 0))
             if outcome == "resume":
                 continue
@@ -694,7 +704,9 @@ def _handle_download(ctx, step):
     except StepAbortError:
         raise
     except Exception as e:
-        result_value = f"failure: download error {e}"
+        category = failure_category("expect_download", e)
+        result_value = f"failure: download ({category})"
+        logger.warning("Download failed with %s", type(e).__name__)
     if record is None and result_value != "success":
         if graceful:
             logger.warning(f"Step {step_number} failed to download "

@@ -70,9 +70,52 @@ class RunResultTests(unittest.TestCase):
                          "needs_attention")
 
 
+class DownloadFailureRetentionTests(unittest.TestCase):
+    class _Page:
+        def __init__(self, error):
+            self.error = error
+
+        def expect_download(self):
+            raise self.error
+
+    @staticmethod
+    def _ctx(error):
+        return mock.Mock(
+            page=DownloadFailureRetentionTests._Page(error),
+            files_downloaded=[],
+        )
+
+    def test_download_failure_keeps_category_and_exception_type_only(self):
+        secret = "synthetic-download-secret"
+        step = {"step": 8, "graceful": False, "steps": []}
+        with self.assertLogs("billcollector.runner", level="WARNING") as captured:
+            with self.assertRaises(StepAbortError) as caught:
+                runner._handle_download(self._ctx(RuntimeError(secret)), step)
+
+        evidence = str(caught.exception) + "\n" + "\n".join(captured.output)
+        self.assertIn("failure: download (download)", evidence)
+        self.assertIn("RuntimeError", evidence)
+        self.assertNotIn(secret, evidence)
+
+    def test_download_timeout_uses_timeout_category(self):
+        secret = "synthetic-download-secret"
+        step = {"step": 8, "graceful": False, "steps": []}
+        with self.assertLogs("billcollector.runner", level="WARNING") as captured:
+            with self.assertRaises(StepAbortError) as caught:
+                runner._handle_download(
+                    self._ctx(PlaywrightTimeoutError(secret)),
+                    step,
+                )
+
+        evidence = str(caught.exception) + "\n" + "\n".join(captured.output)
+        self.assertIn("failure: download (timeout)", evidence)
+        self.assertIn("TimeoutError", evidence)
+        self.assertNotIn(secret, evidence)
+
+
 class _FakePageState:
     locator_action = '{"description":"d","locators":[],"actions":[]}'
-    error_status = {"error": [{"method": "click", "message": "boom"}]}
+    error_status = {"error": [{"method": "click", "category": "other"}]}
 
 
 class _FakeCtx:
@@ -137,6 +180,11 @@ class StepPauseWiringTests(unittest.TestCase):
         args = pause.call_args[0]
         self.assertEqual(args[1], "download_failed")
         self.assertEqual(args[3], transform_step_to_json(step))
+        self.assertEqual(
+            args[4],
+            {"error": [{"method": "expect_download", "category": "download"}]},
+        )
+        self.assertNotIn("no download", json.dumps(args[4]))
         self.assertIn("Step 14", args[2])
         self.assertEqual(args[5], 14)  # the failing step's recipe number
 
@@ -149,6 +197,21 @@ class StepPauseWiringTests(unittest.TestCase):
             with self.assertRaises(PauseOutcomeAbort) as caught:
                 _handle_download_with_pause(_FakeCtx(), step)
         self.assertEqual(caught.exception.outcome, "cancel")
+
+    def test_nested_step_failure_keeps_its_safe_structural_error(self):
+        step = {"step": 14, "description": "Download the invoice",
+                "methods": [{"method": "expect_download", "arguments": []}],
+                "steps": []}
+        failure = StepAbortError(
+            "raw synthetic error",
+            page_state=_FakePageState(),
+        )
+        with mock.patch.object(runner, "_handle_download",
+                               side_effect=[failure, None]), \
+                mock.patch.object(runner, "pause_loop", return_value="resume") as pause:
+            _handle_download_with_pause(_FakeCtx(), step)
+        self.assertEqual(pause.call_args[0][4], _FakePageState.error_status)
+        self.assertNotIn("raw synthetic error", json.dumps(pause.call_args[0][4]))
 
 
 class _FakePage:

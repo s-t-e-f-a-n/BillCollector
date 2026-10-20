@@ -10,6 +10,7 @@ from datetime import datetime
 from playwright.sync_api import Playwright, sync_playwright, Route, Request, Page
 from helpers import *
 from billcollector.config import chromium_args
+from billcollector.redaction import failure_category, failure_record, sanitize_url
 
 logger = logging.getLogger(__name__)
 
@@ -256,7 +257,9 @@ def perform_actions(bcs):
                                 except StepAbortError:
                                     raise
                                 except Exception as e:
-                                        result_value = f"failure: download error {e}"
+                                        category = failure_category("expect_download", e)
+                                        result_value = f"failure: download ({category})"
+                                        logger.warning("Download failed with %s", type(e).__name__)
                                 if download is None and result_value != "success":
                                     if step.get("graceful", False):
                                         logger.warning(f"Step {step.get('step', 0)} failed to download (graceful, run continues): {result_value}")
@@ -264,7 +267,7 @@ def perform_actions(bcs):
                                         raise StepAbortError(f"Step {step.get('step', 0)} failed to download: {result_value}")
                                 if download is not None:
                                     service_files.append({
-                                        "url": str(download.url),
+                                        "url": sanitize_url(str(download.url)),
                                         "suggested_filename": str(download.suggested_filename),
                                         "result": result_value})
                     finally:
@@ -380,10 +383,9 @@ def process_step(bcs, step):
     for method_entry in step["methods"]:
         method_name = method_entry.get("method")
         arguments = method_entry.get("arguments", [])
-        processed_args = [process_argument(arg, bcs) for arg in arguments]
 
         if not method_name:
-            fail_step(f"method: {method_name}, message: Method entry missing 'method' key: {method_entry}")
+            fail_step(failure_record(None, category="other"))
             break # Stop the method chain (graceful failure).
 
         # Special handling for "expect_download".
@@ -391,12 +393,15 @@ def process_step(bcs, step):
             if "steps" in step and step["steps"]:
                 page_state.set_error(step_results)
             else:
-                page_state.set_error("error: No nested steps provided for 'expect_download'.")
+                page_state.set_error({
+                    "error": [failure_record("expect_download", category="download")]
+                })
             break
         # Standard handling of methods
         else:
-            method_executor = getattr(previous_result, method_name, None)
             try:
+                processed_args = [process_argument(arg, bcs) for arg in arguments]
+                method_executor = getattr(previous_result, method_name, None)
                 if method_executor is None:
                     raise AttributeError(f"Method '{method_name}' not found on {type(previous_result).__name__}.")
                 if callable(method_executor):
@@ -413,7 +418,7 @@ def process_step(bcs, step):
                         raise TypeError(f"Attribute '{method_name}' is not callable but arguments were provided: {processed_args}")
                     previous_result = method_executor               # Get the value of a property.
             except Exception as e:
-                fail_step({"method": method_name, "message": str(e)})
+                fail_step(failure_record(method_name, e))
                 break # Stop the method chain (graceful failure).
             else:
                 page_state.set_error(step_results)

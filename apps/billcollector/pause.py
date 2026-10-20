@@ -22,6 +22,7 @@ from . import config, notify
 from .control import ControlServer
 from .interrupt import RunInterrupted
 from .pagestate import PageState
+from .redaction import sanitize_url
 
 logger = logging.getLogger("billcollector.pause")
 
@@ -105,7 +106,7 @@ def build_pause_context(ctx, reason, prompt, step_action_json, error, deadline_a
     page_title = None
     page_text = None
     try:
-        url = page.url
+        url = sanitize_url(page.url)
     except RunInterrupted:
         raise
     except Exception:

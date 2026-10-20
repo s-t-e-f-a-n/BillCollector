@@ -16,6 +16,8 @@ import logging
 import time
 from datetime import datetime
 
+from .redaction import sanitize_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -138,7 +140,12 @@ class PageState:
                     onclick: el.getAttribute("onclick") || "",
                     contenteditable: (el.getAttribute("contenteditable") || "").toLowerCase() === "true",
                     href: el.tagName.toLowerCase() === "a" ? (el.getAttribute("href") || "").trim() : "",
-                    value: (el.value || "").toString().trim(),
+                    inputType: el.tagName.toLowerCase() === "input" ?
+                        (el.getAttribute("type") || "text").toLowerCase() : "",
+                    value: el.tagName.toLowerCase() === "input" &&
+                        ["submit", "button", "reset"].includes(
+                            (el.getAttribute("type") || "text").toLowerCase()) ?
+                        (el.value || "").toString().trim() : "",
                     labelText: lbl ? lbl.innerText.trim() : "",
                     rect: {x: rect.x, y: rect.y, w: rect.width, h: rect.height}
                 };
@@ -162,11 +169,14 @@ class PageState:
             placeholder = data["placeholder"]
             onclick = data["onclick"]
             href = data["href"]
-            value = data["value"]
+            input_type = data.get("inputType", "")
+            value = data.get("value", "")
             label_text = data["labelText"]
             rect = data.get("rect") or {"x": 0, "y": 0, "w": 0, "h": 0}
 
-            if tag in ["input", "textarea"]:
+            if tag == "input" and input_type in ["submit", "button", "reset"]:
+                role_val = "button"
+            elif tag in ["input", "textarea"]:
                 role_val = "textbox"
             elif tag == "select":
                 role_val = "combobox"
@@ -184,7 +194,9 @@ class PageState:
 
             # Compute an accessible name.
             if role_val == "textbox":
-                accessible_name = (aria_label.strip() or placeholder.strip() or value.strip() or label_text.strip())
+                accessible_name = (aria_label.strip() or placeholder.strip() or label_text.strip())
+            elif tag == "input" and input_type in ["submit", "button", "reset"]:
+                accessible_name = aria_label.strip() or value.strip()
             else:
                 accessible_name = aria_label.strip()
 
@@ -205,10 +217,13 @@ class PageState:
             # Candidate #3: use get_by_role.
             if role_val in ["button", "link", "textbox", "combobox", "label", "generic interactive"]:
                 const_name = accessible_name if accessible_name else inner_text.strip()
-                if const_name:
+                if const_name or role_val == "textbox":
+                    role_arguments = {"role": role_val}
+                    if const_name:
+                        role_arguments.update({"name": const_name, "exact": True})
                     candidate_locators.append({
                         "locatorType": "get_by_role",
-                        "arguments": {"role": role_val, "name": const_name, "exact": True}
+                        "arguments": role_arguments
                     })
             # Candidate #4: use get_by_text.
             let_text = computed_text.strip() if computed_text.strip() else inner_text.strip()
@@ -228,7 +243,7 @@ class PageState:
                 elif candidate["locatorType"] == "get_by_role":
                     role_arg = candidate["arguments"].get("role", "").strip()
                     name_arg = candidate["arguments"].get("name", "").strip()
-                    if not role_arg or not name_arg:
+                    if not role_arg or (not name_arg and role_arg != "textbox"):
                         continue
                     key = f"get_by_role:{role_arg}:{name_arg}:exact={candidate['arguments'].get('exact', False)}"
                 else:
@@ -251,7 +266,7 @@ class PageState:
                     "actionTypes": actions
                 }
                 if role_val == "link" and href.strip():
-                    entry["url"] = href.strip()
+                    entry["url"] = sanitize_url(href.strip())
                 results.append(entry)
 
         return results

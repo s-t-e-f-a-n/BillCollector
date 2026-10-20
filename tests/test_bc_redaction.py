@@ -140,6 +140,26 @@ class RetentionHelpersTests(unittest.TestCase):
             with self.subTest(method=method, error_type=type(error).__name__):
                 self.assertEqual(failure_category(method, error), expected)
 
+    def test_strict_mode_record_keeps_only_the_resolved_count(self):
+        error = RuntimeError(
+            'strict mode violation: get_by_role("button") resolved to 3 elements: '
+            f'- locator resolved to <input value="{SECRET}">'
+        )
+        record = failure_record("click", error)
+        self.assertEqual(
+            record,
+            {"method": "click", "category": "strict-mode", "resolved_count": 3},
+        )
+        self.assertNotIn(SECRET, json.dumps(record))
+
+    def test_strict_mode_without_the_count_pattern_has_no_resolved_count(self):
+        record = failure_record("click", RuntimeError("strict mode violation: " + SECRET))
+        self.assertEqual(record, {"method": "click", "category": "strict-mode"})
+
+    def test_non_strict_mode_record_has_no_resolved_count(self):
+        record = failure_record("fill", TimeoutError("timed out after 30000 ms"))
+        self.assertEqual(record, {"method": "fill", "category": "timeout"})
+
 
 class PageStateRetentionTests(unittest.TestCase):
     def setUp(self):

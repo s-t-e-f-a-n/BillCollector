@@ -2,7 +2,7 @@
 
 > Status: INTEGRATING (2026-10-20) — verdict **approve**; S4 applied and
 > verified on head `170a366` (re-confirmed unchanged by `ls-remote` on
-> 2026-10-20T21:57Z); R1 + R2 implemented in the working tree; S5 evidence
+> 2026-10-20T19:57Z); R1 + R2 implemented in the working tree; S5 evidence
 > collected on the final tree (unit, full suite, ruff, bandit, live
 > regression) — pending the user-gated S5 close-out and the S7 commits.
 > This plan **supersedes**
@@ -21,7 +21,7 @@
 - Head: `170a36648c49d7f1aa31d3b026636cd508f266e0` (moved since the last
   review, which was on `3967bf3`). Base: `main` @ `4508909`. Re-confirmed
   unchanged via `git ls-remote github refs/pull/17/head` on 2026-10-20
-  (21:57Z) — the S4 preflight gate is satisfied.
+  (19:57Z) — the S4 preflight gate is satisfied.
 - Commits (2, both substantive; the orphaned fork-base commit `53ae226`
   flagged in the old review — 70 deleted private paths — is gone after the
   author's rebase, so that skip-risk no longer exists):
@@ -241,7 +241,7 @@ promotion, so the promoted tree is exactly the validated one.
 Run from the repo root on the exact integrated `dev` working tree
 (PR + R1 + R2, uncommitted; `bc.db` and the browser dir are native here, so
 no temp-worktree procedure). Items marked [measured] were re-run on
-2026-10-20T21:5x–22:1xZ on this tree.
+2026-10-20T19:5x–20:1xZ on this tree.
 
 - [measured] `apps/.venv/bin/python -m pytest tests/test_bc_redaction.py
   tests/test_bc_downloads.py tests/test_bc_pause.py tests/test_bc_runner.py
@@ -330,9 +330,9 @@ dev integration is unaffected.
 - Do we file the F2 follow-up issue (carried over from the old review)?
   Does not block integration.
 
-## 14. Finalization log (2026-10-20, ~22:00–22:30Z)
+## 14. Finalization log (2026-10-20, ~20:00–20:20Z)
 
-- 21:57Z: `git ls-remote github refs/pull/17/head` → head still `170a366`;
+- 19:57Z: `git ls-remote github refs/pull/17/head` → head still `170a366`;
   local `refs/pr/17` re-fetched (S4 preflight head gate satisfied).
 - S4 application verified file-by-file: the 8 tracked files are
   `git diff refs/pr/17`-clean; the 2 untracked new files are

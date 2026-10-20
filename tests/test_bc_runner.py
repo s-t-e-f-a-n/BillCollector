@@ -72,7 +72,7 @@ class RunResultTests(unittest.TestCase):
 
 class _FakePageState:
     locator_action = '{"description":"d","locators":[],"actions":[]}'
-    error_status = {"error": [{"method": "click", "message": "boom"}]}
+    error_status = {"error": [{"method": "click", "category": "other"}]}
 
 
 class _FakeCtx:
@@ -137,6 +137,11 @@ class StepPauseWiringTests(unittest.TestCase):
         args = pause.call_args[0]
         self.assertEqual(args[1], "download_failed")
         self.assertEqual(args[3], transform_step_to_json(step))
+        self.assertEqual(
+            args[4],
+            {"error": [{"method": "expect_download", "category": "download"}]},
+        )
+        self.assertNotIn("no download", json.dumps(args[4]))
         self.assertIn("Step 14", args[2])
         self.assertEqual(args[5], 14)  # the failing step's recipe number
 
@@ -149,6 +154,21 @@ class StepPauseWiringTests(unittest.TestCase):
             with self.assertRaises(PauseOutcomeAbort) as caught:
                 _handle_download_with_pause(_FakeCtx(), step)
         self.assertEqual(caught.exception.outcome, "cancel")
+
+    def test_nested_step_failure_keeps_its_safe_structural_error(self):
+        step = {"step": 14, "description": "Download the invoice",
+                "methods": [{"method": "expect_download", "arguments": []}],
+                "steps": []}
+        failure = StepAbortError(
+            "raw synthetic error",
+            page_state=_FakePageState(),
+        )
+        with mock.patch.object(runner, "_handle_download",
+                               side_effect=[failure, None]), \
+                mock.patch.object(runner, "pause_loop", return_value="resume") as pause:
+            _handle_download_with_pause(_FakeCtx(), step)
+        self.assertEqual(pause.call_args[0][4], _FakePageState.error_status)
+        self.assertNotIn("raw synthetic error", json.dumps(pause.call_args[0][4]))
 
 
 class _FakePage:

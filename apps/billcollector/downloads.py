@@ -16,6 +16,7 @@ import os
 from . import config
 from .consumers import CONSUMERS
 from .interrupt import RunInterrupted
+from .redaction import sanitize_url
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,7 @@ def track_download(download, run_id, task, db):
     sha = sha256_of(saved_path)
     size = os.path.getsize(saved_path)
     task_id = task["id"]
+    retained_url = sanitize_url(str(download.url))
 
     existing = db.find_download_by_sha(task_id, sha)
     duplicate = existing is not None
@@ -65,7 +67,7 @@ def track_download(download, run_id, task, db):
                 consume({
                     "run_id": run_id,
                     "task_id": task_id,
-                    "url": str(download.url),
+                    "url": retained_url,
                     "filename": filename,
                     "size": size,
                     "sha256": sha,
@@ -77,13 +79,13 @@ def track_download(download, run_id, task, db):
                 # A consumer must never break the run: log and continue.
                 logger.exception(f"Consumer {getattr(consume, '__name__', consume)} failed")
 
-    db.insert_download(run_id, task_id, str(download.url), filename, size, sha,
+    db.insert_download(run_id, task_id, retained_url, filename, size, sha,
                        saved_path,
                        duplicate_of_id=existing["id"] if duplicate else None)
     return {
         "run_id": run_id,
         "task_id": task_id,
-        "url": str(download.url),
+        "url": retained_url,
         "filename": filename,
         "size": size,
         "sha256": sha,

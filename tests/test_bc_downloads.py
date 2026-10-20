@@ -49,14 +49,17 @@ class DownloadTrackingTests(unittest.TestCase):
 
     def test_first_download_tracked(self):
         data = b"first file bytes"
-        rec = self._track("a.pdf", data, "http://x/a.pdf")
+        rec = self._track(
+            "a.pdf", data,
+            "https://portal.invalid/invoices/a.pdf?token=synthetic-secret#download",
+        )
 
         self.assertIs(rec["duplicate"], False)
         saved = Path(rec["saved_path"])
         self.assertTrue(saved.is_file(), "saved file must exist")
         self.assertEqual(saved.read_bytes(), data)
         self.assertEqual(rec["filename"], "a.pdf")
-        self.assertEqual(rec["url"], "http://x/a.pdf")
+        self.assertEqual(rec["url"], "https://portal.invalid/invoices/a.pdf")
         self.assertEqual(rec["size"], len(data))
         self.assertEqual(rec["sha256"], hashlib.sha256(data).hexdigest())
 
@@ -64,6 +67,7 @@ class DownloadTrackingTests(unittest.TestCase):
         self.assertIsNotNone(row)
         self.assertEqual(row["task_id"], self.tid)
         self.assertEqual(row["run_id"], self.rid)
+        self.assertEqual(row["url"], "https://portal.invalid/invoices/a.pdf")
         self.assertIsNone(row["duplicate_of_id"])
         self.assertEqual(row["saved_path"], str(saved))
 

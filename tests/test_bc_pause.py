@@ -178,6 +178,12 @@ class BuildPauseContextTests(PauseTestBase):
         self.assertEqual(elements[0]["rect"], {"x": 10, "y": 20, "w": 100, "h": 30})
         self.assertEqual(elements[2]["actionTypes"], ["click", "fill"])
 
+    def test_context_url_drops_query_and_fragment(self):
+        self.page.url = "https://portal.invalid/account?session=synthetic-secret#details"
+        context = pause.build_pause_context(
+            self.ctx, "wait_user", "p", None, None, "d")
+        self.assertEqual(context["url"], "https://portal.invalid/account")
+
     def test_step_number_defaults_to_none(self):
         # M3 decision 8: a pause without a step carries step_number=None.
         context = pause.build_pause_context(self.ctx, "wait_user", "p", None, None, "d")

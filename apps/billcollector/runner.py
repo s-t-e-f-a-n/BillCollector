@@ -48,7 +48,7 @@ from .db import Database, now
 from .interrupt import RunInterrupted
 from .pagestate import PageState
 from .pause import pause_loop
-from .redaction import failure_record
+from .redaction import failure_category, failure_record
 from .vault import (
     VAULT_MAX_ATTEMPTS,
     VAULT_RETRY_BACKOFF,
@@ -703,8 +703,10 @@ def _handle_download(ctx, step):
         raise  # a shutdown signal is not a download error to pause on
     except StepAbortError:
         raise
-    except Exception:
-        result_value = "failure: download"
+    except Exception as e:
+        category = failure_category("expect_download", e)
+        result_value = f"failure: download ({category})"
+        logger.warning("Download failed with %s", type(e).__name__)
     if record is None and result_value != "success":
         if graceful:
             logger.warning(f"Step {step_number} failed to download "

@@ -29,10 +29,14 @@ def sanitize_url(value):
     """
     if not value:
         return value
+    raw_value = str(value)
     try:
-        parsed = urlsplit(str(value))
+        parsed = urlsplit(raw_value)
     except ValueError:
         return ""
+    if parsed.scheme.lower() in {"blob", "filesystem"}:
+        inner_url = raw_value.partition(":")[2]
+        return f"{parsed.scheme}:{sanitize_url(inner_url)}"
     if parsed.scheme and not parsed.netloc:
         return f"{parsed.scheme}:"
     hostname = parsed.hostname or ""
@@ -43,15 +47,21 @@ def sanitize_url(value):
     except ValueError:
         port = None
     host = f"{hostname}:{port}" if port is not None else hostname
-    return urlunsplit((parsed.scheme, host, parsed.path, "", ""))
+    path = "/".join(segment.split(";", 1)[0] for segment in parsed.path.split("/"))
+    return urlunsplit((parsed.scheme, host, path, "", ""))
 
 
 def failure_category(method, error):
     """Map a transient exception to one fixed public failure category."""
     method_name = method if isinstance(method, str) else ""
-    text = f"{type(error).__name__} {error}".lower()
+    error_type = type(error).__name__
+    if error_type == "TimeoutError":
+        return "timeout"
+    if error_type in {"AttributeError", "TypeError", "ValueError", "KeyError"}:
+        return "other"
     if method_name == "expect_download":
         return "download"
+    text = str(error).lower()
     if "strict mode" in text or "strict-mode" in text:
         return "strict-mode"
     if "timeout" in text or "timed out" in text:

@@ -70,6 +70,49 @@ class RunResultTests(unittest.TestCase):
                          "needs_attention")
 
 
+class DownloadFailureRetentionTests(unittest.TestCase):
+    class _Page:
+        def __init__(self, error):
+            self.error = error
+
+        def expect_download(self):
+            raise self.error
+
+    @staticmethod
+    def _ctx(error):
+        return mock.Mock(
+            page=DownloadFailureRetentionTests._Page(error),
+            files_downloaded=[],
+        )
+
+    def test_download_failure_keeps_category_and_exception_type_only(self):
+        secret = "synthetic-download-secret"
+        step = {"step": 8, "graceful": False, "steps": []}
+        with self.assertLogs("billcollector.runner", level="WARNING") as captured:
+            with self.assertRaises(StepAbortError) as caught:
+                runner._handle_download(self._ctx(RuntimeError(secret)), step)
+
+        evidence = str(caught.exception) + "\n" + "\n".join(captured.output)
+        self.assertIn("failure: download (download)", evidence)
+        self.assertIn("RuntimeError", evidence)
+        self.assertNotIn(secret, evidence)
+
+    def test_download_timeout_uses_timeout_category(self):
+        secret = "synthetic-download-secret"
+        step = {"step": 8, "graceful": False, "steps": []}
+        with self.assertLogs("billcollector.runner", level="WARNING") as captured:
+            with self.assertRaises(StepAbortError) as caught:
+                runner._handle_download(
+                    self._ctx(PlaywrightTimeoutError(secret)),
+                    step,
+                )
+
+        evidence = str(caught.exception) + "\n" + "\n".join(captured.output)
+        self.assertIn("failure: download (timeout)", evidence)
+        self.assertIn("TimeoutError", evidence)
+        self.assertNotIn(secret, evidence)
+
+
 class _FakePageState:
     locator_action = '{"description":"d","locators":[],"actions":[]}'
     error_status = {"error": [{"method": "click", "category": "other"}]}

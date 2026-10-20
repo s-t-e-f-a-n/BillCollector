@@ -10,7 +10,7 @@ from datetime import datetime
 from playwright.sync_api import Playwright, sync_playwright, Route, Request, Page
 from helpers import *
 from billcollector.config import chromium_args
-from billcollector.redaction import failure_record, sanitize_url
+from billcollector.redaction import failure_category, failure_record, sanitize_url
 
 logger = logging.getLogger(__name__)
 
@@ -256,8 +256,10 @@ def perform_actions(bcs):
                                     download.save_as(filepath)
                                 except StepAbortError:
                                     raise
-                                except Exception:
-                                        result_value = "failure: download"
+                                except Exception as e:
+                                        category = failure_category("expect_download", e)
+                                        result_value = f"failure: download ({category})"
+                                        logger.warning("Download failed with %s", type(e).__name__)
                                 if download is None and result_value != "success":
                                     if step.get("graceful", False):
                                         logger.warning(f"Step {step.get('step', 0)} failed to download (graceful, run continues): {result_value}")

@@ -1,10 +1,11 @@
 # PR #17 refined — redact retained browser evidence (head `170a366`) + post-attach self-healing improvements
 
-> Status: INTEGRATING (2026-10-20) — verdict **approve**; S4 applied and
-> verified on head `170a366` (re-confirmed unchanged by `ls-remote` on
-> 2026-10-20T19:57Z); R1 + R2 implemented in the working tree; S5 evidence
-> collected on the final tree (unit, full suite, ruff, bandit, live
-> regression) — pending the user-gated S5 close-out and the S7 commits.
+> Status: VALIDATED (2026-10-20) — verdict **approve**; S4 applied and
+> verified on head `170a366`; R1 + R2 implemented in the working tree; S5
+> evidence collected on the final tree (unit, full suite, live regression,
+> ruff, bandit) and the deployment skip user-confirmed at the S5 close-out
+> gate (2026-10-20). Remaining: the S7 commit sequence (PR integration →
+> R1 → R2), the PR reply (Section 5), and PR close.
 > This plan **supersedes**
 > `.kilo/plans/1792475813001-pr17-browser-evidence-redaction-review.md`
 > (review of old head `3967bf3`), which is kept as history.
@@ -57,8 +58,8 @@ sites.
 
 **Approve**, conditional on S5 re-verification on head `170a366` (the
 old review's evidence was collected on `3967bf3` and is stale for the
-numbers and the new behaviors) — S5 evidence collected 2026-10-20 (Section
-8), user close-out pending. No maintainer-side code changes are needed
+numbers and the new behaviors) — S5 evidence collected and user-confirmed
+2026-10-20 (Section 8). No maintainer-side code changes are needed
 for integration; the manual step was the CHANGELOG entry (the PR ships
 none; it is in place, Section 6).
 
@@ -311,9 +312,9 @@ no temp-worktree procedure). Items marked [measured] were re-run on
 
 Not deployment-relevant: PR #17 and R1/R2 touch no `Dockerfile`,
 `.dockerignore`, `BillCollector.sh`, `install_docker-image.sh`,
-`deploy_remote.sh`, INI keys, or `.env` handling. **Recorded skip** — user
-confirmation required before any promotion to `main` per the deploy skill;
-dev integration is unaffected.
+`deploy_remote.sh`, INI keys, or `.env` handling. **Recorded skip — user
+confirmed at the S5 close-out gate (2026-10-20)**; the confirmation covers
+the exact tree being promoted (no tree move since the Section 8 evidence).
 
 ## 12. Out of scope
 
@@ -351,7 +352,7 @@ dev integration is unaffected.
 - R1 contract note closed: `openwiki/architecture/shared-interfaces.md:157`
   documents payload requirements only ("complete, stable, and small"), no
   element keys — no wiki edit, no `PROTOCOL_VERSION` bump.
-- Remaining before S7: the user-gated S5 close-out (confirming the Section 8
-  evidence and the Section 11 deployment skip), then the S7 commit sequence
-  (PR integration → R1 → R2), the PR reply (Section 5 suggested text), and
-  PR close.
+- S5 close-out gate (2026-10-20): user confirmed the Section 8 evidence and
+  the Section 11 deployment skip → Status: VALIDATED.
+- Remaining: the S7 commit sequence (PR integration → R1 → R2), the PR
+  reply (Section 5 suggested text), and PR close.

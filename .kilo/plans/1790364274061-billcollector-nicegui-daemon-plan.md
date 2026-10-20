@@ -1215,6 +1215,12 @@ context + human-approval gate) is in place and exercised.
 
 ### M4 — Adoption for other users
 
+> **Execution plan (in progress since 2026-10-20):**
+> `.kilo/plans/1792533823395-m4-adoption-plan.md` (chunks C1–C5: vault
+> settings + resolution, onboarding wizard, Docker Compose package, docs,
+> `BillCollector.sh`/cron deprecation; the exit-pass guide follows once
+> C1–C5 land).
+
 1. Onboarding wizard (first start: set password, vault config, ini import, first task)
 2. Docker Compose package (BillCollector, optional ntfy)
 3. README/docs: daemon mode, UI usage, recipe authoring, cron→daemon migration; new F5

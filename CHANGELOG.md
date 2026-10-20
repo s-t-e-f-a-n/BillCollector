@@ -122,6 +122,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   it off. The previous presence-only check forced debug on for any value, so the
   documented `BillCollector.sh <ini> False` smoke run unexpectedly ran headed
   with debug logging.
+- Retained browser evidence is now secret-safe in the Playwright runner and
+  the legacy batch path (issue #10): input values are no longer used as
+  locator names for editable fields (role-only candidates for unlabelled
+  textboxes), the static label of submit/button/reset inputs is kept as the
+  button name, link/download/page URLs are stored without query strings,
+  fragments, path parameters or user info (`blob:`/`filesystem:` keep their
+  sanitized inner URL), and step failures record the step, method and a
+  fixed failure category (download failures additionally log the exception
+  type) instead of raw exception text.
 
 ## [v0.4] - 2026-10-02
 

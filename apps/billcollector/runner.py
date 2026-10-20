@@ -44,7 +44,7 @@ from helpers import CheckRecipe, ServiceObj, VARIABLE_MAP
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
-from . import config, display, downloads
+from . import collection, config, display, downloads
 from .db import Database, now
 from .interrupt import RunInterrupted
 from .login import is_login, login_options, settle_attempt, validate_login_recipe
@@ -68,6 +68,19 @@ logger = logging.getLogger("billcollector.runner")
 # up to this many times before the run aborts (result=failure). Graceful
 # steps are single-attempt (retry non-graceful steps only).
 MAX_STEP_ATTEMPTS = 3
+
+# Collection actions have bounded side effects. They execute once per recipe
+# step instead of inheriting the generic three-attempt replay loop. An
+# operator-driven resume starts a new, explicit invocation after inspection.
+_COLLECTION_METHODS = frozenset({"click_until_absent", "download_all"})
+
+
+def _collection_methods_in(step):
+    return {
+        entry.get("method") for entry in step.get("methods", [])
+        if isinstance(entry, dict)
+        and entry.get("method") in _COLLECTION_METHODS
+    }
 
 
 class StepAbortError(Exception):
@@ -325,7 +338,10 @@ def transform_step_to_json(step):
             continue  # Skip invalid methods
 
         # Categorize as locator or action (just a simple heuristic based on action names)
-        if method_name in ["click", "fill", "expect_download", "goto", "close", "content_frame", "first"]:
+        if method_name in [
+            "click", "fill", "expect_download", "goto", "close",
+            "content_frame", "first", "click_until_absent", "download_all",
+        ]:
             transformed_step["actions"] = transformed_step.get("actions", [])
             transformed_step["actions"].append({
                 "action": method_name,
@@ -341,7 +357,7 @@ def transform_step_to_json(step):
     return json.dumps(transformed_step, separators=(",", ":"))
 
 
-def _process_step(bcs, step):
+def _process_step(bcs, step, collection_actions=None):
     """Process a step by executing its method chain (legacy ``process_step``).
 
     Returns the step's PageState. A graceful step records its failure on the
@@ -380,6 +396,21 @@ def _process_step(bcs, step):
     # A step is "graceful" when its failure must not abort the run:
     # the error is recorded (log + DB) and the run continues with the next step.
     graceful = bool(step.get("graceful", False))
+    methods = step["methods"]
+    try:
+        collection.validate_collection_chain(methods)
+    except collection.CollectionError as e:
+        page_state.set_error({"error": [str(e)]})
+        raise StepAbortError(f"Step {step_number} failed: {e}", page_state)
+
+    if graceful and any(
+        isinstance(entry, dict)
+        and entry.get("method") in _COLLECTION_METHODS
+        for entry in methods
+    ):
+        message = "bounded collection actions cannot be graceful"
+        page_state.set_error({"error": [message]})
+        raise StepAbortError(f"Step {step_number} failed: {message}", page_state)
 
     def fail_step(error_entry):
         """Record a step failure; continue when graceful, otherwise abort the run."""
@@ -390,7 +421,7 @@ def _process_step(bcs, step):
         else:
             raise StepAbortError(f"Step {step_number} failed: {error_entry}", page_state)
 
-    for method_entry in step["methods"]:
+    for method_index, method_entry in enumerate(methods):
         method_name = method_entry.get("method")
         arguments = method_entry.get("arguments", [])
 
@@ -406,6 +437,34 @@ def _process_step(bcs, step):
                 page_state.set_error({
                     "error": [failure_record("expect_download", category="download")]
                 })
+            break
+        elif method_name in _COLLECTION_METHODS:
+            try:
+                collection.validate_terminal_action(
+                    methods, method_index, method_name
+                )
+                if previous_result is bcs.page:
+                    raise ValueError(
+                        f"{method_name} requires a locator prefix"
+                    )
+                if (len(processed_args) != 1
+                        or not isinstance(processed_args[0], dict)):
+                    raise ValueError(
+                        f"{method_name} requires one options object"
+                    )
+                if collection_actions is None:
+                    raise RuntimeError(
+                        f"{method_name} is unavailable in this runner"
+                    )
+                collection_actions[method_name](
+                    previous_result, processed_args[0]
+                )
+            except RunInterrupted:
+                raise
+            except Exception as e:
+                fail_step({"method": method_name, "message": str(e)})
+            else:
+                page_state.set_error(step_results)
             break
         # Standard handling of methods
         else:
@@ -436,6 +495,42 @@ def _process_step(bcs, step):
                 page_state.set_error(step_results)
 
     return page_state
+
+
+def _collection_actions(ctx):
+    """Runner adapters for the shared bounded collection actions."""
+
+    collection_filenames = set()
+
+    def paginate(locator, options):
+        return collection.click_until_absent(ctx.page, locator, options)
+
+    def save_download(download):
+        filename = str(download.suggested_filename)
+        if filename in collection_filenames:
+            raise collection.CollectionError(
+                "collection produced a duplicate suggested filename"
+            )
+        record = downloads.track_download(
+            download, ctx.run_id, ctx.task, ctx.db
+        )
+        collection_filenames.add(filename)
+        ctx.files_downloaded.append({
+            "url": record["url"],
+            "suggested_filename": record["filename"],
+            "result": "success",
+        })
+        return record
+
+    def download(locator, options):
+        return collection.download_all(
+            ctx.page, ctx.context, locator, save_download, options
+        )
+
+    return {
+        "click_until_absent": paginate,
+        "download_all": download,
+    }
 
 
 def check_parameter_in_json(json_str, param_dict):
@@ -516,7 +611,12 @@ def _execute_step(ctx, step, parent_step=None, single_attempt=False):
     Records exactly one PageStatus row for the step (its final outcome).
     Raises StepAbortError when a non-graceful step exhausts its attempts."""
     graceful = bool(step.get("graceful", False))
-    attempts = 1 if single_attempt else step_attempts(graceful)
+    collection_methods = _collection_methods_in(step)
+    if parent_step is not None and collection_methods:
+        raise StepAbortError(
+            "bounded collection actions cannot be nested under expect_download"
+        )
+    attempts = 1 if single_attempt or collection_methods else step_attempts(graceful)
     step_number = step.get("step", 0)
 
     _debug_wait(ctx, step)
@@ -524,7 +624,9 @@ def _execute_step(ctx, step, parent_step=None, single_attempt=False):
     state = None
     for attempt in range(1, attempts + 1):
         try:
-            state = _process_step(ctx.bcs, step)
+            state = _process_step(
+                ctx.bcs, step, collection_actions=_collection_actions(ctx)
+            )
         except StepAbortError as e:
             if attempt < attempts:
                 logger.warning(f"Step {step_number} failed "
@@ -665,7 +767,9 @@ def _execute_step_with_pause(ctx, step):
                 method = next((entry.get("method") for entry in step.get("methods", [])
                                if entry.get("method")), None)
                 error = {"error": [failure_record(method, category="other")]}
-            prompt = _step_prompt(step, f"failed after {MAX_STEP_ATTEMPTS} attempts. "
+            attempts = 1 if _collection_methods_in(step) else MAX_STEP_ATTEMPTS
+            noun = "attempt" if attempts == 1 else "attempts"
+            prompt = _step_prompt(step, f"failed after {attempts} {noun}. "
                                        "Fix the page (or repair the recipe), then resume.")
             outcome = pause_loop(ctx, "step_failed", prompt, step_action_json, error,
                                  step.get("step", 0))

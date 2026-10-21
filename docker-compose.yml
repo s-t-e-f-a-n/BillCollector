@@ -1,0 +1,99 @@
+# BillCollector - Docker Compose stack (daemon mode)
+#
+# Quick start: see the README (clone the repo, `cp .env.example .env`,
+# `docker compose up -d --build`, then open the published UI port, set
+# the password, and walk the first-start wizard).
+#
+# billcollector
+#   The daemon. NiceGUI UI on the published BC_UI_PORT (default 8766,
+#   container port 8000) plus the per-run noVNC live view on 6080-6095
+#   (one websockify port per Xvfb display; the range matches the default
+#   Settings display_start=99 / display_count=16 - change them together).
+#   Built from the root Dockerfile and tagged billcollector:latest, the
+#   same image the legacy BillCollector.sh batch wrapper runs.
+#
+#   Fresh clone: create the data folders the container user (APP_UID,
+#   default 1000) writes to BEFORE the first `up`. Docker would create a
+#   missing bind-mount folder root-owned, and the container could not
+#   write into it:
+#
+#     mkdir -p apps/Downloads apps/db apps/data apps/browser/profiles
+#     sudo chown -R 1000:1000 apps/Downloads apps/db apps/data apps/browser
+#
+#   (Use your own uid/gid, or APP_UID/APP_GID from the root .env.)
+#
+#   apps/.env (mounted read-only) still carries the vault config
+#   (BW_API_URL); create it with `cp apps/.env.example apps/.env`.
+#   Vaultwarden itself stays a prerequisite in its own compose stack; a
+#   vault running on the Docker host is reachable from the container as
+#   http://host.docker.internal:<port> (extra_hosts below).
+#
+# ntfy (optional, compose profile "ntfy")
+#   Self-hosted push server for the pause notifications (default: the
+#   public ntfy.sh). To use the bundled one instead, make the exact
+#   two-line change:
+#     1. add `NTFY_HOST=http://ntfy` to the root .env
+#     2. start with `docker compose --profile ntfy up -d`
+#   Optional: NTFY_BASE_URL in the root .env is passed through for
+#   LAN-absolute deep links (e.g. http://192.168.1.10:2086).
+
+services:
+  billcollector:
+    build:
+      context: .
+      args:
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+    image: billcollector:latest
+    container_name: billcollector
+    restart: unless-stopped
+    init: true
+    command: ["python3", "-m", "billcollector", "serve"]
+    environment:
+      # The daemon binds 127.0.0.1 by default; inside the container the UI
+      # must be reachable from the LAN (this wins over apps/.env).
+      BC_UI_HOST: "0.0.0.0"
+      # Push server for pause notifications: the public ntfy.sh unless the
+      # bundled ntfy profile is in use (see the header).
+      NTFY_HOST: ${NTFY_HOST:-https://ntfy.sh}
+    ports:
+      # Published UI port (BC_UI_PORT in the root .env, default 8766)
+      - "${BC_UI_PORT:-8766}:8000"
+      # Per-run noVNC live view (websockify), one port per Xvfb display
+      - "6080-6095:6080-6095"
+    volumes:
+      # Read-only app config; a missing file makes Docker create a
+      # directory, so `cp apps/.env.example apps/.env` before the first up.
+      - ./apps/.env:/apps/.env:ro
+      - ./apps/Downloads:/apps/Downloads
+      - ./apps/db:/apps/db
+      - ./apps/data:/apps/data
+      # Per-task browser profiles only - mounting all of apps/browser would
+      # hide the Chromium build installed in the image.
+      - ./apps/browser/profiles:/apps/browser/profiles
+    extra_hosts:
+      # Reach host-local services (the mock portal, Vaultwarden, bw serve)
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/_alive', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  ntfy:
+    image: ntfy.sh/ntfy
+    profiles:
+      - ntfy
+    restart: unless-stopped
+    ports:
+      - "2086:80"
+    environment:
+      # Optional LAN-absolute base URL for the push deep links
+      NTFY_BASE_URL: ${NTFY_BASE_URL:-}
+    volumes:
+      # Persistent message cache
+      - ntfy_cache:/var/cache/ntfy
+
+volumes:
+  ntfy_cache:

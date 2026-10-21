@@ -82,7 +82,7 @@ services:
       start_period: 30s
 
   ntfy:
-    image: ntfy.sh/ntfy
+    image: ntfy/ntfy
     profiles:
       - ntfy
     restart: unless-stopped

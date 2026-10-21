@@ -8,17 +8,27 @@
 - [How does it work?](#how-does-it-work)
 - [Contributing](#contributing)
 - [Quick Start](#quick-start)
-  - [Docker Environment](#docker-environment)
-  - [Vault of Secrets](#vault-of-secrets)
-  - [Enabling DNS and HTTPS with Let's Encrypt certs](#enabling-dns-and-https-with-lets-encrypt-certs)
-  - [The BillCollector Installation](#the-billcollector-installation-and-docker-deployment)
-  - [Web UI](#web-ui)
-- [Configure BillCollector](#configuration)
+  - [Prerequisites](#prerequisites)
+    - [Docker Environment](#docker-environment)
+    - [Vault of Secrets](#vault-of-secrets)
+    - [Enabling DNS and HTTPS with Let's Encrypt certs](#enabling-dns-and-https-with-lets-encrypt-certs)
+  - [Installing the Daemon](#installing-the-daemon)
+  - [Optional: Self-Hosted ntfy](#optional-self-hosted-ntfy)
+- [Daemon Mode](#daemon-mode)
+  - [Environment Variables](#environment-variables)
+  - [Container Semantics](#container-semantics)
+- [Using the Web UI](#using-the-web-ui)
+- [Configure BillCollector](#configure-billcollector)
   - [Vaultwarden and Bitwarden](#vaultwarden-and-bitwarden)
-  - [Local Development & Debugging](#local-development--debugging)
   - [Web Service Config](#web-service-config)
+- [Migrating from Cron to the Daemon](#migrating-from-cron-to-the-daemon)
+- [Debugging](#debugging)
+  - [Local Development Environment](#local-development-environment)
+  - [F5 Debug Workflow](#f5-debug-workflow)
+- [Legacy Batch Mode (Deprecated)](#legacy-batch-mode-deprecated)
 - [Local Regression Test Environment](#local-regression-test-environment)
 - [Docker Build Context Check](#docker-build-context-check)
+- [Docker Layer Cache Reuse](#docker-layer-cache-reuse)
 - [Development & Deployment](#development--deployment)
 - [What's Next](#whats-next)
 
@@ -31,10 +41,10 @@
 BillCollector uses:
 
 - Vaultwarden as a safe vault of the login data for the online accounts
-- Playwright (for Python) driving a headless Chromium as the browser front end of the service provider's online portal
+- Playwright (for Python) driving a Chromium as the browser front end of the service provider's online portal
 - SQLite to record the step-by-step progress of every run (performed actions, interactive elements found, results)
 
-Chromium is operated headless by default, so that BillCollector can do its job on a Raspberry PI or a NAS, headless integrated into the cron-scheduler on a regular basis.
+The primary mode is a self-hosted daemon with a web UI: it schedules each task on its own cron expression, runs the browser headful on an allocated virtual display (watchable live over noVNC), supervises every run, and pauses for your help when a portal changes - all without shell access to the daemon. The legacy cron-driven batch mode (a headless `docker run` per cron tick) is **deprecated**; it keeps working unchanged as the rollback path (see [Legacy Batch Mode](#legacy-batch-mode-deprecated)).
 
 Following diagram depicts the complete BillCollector Ecosystem:
 
@@ -42,13 +52,11 @@ Following diagram depicts the complete BillCollector Ecosystem:
 
 ## How does it work?
 
-Scheduled, for instance, bi-monthly, your server's cron daemon runs the BillCollector docker container which exposes a download folder to the server's file system. The docker container integrates Chromium (via Playwright) to interact with the service provider's online portal.
+Your server runs the BillCollector daemon (in Docker, per the [Quick Start](#quick-start)), which exposes a download folder to the server's file system. The daemon integrates Chromium (via Playwright) to interact with the service provider's online portal; its scheduler fires each task on its own cron expression, and every run is visible live in the web UI.
 
-BillCollector also ships as a self-hosted daemon with a web UI that schedules the runs, supervises them live, and lets you step in when a portal changes (see [Web UI](#web-ui)); the cron-driven batch mode described here keeps working unchanged alongside it.
+For each run, BillCollector scripts the service, gets the secret login data from Vaultwarden via the Bitwarden API, accesses the web service via the configured Playwright recipes, and downloads the documents.
 
-For each container run, BillCollector scripts the `List of Services`, gets the secret login data from Vaultwarden via the Bitwarden API, accesses the web service via the configured Playwright recipes, and downloads the documents.
-
-Every step of every service run is recorded in a local SQLite database (`apps/db/bc.db`): the method chain that was executed, the interactive elements that were found on the page, and the result. This makes failed runs diagnosable and is the foundation for the planned self-healing/assisted-repair features. A failed service/user pair aborts only its own run: the remaining services continue, every started run is finalized in the DB, and the process exits with code 1 if any pair failed. A second concurrent start (overlapping cron starts, UI run plus manual run) is rejected by a `flock` guard.
+Every step of every service run is recorded in a local SQLite database (`apps/db/bc.db`): the method chain that was executed, the interactive elements that were found on the page, and the result. This makes failed runs diagnosable and is the foundation for the planned self-healing/assisted-repair features. A failed service/user pair aborts only its own run: the remaining services continue, every started run is finalized in the DB, and the process exits with code 1 if any pair failed. A second concurrent start of the legacy batch path (overlapping cron starts, two manual runs) is rejected by a `flock` guard; the daemon rejects a double start of a task by its run claim.
 
 With a document-processing document management system (DMS) such as Paperless ngx in place, the downloaded file is consumed, automatically analyzed, tagged, and sorted.
 
@@ -58,7 +66,7 @@ With a document-processing document management system (DMS) such as Paperless ng
 
 - **Star this project** on GitHub.
 - **Share** it with your network.
-- **Contribute** recipes for more web services - see how to [Configure BillCollector](#configuration) and get familiar with the YAML recipes. Share your recipes 🙂🙂🙂
+- **Contribute** recipes for more web services - see how to [Configure BillCollector](#configure-billcollector) and get familiar with the YAML recipes. Share your recipes 🙂🙂🙂
 - **Contribute code** - fork this repository, create a branch from `main`, and open a pull request against `main`. There is no CI pipeline yet: changes are validated in the [local regression test environment](#local-regression-test-environment) and in production runs before being integrated. The contribution rules (ownership, PR requirements, proof, security, AI-assisted code) are in [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Discuss** your ideas for improvements, more use cases and any comments by leaving notes in the Discussion area.
 
@@ -82,13 +90,15 @@ BillCollector requires the following services:
   - nginxproxymanager with Let's Encrypt (docker image: jc21/nginx-proxy-manager:latest)
   - Duckdns account & config -> redirect to local IP address
 
-### Docker Environment
+### Prerequisites
+
+#### Docker Environment
 
 It is assumed that you have a docker environment up and running. There are different options you can choose from: Docker Desktop on a Linux or Windows machine or for your Mac, docker on the command line, etc.
 
 I have it running on my self-built Mini-ITX Intel Pentium J5040 NAS hardware equipped with the Debian Linux based NAS operating system [openmediavault](https://www.openmediavault.org/) (OMV).
 
-### Vault of Secrets
+#### Vault of Secrets
 
 BillCollector uses the self-hosted [Vaultwarden](https://github.com/dani-garcia/vaultwarden) password manager.
 
@@ -102,7 +112,7 @@ Why Vaultwarden?
 > 💡 **Tip**  
 > On [Vaultwarden Docker](https://github.com/s-t-e-f-a-n/Vaultwarden), you'll get the Vaultwarden and the Bitwarden CLI as a `Dockerfile` and a `docker-compose.yml`. Follow the installation guide over there.
 
-### Enabling DNS and HTTPS with Let's Encrypt certs
+#### Enabling DNS and HTTPS with Let's Encrypt certs
 
 > 💡 **Tip**  
 > This configuration will not only support your BillCollector setup but also improves the user experience when accessing all your other locally running dockerized web services:**
@@ -151,81 +161,112 @@ Steps to follow:
 
    d. Test the accessibility of your Vaultwarden Web UI in your browser by entering [https://vault.my-domain.duckdns.org](https://vault.my-domain.duckdns.org) or [https://my-vw.duckdns.org](https://my-vw.duckdns.org).
 
-### The BillCollector Installation and Docker Deployment
+### Installing the Daemon
 
-Now that we have done a good job installing all the prerequisites, we are focusing on installing the BillCollector docker which is as simple as follows:
+Now that we have done a good job installing all the prerequisites, we are focusing on installing the BillCollector daemon which is as simple as follows:
 
 1. Download this git repository to a folder in your local docker environment assuming a Linux bash terminal, e.g., `git clone https://github.com/s-t-e-f-a-n/BillCollector.git`.
 
-2. [Configure BillCollector](#configuration) needs to be done. After each change in configuration proceed again with step 3.
+2. Create the data folders the container user (UID/GID 1000 by default, or your `APP_UID`/`APP_GID`) writes to - **before** the first `up`, because Docker would create a missing bind-mount folder root-owned, and the container could not write into it:
 
-3. Create a `.env` file in the repository folder from the template `.env.example` and set `CONSUMER_DIR` to your `Paperless-ngx` instance's consumption folder and `DB_DIR` to the database folder inside it (the installation script reads both; the soft links are created automatically).
+   ```bash
+   mkdir -p apps/Downloads apps/db apps/data apps/browser/profiles
+   sudo chown -R 1000:1000 apps/Downloads apps/db apps/data apps/browser
+   ```
 
-4. On your Linux console enter `./install_docker-image.sh` which builds the docker image `billcollector:latest` and sets the soft links to the inbox of your `Paperless-ngx` to let BillCollector collect bills periodically. The image runs as a non-root user (UID/GID 1000, overridable at build time with the `APP_UID`/`APP_GID` build args).
+   (Use your own uid/gid if you override `APP_UID`/`APP_GID` in the root `.env`.)
 
-5. Let your server's cron call your BillCollector periodically (e.g., bi-monthly) by calling `</path/to/your/billcollector-git-clone-folder/BillCollector.sh bc_default.ini`.
+3. Create the app configuration the container reads read-only at `/apps/.env` (a missing file makes Docker create a *directory* instead, which breaks the mount):
 
-Python dependencies are validated during the image build. The final container
-does not include `pip` or `wheel`; update `apps/requirements.txt` and rebuild the
-image when changing dependencies. Local virtual environments keep their installers.
+   ```bash
+   cp apps/.env.example apps/.env
+   ```
 
-### Web UI
+   and set `BW_API_URL` to the HTTP URL of your local `bw serve` API (e.g., `http://<local-ip>:8087`; it must resolve only to loopback/private addresses, HTTPS is refused). See [Vaultwarden and Bitwarden](#vaultwarden-and-bitwarden).
 
-Besides the cron-driven batch run, BillCollector ships as a self-hosted daemon with a web UI for scheduling, running, and supervising tasks. From the `apps` directory run:
+4. Optionally, create a root `.env` with the compose variables - all of them have defaults, the file is optional: `BC_UI_PORT` (published UI port, default `8766`), `NTFY_HOST` (push server for pause notifications, default `https://ntfy.sh`), `NTFY_BASE_URL` (LAN-absolute deep links, with the bundled ntfy), `APP_UID`/`APP_GID` (container user).
 
-```bash
-python3 -m billcollector serve
-```
+5. On your Linux console enter `docker compose up -d --build` which builds the docker image `billcollector:latest` from the root `Dockerfile` and starts the daemon (`python3 -m billcollector serve`). The image runs as a non-root user (UID/GID 1000, overridable at build time with the `APP_UID`/`APP_GID` build args).
 
-The daemon binds to `127.0.0.1:8000` by default (`--host`/`--port`, or `BC_UI_HOST`, override both). The first start shows a set-password form (or seeds the password from `BC_UI_PASSWORD` in `apps/.env`); afterwards you sign in with that password.
+   Python dependencies are validated during the image build. The final container does not include `pip` or `wheel`; update `apps/requirements.txt` and rebuild the image when changing dependencies. Local virtual environments keep their installers.
 
-On the first start (while the task list is still empty), the `[Playwright]` sections of `bc_default.ini` and `bc_test.ini` are imported as tasks - each (service, user) pair becomes one task, initially **disabled**, with a default monthly cron. You enable a task and set its cron schedule per task from the UI; the Task table in the database is the source of truth, and the daemon rebuilds its scheduler jobs from it on every start (a missed run coalesces into a single catch-up run).
+6. Open the published UI port in your browser (default `http://<your-host>:8766/`). The first start shows a set-password form (or seeds the password from `BC_UI_PASSWORD` in `apps/.env`); afterwards you sign in with that password.
 
-The UI:
+7. Walk the **onboarding wizard**: check and save your vault API URL (or skip it and fix it later in Settings), review the tasks imported from your INI file (or add a new task), enable the tasks the daemon should run on schedule, and finish.
 
-- **Dashboard** (`/`) - all tasks with their status, last/next run, and latest download, a live log pane, and Run now / Stop actions per task; a `waiting` badge marks a run that is paused for operator input.
+8. Collect your first document: on the **Dashboard** press **Run now** for an enabled task - watch the run live (session page, noVNC tab) until it reaches `success`; the document appears on the Downloads page and in the consumer folder. Every step is driven from the browser, no shell access to the daemon needed.
+
+### Optional: Self-Hosted ntfy
+
+Pause notifications go to the public [ntfy.sh](https://ntfy.sh) by default. To run your own push server in the same stack:
+
+1. Add `NTFY_HOST=http://ntfy` to the root `.env` (optional: `NTFY_BASE_URL=http://<your-host>:2086` for LAN-absolute deep links).
+2. Start the stack with `docker compose --profile ntfy up -d` - the `ntfy` service (image `ntfy.sh/ntfy`, port `2086`) comes up together with BillCollector.
+
+## Daemon Mode
+
+The daemon is BillCollector's primary mode: `python3 -m billcollector serve` (the `command` of the compose service). It binds to `127.0.0.1:8000` by default (`--host`/`--port`, or `BC_UI_HOST`, override both) - inside the container `BC_UI_HOST=0.0.0.0` makes the UI reachable from the LAN.
+
+On the first start (while the task list is still empty), the `[Playwright]` sections of `bc_default.ini` and `bc_test.ini` are imported as tasks - each (service, user) pair becomes one task, initially **disabled**, with a default monthly cron (`0 0 1 * *`). You enable a task and set its cron schedule per task from the UI; the Task table in the database is the source of truth, and the daemon rebuilds its scheduler jobs from it on every start (a missed run coalesces into a single catch-up run).
+
+### Environment Variables
+
+`apps/.env` (mounted read-only at `/apps/.env`) is the app configuration; the compose service additionally sets `BC_UI_HOST` and `NTFY_HOST` itself (these win over the file):
+
+- `BW_API_URL=<http-URL of your local bw serve API, e.g., http://<local-ip>:8087>`; it must resolve only to loopback/private addresses, HTTPS is refused
+- `BW_API_HOST=127.0.0.1:8087` (optional): Host header for a `bw serve` in another container
+- `BC_UI_HOST`: daemon UI bind host (default `127.0.0.1`; set `0.0.0.0` inside the container)
+- `BC_UI_PASSWORD` (optional): seeds the UI password hash on the first start (a hash set via the UI is never overwritten)
+- `NTFY_HOST`: push server for the pause notifications (default `https://ntfy.sh`)
+- `BC_CHROMIUM_ARGS=--disable-software-rasterizer`: dev-host launch workaround only; leave unset for stock behavior
+- `VAULT_HOST` is no longer used, see [doc/vault_transport.md](doc/vault_transport.md)
+
+The vault API can also be configured from the UI (the onboarding wizard's vault step or the Settings page, fields `vault_api_url` / `vault_api_host`): a non-empty Settings value wins over the environment, so a wrong URL can be fixed from the browser even though `apps/.env` is mounted read-only. An empty value falls back to the environment (legacy env-only deployments are unchanged).
+
+### Container Semantics
+
+From the compose file (`docker-compose.yml`):
+
+- **UI port** `${BC_UI_PORT:-8766}:8000` - the daemon UI.
+- **noVNC live view** websockify ports `6080-6095` - one port per allocated Xvfb display (websockify port = `6080 + (display - display_start)`); the range matches the default Settings `display_start=99` / `display_count=16` - change them together if you change the display range.
+- **Volumes**: `./apps/.env` (read-only), `./apps/Downloads`, `./apps/db`, `./apps/data`, `./apps/browser/profiles` (profiles only - mounting all of `apps/browser` would hide the Chromium build installed in the image).
+- **`host.docker.internal:host-gateway`** - reach host-local services (Vaultwarden, `bw serve`, the mock portal) from the container as `http://host.docker.internal:<port>`. Vaultwarden itself stays a prerequisite in its own compose stack.
+- `restart: unless-stopped`, `init: true`, a health check on `/_alive`, and the non-root user from the `APP_UID`/`APP_GID` build args.
+
+## Using the Web UI
+
+All pages require sign-in (a session cookie set on `/login`).
+
+- **Login** (`/login`) - the one-time set-password form on a fresh start, then the password login.
+- **Onboarding** (`/onboarding`) - the first-start wizard, active until you finish it (while active, every other authenticated page redirects to it). Upgraded installs (a password is set and at least one task is enabled) are auto-completed on daemon start, so you normally see it once, on a fresh install:
+  1. **Vault** - the vault API URL (+ optional host override) with a **Check** button (the same DNS vetting + status check the run preflight makes: reachable and unlocked / reachable but locked / network error) and **Save** (the Settings keys `vault_api_url` / `vault_api_host`; empty is allowed = environment fallback). Skipping is allowed but flagged: while no URL resolves, runs fail at the vault preflight.
+  2. **Tasks** - the imported task list (id, service, user, cron, whether the recipe file exists) with per-task enable toggles, an **Import from INI** button (re-runs the import: only (service, user) pairs missing from the table are added - including ones you deleted; existing tasks are left untouched), and a **New task** form (service, user, cron, enabled; the recipe path and the per-task browser profile dir are derived as in the INI import).
+  3. **Finish** - a summary (task counts, missing recipe files, vault state) and **Finish onboarding**.
+- **Dashboard** (`/`) - all tasks with their status (color-coded, `waiting` rows highlighted), last/next run, latest download, and a `[N waiting]` badge for paused runs; a live log pane following the active run and a step-screenshot strip; per row **Run now** (works for disabled tasks as a manual one-off, schedule untouched), **Stop**, and **Edit** (cron + enabled); toolbar **Run (filtered)** (enqueues all enabled tasks in the filtered set) and **Add task**.
 - **Task detail** (`/tasks/<id>`) - the run history of one task with the per-step records, step screenshots, and downloads.
-- **Session** (`/runs/<id>`) - the live view of one run: while it runs, you watch the progress; while it is paused, you get the "Copilot" view - a screenshot, the numbered interactive elements, click/fill/press/drag actions, and Resume / Cancel - plus a noVNC tab that shows the actual browser window. A step that failed and paused also offers a Repair link into the recipe editor.
+- **Session** (`/runs/<id>`) - the live view of one run (the ntfy deep-link target): while it runs, you watch the progress; while it is paused, you get the "Copilot" view - a screenshot, the numbered interactive elements, click/fill/press/drag actions, and Resume / Cancel - plus a noVNC tab that shows the actual browser window. A step that failed and paused also offers a Repair link into the recipe editor.
 - **Recipe editor** (`/recipes/<service>`) - edit the YAML recipe with schema validation, and optionally auto-commit the change to git (Settings switch).
-- **Downloads** (`/downloads`) - the downloaded files of all runs.
-- **Settings** (`/settings`) - UI password, ntfy topic, pause deadline, max concurrency, download directory, UI base URL, VNC password, and the git auto-commit switch.
+- **Downloads** (`/downloads`) - the downloaded files of all runs; a file whose sha256 was already seen for the same task is marked as a duplicate (the consumer hook is not re-run for it).
+- **Settings** (`/settings`) - UI password, ntfy topic, pause deadline, max concurrency, display start, download directory, UI base URL, VNC password, the vault API URL/host, and the git auto-commit switch. Each field writes its own Settings row on save, so an invalid value only fails that field.
 
-**Pausing a stuck run.** A non-graceful step that still fails after three attempts, a failed download, or an explicit `wait_user` recipe step does not abort the run: it pauses (the task shows `waiting`), stores a machine-readable pause context on the run, pushes an ntfy notification with a deep link to the session page, and waits - until you resume or cancel it from the UI, or the pause deadline passes (default 30 minutes, configurable in Settings). The `wait_user` method can also carry an `until` locator: the pause then completes as soon as that element appears on the page.
+**Pausing a stuck run.** A non-graceful step that still fails after three attempts, a failed download, or an explicit `wait_user` recipe step does not abort the run: it pauses (the task shows `waiting`), stores a machine-readable pause context on the run, pushes an ntfy notification with a deep link to the session page, and waits - until you resume or cancel it from the UI, or the pause deadline passes (default 30 minutes, configurable in Settings). A `wait_user` step pauses before execution and is consumed on resume (not re-executed - a consumed CAPTCHA code cannot be re-entered); it can carry an optional `prompt` and an optional `until` locator, the pause then completing as soon as that element appears on the page.
 
 For a cron-style single-shot run without the daemon, `python3 -m billcollector run <task_id>` executes one task run.
 
-## Configuration
+## Configure BillCollector
 
 ### Vaultwarden and Bitwarden
 
-First and once, for the basic configuration you need to adapt the `.env` file located in the `/apps` folder. Use the `.env.example` as a template:
+First and once, for the basic configuration you need to adapt the `.env` file located in the `/apps` folder. Use the `.env.example` as a template (the Quick Start does this in step 3):
 
-- `cp .env.example .env`
-- The Docker wrapper mounts `apps/.env` read-only at `/apps/.env`; credentials
-  are excluded from the image and Python retains dotenv quoting/interpolation.
-  For direct `docker run`, mount the same file read-only. `.env` changes take effect
-  at the next run without a rebuild; INI files and recipes are still baked into
-  the image and need step 3 again.
+- `cp apps/.env.example apps/.env`
+- The Docker wrapper mounts `apps/.env` read-only at `/apps/.env`; credentials are excluded from the image and Python retains dotenv quoting/interpolation. For direct `docker run`, mount the same file read-only. `.env` changes take effect at the next run without a rebuild; INI files and recipes are still baked into the image and need a rebuild (legacy step 4 of [Legacy Batch Mode](#legacy-batch-mode-deprecated)).
 - define the .env-variables:
   - `BW_API_URL=<http-URL of your local bw serve API e.g., http://<local-ip>:8087>`; it must resolve only to loopback/private addresses, HTTPS is refused
   - `BW_API_HOST=127.0.0.1:8087` (optional): Host header for a `bw serve` in another container
   - `VAULT_HOST` is no longer used, see [doc/vault_transport.md](doc/vault_transport.md)
 
-### Local Development & Debugging
-
-Use vscode when extending BillCollector - either the coded or, more likely, the collection of recipes.
-
-There is an installation script for the local environment. It installs Python3, a Python virtual environment with all required Python modules, and Playwright's Chromium (plus the required system dependencies) into `apps/.venv`. It is tested under WSL2 and Ubuntu 24.04 LTS. Run the following command on your Linux command line:
-
-- `bash install_local.sh playwright`
-
-For debugging, run `BillCollector.py` in debug mode - either via F5 in vscode or `python3 BillCollector.py bc_test.ini debug`:
-
-- Uses `bc_test.ini` as the list of web services to run.
-- Chromium runs headed, so you can watch the run in a browser window.
-- Every step is recorded in the SQLite DB (`apps/db/bc.db`) together with the interactive elements that were found on the page - use these records to identify and fix failing steps.
-
-The Selenium-era per-step SPACE pause is not yet wired into the Playwright engine.
+The vault API can equally be configured from the UI (wizard or Settings; [Daemon Mode → Environment Variables](#environment-variables)).
 
 ### Web Service Config
 
@@ -251,17 +292,21 @@ The BillCollector configuration for each web service from which you want to retr
      Freenet Mobilfunk=
      ```
 
+   In daemon mode this INI list is the starting point for the task list: it is imported into the Task table on the first daemon start (or via **Import from INI** in the wizard), and from then on the per-task cron and enabled state live in the UI, not in the INI.
+
 3. A YAML recipe defines the browser automation, which typically starts at login and ends at the download of the wanted document from the web service portal:
    - The recipes are placed in the subfolder `apps/recipes_playwright` and follow the naming convention `recipe-pw__<serviceName>.yaml` where `<serviceName>` is the service's `Name` from Vaultwarden in lower case with spaces replaced by underscores (e.g., `Freenet Mobilfunk` -> `recipe-pw__freenet_mobilfunk.yaml`).
    - The basic concept of the BillCollector recipes is summarized as follows:
-      - YAML format
-      - One recipe per web portal identified by the yaml element `serviceName` and its filename `recipe-pw__<serviceName>`.
-      - Each recipe is structured in numbered `steps`, executed in ascending `step` order.
-      - Each step is a chain of `methods`: Playwright Page/Locator calls executed in order. Locator methods (`locator` for CSS selectors, `get_by_role`, `get_by_label`, `get_by_text`, `get_by_title`, `get_by_placeholder`, `get_by_test_id`) yield a locator that is chained into the following action (`click`, `fill`, `press`, `first`). Page-level methods include `goto` (open the start URL), `content_frame` (enter an iframe) and `close`.
-      - Downloads: a step with the `expect_download` method wraps the nested `steps` that trigger the download; the file is saved into the Downloads folder.
-      - Variables: `{{USERNAME}}`, `{{PASSWORD}}` and `{{OTP}}` (all three from Vaultwarden, linked to the web service) are substituted at run time.
-      - `graceful: true` on a step: a failure of that step is recorded (log + DB) and the run continues with the next step; without it, a failure aborts the service's run.
-      - There is a YAML schema named `recipe-pw-schema.yaml` which includes the rules to be followed by the YAML recipes.
+     - YAML format
+     - One recipe per web portal identified by the yaml element `serviceName` and its filename `recipe-pw__<serviceName>`.
+     - Each recipe is structured in numbered `steps`, executed in ascending `step` order.
+     - Each step is a chain of `methods`: Playwright Page/Locator calls executed in order. Locator methods (`locator` for CSS selectors, `get_by_role`, `get_by_label`, `get_by_text`, `get_by_title`, `get_by_placeholder`, `get_by_test_id`) yield a locator that is chained into the following action (`click`, `fill`, `press`, `first`). Page-level methods include `goto` (open the start URL), `content_frame` (enter an iframe) and `close`.
+     - Downloads: a step with the `expect_download` method wraps the nested `steps` that trigger the download; the file is saved into the Downloads folder. A re-downloaded file that is byte-identical to one already tracked for the same task (same sha256) is recorded as a duplicate and the consumer hook is not re-run for it.
+     - Variables: `{{USERNAME}}`, `{{PASSWORD}}` and `{{OTP}}` (all three from Vaultwarden, linked to the web service) are substituted at run time.
+     - `graceful: true` on a step: a failure of that step is recorded (log + DB) and the run continues with the next step; without it, a failure aborts the service's run (after three attempts, in daemon mode the run pauses for your help instead - see [Using the Web UI](#using-the-web-ui)).
+     - A `wait_user` step: an explicit pause point for operator input (e.g., a CAPTCHA you have to solve by hand). It can carry an optional `prompt` and an optional `until` locator (the pause completes when that element appears, or on resume); the step is consumed, not re-executed.
+     - There is a YAML schema named `recipe-pw-schema.yaml` which includes the rules to be followed by the YAML recipes.
+   - In daemon mode the recipe can also be edited in the UI [recipe editor](#using-the-web-ui) (schema validation, optional git auto-commit) - handy when a portal changes and a paused run links you straight to the failing recipe.
 
 > 💡 **Tip**  
 > When creating new recipes, make use of AI, e.g., let yourself be helped by Copilot - that speeds up creating the YAML recipe 🚀.
@@ -320,6 +365,85 @@ services:
     - method: close
 ```
 
+## Migrating from Cron to the Daemon
+
+You are running BillCollector with cron (`BillCollector.sh` in the crontab) and want to move to the daemon:
+
+1. **Import the tasks.** Your INI file is already known to the daemon: on its first start the `[Playwright]` sections of `bc_default.ini`/`bc_test.ini` are imported as tasks (each (service, user) pair, initially disabled with a default monthly cron). If the daemon already started, press **Import from INI** in the onboarding wizard, or add a task from the dashboard **Add task** dialog.
+2. **Set the schedules.** Open each task's **Edit** dialog on the Dashboard, set its cron (a 5-field crontab expression, e.g., `0 6 1 1,15 * *` for the 1st and 15th at 06:00), and enable it.
+3. **Verify one run.** Press **Run now** for the task, watch the session page until the run reaches `success`, and check the document on the Downloads page and in the consumer folder.
+4. **Stop the cron entry.** Comment out or delete the crontab line that calls `BillCollector.sh`. **Rollback = re-enable the cron entry**: the legacy path keeps working unchanged.
+
+During the overlap period both paths can coexist safely against themselves: the legacy wrapper holds the shared `apps/.bc.lock` run lock (an overlapping cron start is rejected), and the daemon serializes its own runs per task. Just don't let both run the same (service, user) pair at the same time - they share the download folder and the same database.
+
+## Debugging
+
+### Local Development Environment
+
+Use vscode when extending BillCollector - either the coded or, more likely, the collection of recipes.
+
+There is an installation script for the local environment. It installs Python3, a Python virtual environment with all required Python modules, and Playwright's Chromium (plus the required system dependencies) into `apps/.venv`. It is tested under WSL2 and Ubuntu 24.04 LTS. Run the following command on your Linux command line:
+
+- `bash install_local.sh playwright`
+
+### F5 Debug Workflow
+
+Debug one task run (a new or a broken recipe) against the daemon's task table:
+
+```bash
+cd apps && source .venv/bin/activate
+python3 -m billcollector run <task_id> --debug
+```
+
+(or `PYTHONPATH=apps python3 -m billcollector run <task_id> --debug` from the repository root.)
+
+What happens:
+
+- The run uses the same engine as the daemon: the task's recipe, the vault credentials, the per-task browser profile, and the per-step DB recording.
+- The browser runs headful on an allocated virtual display (Xvfb, from the configured range - default `:99`), so no physical display is needed. The display stack must be installed on the dev host: `install_local.sh` already installs `xvfb`; additionally `sudo apt install x11vnc websockify novnc`.
+- The run's browser is viewable in your browser over noVNC: open `http://localhost:<websockify port>/vnc.html` (websockify serves the noVNC web client from the `novnc` apt package). The port is printed in the log line `Display stack started for :N (x11vnc port ..., websockify port ...)`; websockify port = `6080 + (display - display_start)`.
+- `--debug` pauses before every step: `Step N: <description> [press Enter to continue]` on stdin - step through the portal and watch what the engine sees. A closed stdin (EOF) logs once and continues without pausing.
+- Every step is recorded in the SQLite DB (`apps/db/bc.db`) together with the interactive elements that were found on the page - use these records to identify and fix failing steps.
+
+VS Code launch configuration (`.vscode/launch.json` in your local clone - not committed to the repository):
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "BillCollector: run task 1 (debug)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "billcollector",
+      "args": ["run", "1", "--debug"],
+      "cwd": "${workspaceFolder}/apps",
+      "console": "integratedTerminal"
+    }
+  ]
+}
+```
+
+The `integratedTerminal` console is what makes the per-step Enter pause work under F5 (the debugger shares that terminal's stdin). Adjust the task id, and add `"justMyCode": false` when you want to step into Playwright.
+
+## Legacy Batch Mode (Deprecated)
+
+> **Deprecated** — the cron-driven batch mode (this section) is superseded by the [daemon](#daemon-mode): per-task scheduling, live supervision, and pause-and-step-in. `BillCollector.sh` keeps working unchanged as the rollback path for the daemon; new setups should use the [Quick Start](#quick-start), and existing cron setups should follow [Migrating from Cron to the Daemon](#migrating-from-cron-to-the-daemon).
+
+### The BillCollector Installation and Docker Deployment
+
+1. Download this git repository to a folder in your local docker environment assuming a Linux bash terminal, e.g., `git clone https://github.com/s-t-e-f-a-n/BillCollector.git`.
+
+2. [Configure BillCollector](#configure-billcollector) needs to be done. After each change in configuration proceed again with step 4.
+
+3. Create a `.env` file in the repository folder from the template `.env.example` and set `CONSUMER_DIR` to your `Paperless-ngx` instance's consumption folder and `DB_DIR` to the database folder inside it (the installation script reads both; the soft links are created automatically).
+
+4. On your Linux console enter `./install_docker-image.sh` which builds the docker image `billcollector:latest` and sets the soft links to the inbox of your `Paperless-ngx` to let BillCollector collect bills periodically. The image runs as a non-root user (UID/GID 1000, overridable at build time with the `APP_UID`/`APP_GID` build args).
+
+5. Let your server's cron call your BillCollector periodically (e.g., bi-monthly) by calling `</path/to/your/billcollector-git-clone-folder/BillCollector.sh bc_default.ini>`.
+
+The wrapper's call format is `<ini> [debug]`: the ini is the list of web services to run, and `debug` (or `True`/`1`) runs Chromium headed with per-step logging instead of headless. `BillCollector.sh` holds an exclusive `flock` on `apps/.bc.lock` for the whole run, so an overlapping cron start is rejected, and it runs the same `billcollector:latest` image the daemon uses (`docker run … python3 ./BillCollector.py <ini> [debug]`, with `apps/.env` mounted read-only).
+
 ## Local Regression Test Environment
 
 A self-contained regression environment tests the scraping engine against a local mock portal instead of the real web services:
@@ -373,4 +497,4 @@ To contribute code, see [Contributing](#contributing).
 
 ## What's Next
 
-The self-hosted daemon with its web UI (per-task scheduling, live supervision, pause-and-step-in) has landed; the cron-driven batch system described above keeps running unchanged alongside it. The recorded step data and the machine-readable pause context are the foundation for the planned self-healing / assisted-repair features: when a portal changes, BillCollector pauses, shows what it found, and - with your help or on its own - adapts the recipe. See [CHANGELOG.md](CHANGELOG.md) for the history of feature updates and changes.
+The self-hosted daemon with its web UI is now the primary mode: per-task scheduling, live supervision, pause-and-step-in, a first-start onboarding wizard, and a Docker Compose package to stand it up. The cron-driven batch system is deprecated but keeps running unchanged alongside it as the rollback path. The recorded step data and the machine-readable pause context are the foundation for the planned self-healing / assisted-repair features: when a portal changes, BillCollector pauses, shows what it found, and - with your help or on its own - adapts the recipe. See [CHANGELOG.md](CHANGELOG.md) for the history of feature updates and changes.

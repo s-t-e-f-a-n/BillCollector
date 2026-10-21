@@ -158,6 +158,25 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(self.db.import_ini([ini]), 0)
         self.assertEqual(len(self.db.list_tasks()), 1)
 
+    def test_ini_import_force_re_adds_only_missing_pairs(self):
+        # M4 C2, decision 2: force=True skips the empty-table guard but
+        # keeps the (service, user) duplicate guard, so only pairs missing
+        # from the table are added - including ones the user deleted.
+        ini = Path(self.tmp.name) / "s3.ini"
+        cp = configparser.ConfigParser()
+        cp["Playwright"] = {"svcA": "u1", "svcB": "u2"}
+        with ini.open("w") as fh:
+            cp.write(fh)
+        self.assertEqual(self.db.import_ini([ini]), 2)
+        self.db.conn.execute(
+            "DELETE FROM Task WHERE service=? AND user=?", ("svcb", "u2"))
+        self.db.conn.commit()
+        self.assertEqual(self.db.import_ini([ini], force=True), 1)
+        tasks = {(t["service"], t["user"]) for t in self.db.list_tasks()}
+        self.assertEqual(tasks, {("svca", "u1"), ("svcb", "u2")})
+        self.assertEqual(self.db.import_ini([ini], force=True), 0)
+        self.assertEqual(len(self.db.list_tasks()), 2)
+
     def test_settings_get_set_and_defaults(self):
         self.assertEqual(self.db.get_setting("missing_key"), None)
         self.assertEqual(self.db.get_setting("max_concurrency"), "1")  # default

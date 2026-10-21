@@ -27,6 +27,12 @@ _TMP = tempfile.mkdtemp(prefix="bc-ui-test-")
 os.environ["BC_UI_TEST_DB"] = str(Path(_TMP) / "test.db")
 
 db = Database(path=os.environ["BC_UI_TEST_DB"])
+# M4 C2: the tests exercise the post-onboarding app; simulate the serve
+# startup auto-complete (an upgraded install) so the onboarding gate in
+# the auth middleware does not redirect every page to /onboarding.
+# The onboarding tests (test_bc_ui_onboarding.py) re-activate the wizard
+# per test.
+db.set_setting("onboarding_done", "1")
 orchestrator = Orchestrator(db)
 scheduler = TaskScheduler(db, orchestrator.start_run)
 startup, shutdown = ui_app.build_lifecycle(db, orchestrator, scheduler)

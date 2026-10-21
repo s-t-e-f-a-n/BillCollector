@@ -56,6 +56,10 @@ def main(argv=None) -> int:
         from .ui import auth as ui_auth
 
         ui_auth.ensure_password(database)
+        # Upgraded installs (a password is set and at least one task is
+        # enabled) skip the first-start wizard; fresh installs see it
+        # (M4 C2, decision 1).
+        ui_auth.auto_complete_onboarding(database)
         logger.info("serve starting on %s:%d (ini import created %d task(s), "
                     "total %d)", args.host, args.port, created,
                     len(database.list_tasks()))

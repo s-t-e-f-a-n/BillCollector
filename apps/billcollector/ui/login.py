@@ -93,6 +93,12 @@ def register_login_page(db) -> None:
                 return RedirectResponse("/login?error=mismatch", status_code=303)
             auth.set_password_hash(db, auth.hash_password(password))
             logger.info("ui password set via the first-start form")
+            request.session["authenticated"] = True
+            # M4 C2: a first start goes to the onboarding wizard while it
+            # is active; an already-completed onboarding goes to the app.
+            if auth.is_onboarding_active(db):
+                return RedirectResponse("/onboarding", status_code=303)
+            return RedirectResponse("/", status_code=303)
         elif not auth.verify_password(password, stored):
             return RedirectResponse("/login?error=wrong_password", status_code=303)
         request.session["authenticated"] = True

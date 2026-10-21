@@ -186,14 +186,22 @@ class Database:
         self.conn.commit()
         return cur.rowcount == 1
 
-    def import_ini(self, ini_paths=None, default_cron="0 0 1 * *"):
+    def import_ini(self, ini_paths=None, default_cron="0 0 1 * *",
+                   force=False):
         """One-time import of the ``[Playwright]`` sections into Tasks.
 
         Imported tasks are created disabled (decision 7: "disabled until
-        confirmed in the UI") with a default monthly cron. Runs only when the
-        Task table is still empty; duplicate (service, user) pairs across files are imported only once. Returns the number of tasks created.
+        confirmed in the UI") with a default monthly cron. Without
+        ``force`` this runs only when the Task table is still empty (the
+        first-start import); with ``force=True`` (the onboarding wizard's
+        re-import, M4 C2) the empty-table guard is skipped while the
+        existing (service, user) duplicate guard still applies, so only
+        pairs missing from the table are added - including ones the user
+        deleted. Duplicate (service, user) pairs across files are imported
+        only once. Returns the number of tasks created.
         """
-        if self.conn.execute("SELECT COUNT(*) c FROM Task").fetchone()["c"]:
+        if not force and self.conn.execute(
+                "SELECT COUNT(*) c FROM Task").fetchone()["c"]:
             return 0
         created = 0
         for ini in (ini_paths if ini_paths is not None else config.INI_FILES):

@@ -8,6 +8,12 @@ instead. Sessions ride a Starlette ``SessionMiddleware`` cookie whose secret
 is generated once and persisted in Settings (decision 2), so operator
 sessions survive daemon restarts. Unauthenticated requests to non-public
 paths are redirected to ``/login``.
+
+M4 C2 (decision 1): while first-start onboarding is active (the
+``onboarding_done`` Settings key is not ``1``), authenticated requests
+to any path except ``/onboarding`` redirect to the wizard; serve startup
+auto-completes it for upgraded installs (a hash exists and at least one
+task is enabled) so an existing deployment is not interrupted.
 """
 
 import logging
@@ -72,6 +78,32 @@ def ensure_password(db: Database, env_password: str | None = None) -> bool:
     return False
 
 
+def is_onboarding_active(db: Database) -> bool:
+    """True while the first-start wizard must be shown (M4 C2, decision 1).
+
+    Active while the ``onboarding_done`` Settings key is not ``"1"``
+    (missing row or any other value); the wizard's Finish button and
+    :func:`auto_complete_onboarding` are the only writers."""
+    return db.get_setting("onboarding_done") != "1"
+
+
+def auto_complete_onboarding(db: Database) -> bool:
+    """Complete onboarding for upgraded installs (M4 C2, decision 1).
+
+    Called at serve startup after :func:`ensure_password`. When a
+    password hash exists and at least one task is enabled, the wizard is
+    skipped (``onboarding_done=1``) so an existing deployment is not
+    interrupted by the first-start flow; a fresh install (no hash yet,
+    or no enabled task) still gets the wizard. Returns True when
+    onboarding is inactive afterwards."""
+    if get_password_hash(db) is not None \
+            and any(task["enabled"] for task in db.list_tasks()):
+        db.set_setting("onboarding_done", "1")
+        logger.info("onboarding auto-completed (password set and an "
+                    "enabled task exists)")
+    return not is_onboarding_active(db)
+
+
 def get_session_secret(db: Database) -> str:
     """The persisted session secret (generated once, survives restarts).
 
@@ -96,15 +128,26 @@ def is_public_path(path: str) -> bool:
 class AuthRedirectMiddleware(BaseHTTPMiddleware):
     """Redirect unauthenticated requests to /login; public paths pass through.
 
+    While onboarding is active (M4 C2), authenticated requests to any path
+    except /onboarding redirect to the wizard instead.
+
     Must sit inside the SessionMiddleware (register it first, see
     :func:`register_auth`). Non-HTTP scopes (websocket, lifespan) pass
     through untouched.
     """
 
+    def __init__(self, app, db: Database):
+        super().__init__(app)
+        self.db = db
+
     async def dispatch(self, request, call_next):
         if not is_public_path(request.url.path) \
                 and not request.session.get("authenticated"):
             return RedirectResponse(url="/login", status_code=307)
+        if request.session.get("authenticated") \
+                and request.url.path != "/onboarding" \
+                and is_onboarding_active(self.db):
+            return RedirectResponse(url="/onboarding", status_code=307)
         return await call_next(request)
 
 
@@ -126,8 +169,9 @@ def register_auth(app, db: Database) -> None:
     """Wire the auth middleware into the app (call before the server starts).
 
     Starlette wraps middleware in reverse add order, so the auth middleware
-    (which needs ``request.session``) is added first and the
-    SessionMiddleware second - the session ends up outside it.
+    (which needs ``request.session`` and the Settings table for the
+    onboarding gate) is added first and the SessionMiddleware second - the
+    session ends up outside it.
     """
-    app.add_middleware(AuthRedirectMiddleware)
+    app.add_middleware(AuthRedirectMiddleware, db=db)
     app.add_middleware(SessionMiddleware, secret_key=get_session_secret(db))

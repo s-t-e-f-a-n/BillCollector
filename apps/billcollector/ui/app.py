@@ -42,6 +42,7 @@ from .auth import register_auth
 from .dashboard import register_dashboard
 from .downloads import register_downloads
 from .login import register_login_page
+from .onboarding import register_onboarding
 from .recipes import register_recipe_editor
 from .runfiles import register_runfiles
 from .session import register_session
@@ -164,6 +165,7 @@ def build_app(db: Database, orchestrator: Orchestrator,
 
     register_auth(nicegui_app, db)
     register_login_page(db)
+    register_onboarding(db, scheduler)
     register_dashboard(db, orchestrator, scheduler)
     register_task_detail(db, orchestrator)
     register_session(db)

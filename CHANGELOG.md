@@ -94,6 +94,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Keep residual daemon exception messages and tracebacks out of per-run logs
+  and SQLite notes. Retain fixed method/category diagnostics for scan, OTP,
+  screenshot, browser-launch and unexpected runner failures.
+
 - Pinned `tzdata` in `apps/requirements.txt` so the Python dependency check in
   the image build passes.
 - Avoid recommended development packages in the initial Python APT install,

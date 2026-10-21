@@ -149,7 +149,8 @@ def _fresh_otp(bcs):
     try:
         totp_item = get_totp(f"{bcs.api_url}/object/totp/{bcs.vault_item_name}")
     except VaultAPIError as e:
-        logger.warning(f"OTP re-fetch failed ({e}); using run-start credential")
+        logger.warning("OTP re-fetch failed (%s); using run-start credential",
+                       failure_record("get_totp", e))
         return bcs.otp_fallback
     if totp_item is None:
         return bcs.otp_fallback
@@ -495,7 +496,8 @@ def _record_step(ctx, state, step, parent_step=None):
     except RunInterrupted:
         raise  # a shutdown signal is not a screenshot failure to degrade around
     except Exception as e:
-        logger.warning(f"Step {step.get('step', 0)} screenshot failed (run continues): {e}")
+        logger.warning("Step %s screenshot failed (run continues): %s",
+                       step.get("step", 0), failure_record("screenshot", e))
     ctx.db.insert_page_status(
         ctx.run_id,
         state.step_number,
@@ -744,7 +746,7 @@ def _run_recipe(ctx, recipe):
         except RunInterrupted:
             raise  # a shutdown signal is not a launch failure to abort on
         except Exception as e:
-            logger.exception(f"Browser launch failed: {e}")
+            logger.error("Browser launch failed: %s", failure_record("launch_persistent_context", e))
             return files_downloaded, True, None
         try:
             services = recipe.get("services", [])
@@ -771,9 +773,9 @@ def _run_recipe(ctx, recipe):
             logger.error(f"Run aborted: {e}")
         except RunInterrupted:
             raise  # a shutdown signal ends the run interrupted, not failed
-        except Exception:
+        except Exception as e:
             aborted = True
-            logger.exception("EXCEPTION in _run_recipe(): run aborted")
+            logger.error("Unexpected recipe error: run aborted: %s", failure_record("run_recipe", e))
         finally:
             for closer in (ctx.page.close, ctx.context.close):
                 try:
@@ -864,8 +866,9 @@ def run_task(task_id: int, debug: bool = False) -> int:
                 # failure.
                 print(f"runner: display stack failed for task {task_id}: {e}",
                       file=sys.stderr)
-            except Exception:
-                logger.exception(f"Task {task_id} run {run_id} aborted by an unexpected error")
+            except Exception as e:
+                logger.error("Task %s run %s aborted by an unexpected error: %s",
+                             task_id, run_id, failure_record("run_task", e))
             finally:
                 # The display stack is reaped and the row finalized with
                 # the run, so a finished run never leaks the stack or

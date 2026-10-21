@@ -22,7 +22,7 @@ from . import config, notify
 from .control import ControlServer
 from .interrupt import RunInterrupted
 from .pagestate import PageState
-from .redaction import sanitize_url
+from .redaction import failure_record, sanitize_url
 
 logger = logging.getLogger("billcollector.pause")
 
@@ -83,7 +83,7 @@ def scan_elements(page):
     except RunInterrupted:
         raise  # a shutdown signal is not a scan failure to degrade around
     except Exception as e:
-        logger.warning(f"Element scan failed: {type(e).__name__}: {e}")
+        logger.warning("Element scan failed: %s", failure_record("scan_elements", e))
         return []
     return state.interactive_elements or []
 
@@ -140,7 +140,7 @@ def build_pause_context(ctx, reason, prompt, step_action_json, error, deadline_a
     except RunInterrupted:
         raise
     except Exception as e:
-        logger.warning(f"Pause screenshot failed (run continues): {type(e).__name__}: {e}")
+        logger.warning("Pause screenshot failed (run continues): %s", failure_record("screenshot", e))
 
     step = None
     if step_action_json:

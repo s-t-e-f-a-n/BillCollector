@@ -21,6 +21,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
 import nicegui  # noqa: E402
+from nicegui import ui  # noqa: E402
 
 from billcollector import config  # noqa: E402
 from billcollector.db import Database  # noqa: E402
@@ -105,6 +106,30 @@ async def test_the_wizard_page_is_reachable_while_active(
     response = await user.http_client.get(
         "/onboarding", follow_redirects=False)
     assert response.status_code == 200
+
+
+async def test_wizard_navigation_moves_between_steps(
+        user, onboarding, testdb):
+    """Continue/Back must move between the wizard's steps: the exit pass
+    found the steps had no navigation at all (M4 exit pass, 2026-10-21)."""
+    await _login(user, testdb)
+    await user.open("/onboarding")
+
+    stepper = next(iter(user.find(kind=ui.stepper).elements))
+    assert stepper.value == "Vault"
+
+    user.find(marker="onb-continue-vault").click()
+    assert stepper.value == "Tasks"
+
+    user.find(marker="onb-back-tasks").click()
+    assert stepper.value == "Vault"
+
+    user.find(marker="onb-continue-vault").click()
+    user.find(marker="onb-continue-tasks").click()
+    assert stepper.value == "Finish"
+
+    user.find(marker="onb-back-finish").click()
+    assert stepper.value == "Tasks"
 
 
 async def test_first_start_password_targets_the_wizard(

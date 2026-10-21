@@ -1,8 +1,9 @@
 # PR #23 review — residual runner exceptions out of retained logs
 
-> Status: INTEGRATING (2026-10-21) — S3 proposal confirmed as-is by the
-> user; S4 applied all 4 files to `dev` (tree dirty, uncommitted); awaiting
-> "continue PR #23" for S5 validation.
+> Status: VALIDATED (2026-10-22) — S5 all green on the exact dev tree (PR
+> unit tests OK, regression VERDICT: PASS, ruff/bandit no new findings);
+> deployment-validation skip user-confirmed 2026-10-22 01:03 CEST; tree still
+> dirty/uncommitted for S7.
 
 ## PR metadata
 
@@ -169,9 +170,33 @@ Not deployment-relevant: the PR touches no `Dockerfile`, `.dockerignore`,
 `BillCollector.sh`, `install_docker-image.sh`, `deploy_remote.sh`, and no app
 runtime configuration (INI keys / `.env` handling). The full
 build/canary/smoke block is skipped per the skill; recorded here so S5's
-gate can confirm the recorded skip. (If the tree gains deployment-relevant
-changes before promotion, the block must be run on a Docker-capable host
-first.)
+gate can confirm the recorded skip. **User-confirmed 2026-10-22 01:03 CEST
+(S5 gate).** (If the tree gains deployment-relevant changes before
+promotion, the block must be run on a Docker-capable host first.)
+
+## S5 results (2026-10-22, repo root, `apps/.venv/bin/python`, exact dev tree)
+
+Tree = `dev` @ `cafd6fd` + the 4 dirty S4 files (3 modified + 1 untracked).
+PR head re-verified `ce7d470` (unchanged since S1).
+
+- **PR unit tests**: `apps/.venv/bin/python -m unittest
+  tests.test_bc_residual_logs -v` → 1 test / 7 subtests, OK, exit 0 (5.3s).
+- **Full regression**: `apps/.venv/bin/python tests/run_regression.py --ini
+  tests/bc_regression.ini` → 7 scenarios / 8 PDFs, all expectations matched,
+  `VERDICT: PASS`, exit 0. (`apps/db/bc.db` already had the `Service` table —
+  no re-init needed.)
+- **Lint on changed files** (`runner.py`, `pause.py`,
+  `test_bc_residual_logs.py`): ruff 0.17.0 (`F821, E4/E7/E9`) → all checks
+  passed. bandit 1.9.4 (scratch venv `/tmp/kilo/lint`, PR #12 pattern) →
+  4 findings, all pre-existing B110 LOW `try/except/pass` sites (3 in
+  `pause.py` at identical lines, 1 in `runner.py` line-shifted 783→785 by
+  the PR hunks); zero new vs the pre-PR baseline.
+- **Tree integrity**: test file + `pause.py` byte-identical to `refs/pr/23`;
+  `runner.py` diff vs `refs/pr/23` = only the documented dev-side
+  vault-Settings region (`_vault_preflight(task, db)` + env export).
+- **Deployment validation**: recorded skip user-confirmed (above).
+
+All green → Status: VALIDATED.
 
 ## Out of scope
 
@@ -202,6 +227,13 @@ first.)
 - **S4 (2026-10-21)**: preflight re-run (clean tree on `dev 492f586`, head
   still `ce7d470`, pre-image checks unchanged); `git apply --3way` of the
   full PR diff on `dev` — all 4 files applied cleanly; `py_compile` OK;
-  5 new + 5 pre-existing `failure_record` sites in runner.py, 2 in
-  pause.py; CHANGELOG entry verified at the top of `Unreleased → Fixed`.
-  Tree left dirty/uncommitted for S5; status INTEGRATING.
+   5 new + 5 pre-existing `failure_record` sites in runner.py, 2 in
+   pause.py; CHANGELOG entry verified at the top of `Unreleased → Fixed`.
+   Tree left dirty/uncommitted for S5; status INTEGRATING.
+- **S5 (2026-10-22)**: all validation green on the exact dev tree — PR unit
+   tests 1/7 subtests OK; regression 7 scenarios / 8 PDFs `VERDICT: PASS`;
+   ruff 0.17.0 clean; bandit 1.9.4 no new findings (4 pre-existing B110
+   LOW only); tree integrity verified (byte-identical to `refs/pr/23` for
+   the two verbatim files, documented vault-Settings region only for
+   runner.py). Deployment-validation skip user-confirmed 01:03 CEST.
+   Status VALIDATED; tree still dirty/uncommitted for S7.

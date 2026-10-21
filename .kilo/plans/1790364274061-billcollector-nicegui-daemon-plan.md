@@ -119,8 +119,9 @@ Consequences:
 **Scope:** M1 (daemon core) + M2 (UI core) + M3 (interactive sessions). M0, M1, M2
 and M3 are done (status below); the live Wave 1 exit pass is complete
 (2026-10-18) and the NAS deploy (Post-Wave 1 item C) is the remaining half of the
-Wave 1 exit; M4 (adoption for other users) and the post-Wave 1 flowcool
-concessions are the follow-ups.
+Wave 1 exit; M4 (adoption for other users) is done (exit pass passed
+2026-10-21) and the post-Wave 1 flowcool concessions are the remaining
+follow-ups.
 Wave 1's focus is the three current complicating circumstances, each made operable by a
 human from the web UI:
 
@@ -1215,11 +1216,15 @@ context + human-approval gate) is in place and exercised.
 
 ### M4 — Adoption for other users
 
-> **Execution plan (in progress since 2026-10-20):**
-> `.kilo/plans/1792533823395-m4-adoption-plan.md` (chunks C1–C5: vault
-> settings + resolution, onboarding wizard, Docker Compose package, docs,
-> `BillCollector.sh`/cron deprecation; the exit-pass guide follows once
-> C1–C5 land).
+> **Execution plan (delivered 2026-10-21):**
+> `.kilo/plans/completed/1792533823395-m4-adoption-plan.md` (chunks C1–C5:
+> vault settings + resolution, onboarding wizard, Docker Compose package,
+> docs, `BillCollector.sh`/cron deprecation).
+>
+> **Exit pass: Half A passed 2026-10-21** — a new user went from fresh clone
+> to a collected document via the mock portal, every step from the browser,
+> no shell access to the daemon. Guide:
+> `.kilo/plans/completed/1792533823395-m4-exit-pass-guide.md`.
 
 1. Onboarding wizard (first start: set password, vault config, ini import, first task)
 2. Docker Compose package (BillCollector, optional ntfy)

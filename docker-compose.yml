@@ -82,7 +82,10 @@ services:
       start_period: 30s
 
   ntfy:
-    image: ntfy/ntfy
+    image: binwiederhier/ntfy
+    # The image ships no default command, so the server must be started
+    # explicitly; --cache-file keeps the message cache on the volume.
+    command: ["serve", "--cache-file", "/var/cache/ntfy/cache.db"]
     profiles:
       - ntfy
     restart: unless-stopped

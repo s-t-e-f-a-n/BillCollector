@@ -1,10 +1,18 @@
 #!/bin/bash
 #
+# DEPRECATED: the cron-driven batch mode is superseded by the BillCollector
+# daemon ('python3 -m billcollector serve'), which schedules each task on its
+# own cron expression. This wrapper keeps working as the rollback path; see
+# the README sections "Legacy Batch Mode (Deprecated)" and "Migrating from
+# Cron to the Daemon".
+#
 # Wrapper for python app BillCollector
 # - 1st param: ini-file
 # - 2nd param: debug [True/False]
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
+echo "Deprecated: cron-driven batch mode (this wrapper) is superseded by the BillCollector daemon ('python3 -m billcollector serve'); see the README section 'Migrating from Cron to the Daemon'. This wrapper keeps working as the rollback path." >&2
 
 # Reject a double start: hold an exclusive, non-blocking lock on the shared
 # lock file for the whole duration of the docker run (the container's /apps

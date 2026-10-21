@@ -1,7 +1,8 @@
 # PR #23 review — residual runner exceptions out of retained logs
 
-> Status: AWAITING-DECISION (2026-10-21) — S1 review + S2 plan complete,
-> verdict APPROVE; awaiting the user's go for S3 (integration proposal).
+> Status: INTEGRATING (2026-10-21) — S3 proposal confirmed as-is by the
+> user; S4 applied all 4 files to `dev` (tree dirty, uncommitted); awaiting
+> "continue PR #23" for S5 validation.
 
 ## PR metadata
 
@@ -196,3 +197,11 @@ first.)
   3-way apply re-verified on a scratch worktree of `dev a306d37`
   (all 4 files clean, `py_compile` OK); CHANGELOG landing verified;
   status AWAITING-DECISION.
+- **S3 (2026-10-21)**: proposal presented (4 files, 3 planned commits,
+  validation sequence); user confirmed **as-is**.
+- **S4 (2026-10-21)**: preflight re-run (clean tree on `dev 492f586`, head
+  still `ce7d470`, pre-image checks unchanged); `git apply --3way` of the
+  full PR diff on `dev` — all 4 files applied cleanly; `py_compile` OK;
+  5 new + 5 pre-existing `failure_record` sites in runner.py, 2 in
+  pause.py; CHANGELOG entry verified at the top of `Unreleased → Fixed`.
+  Tree left dirty/uncommitted for S5; status INTEGRATING.

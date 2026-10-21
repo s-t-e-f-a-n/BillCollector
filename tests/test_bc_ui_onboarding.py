@@ -20,6 +20,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
+import nicegui  # noqa: E402
+
 from billcollector import config  # noqa: E402
 from billcollector.db import Database  # noqa: E402
 from billcollector.scheduler import TaskScheduler  # noqa: E402
@@ -81,6 +83,19 @@ async def test_authenticated_request_is_redirected_to_the_wizard(
         response = await user.http_client.get(path, follow_redirects=False)
         assert response.status_code == 307
         assert response.headers["location"] == "/onboarding"
+
+
+async def test_nicegui_static_assets_pass_the_wizard_gate(
+        user, onboarding, testdb):
+    """The page's own JS/CSS dependencies must pass through the gate; a
+    redirect would 307 the module import to /onboarding, fail the bundle,
+    and render the dead ES-modules fallback (M4 C2, decision 1)."""
+    await _login(user, testdb)
+    response = await user.http_client.get(
+        f"/_nicegui/{nicegui.__version__}/static/dompurify.mjs",
+        follow_redirects=False)
+    assert response.status_code == 200
+    assert "location" not in response.headers
 
 
 async def test_the_wizard_page_is_reachable_while_active(

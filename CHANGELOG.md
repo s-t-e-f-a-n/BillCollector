@@ -45,9 +45,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - ntfy push notifications for pause events (`ntfy_topic` setting; `NTFY_HOST`
   environment variable, default `https://ntfy.sh`).
 - `python3 -m billcollector run <task_id>`: execute a single task run from the
-  command line (e.g., from cron) without the daemon.
+  command line (e.g., from cron) without the daemon. The run executes on an
+  allocated Xvfb display (viewable over noVNC on the run's websockify port);
+  `--debug` adds a press-Enter pause before every step (the F5 debug
+  workflow).
 - Pytest suite covering the daemon modules and the UI pages (dev-only, not
   part of the docker image) and a ruff lint setup for the maintained source.
+- First-start onboarding wizard (`/onboarding`): a three-step stepper - the
+  vault API URL (+ optional host) with a **Check** button (the same DNS
+  vetting + status check the run preflight makes) and **Save** (new Settings
+  keys `vault_api_url` / `vault_api_host`; empty allowed = environment
+  fallback; skipping is allowed but flagged), the task list (per-task enable
+  toggles, an **Import from INI** button that adds only the (service, user)
+  pairs missing from the Task table - including ones the user deleted - and a
+  manual **New task** form), and a **Finish** step. While active, every
+  authenticated page redirects to it; upgraded installs (a password hash
+  exists and at least one task is enabled) are auto-completed on daemon start.
+- Docker Compose stack (`docker-compose.yml`) for the daemon: builds from the
+  root `Dockerfile`, UI port `${BC_UI_PORT:-8766}`, the per-run noVNC live
+  view (websockify range `6080-6095`), `host.docker.internal:host-gateway` to
+  reach host-local services, and an optional self-hosted ntfy behind the
+  `ntfy` compose profile.
+- Vault API configuration in the UI: new Settings fields `vault_api_url` /
+  `vault_api_host` (settings page and the wizard's vault step); a non-empty
+  Settings value wins over the `BW_API_URL` / `BW_API_HOST` environment, so a
+  wrong vault URL can be fixed from the browser even with a read-only
+  `apps/.env` mount (the runner exports the effective values into the
+  environment before the vault calls; empty values keep the legacy env-only
+  behavior).
 
 ### Changed
 
@@ -75,6 +100,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   cron-driven batch path is unchanged.
 - The single-service manual run UI (`apps/bc_ui.py`, added in v0.3) is
   replaced by the daemon web UI.
+- README restructured around the daemon as the primary Quick Start (clone,
+  `apps/.env`, `docker compose up -d --build`, set the password, walk the
+  wizard, first task); new sections for daemon mode (env vars, container
+  semantics), UI usage per page, cron-to-daemon migration, and the F5 debug
+  workflow; the legacy batch section is now marked deprecated.
+
+### Deprecated
+
+- The cron-driven batch mode (`BillCollector.sh` + cron, a headless
+  `docker run` per cron tick) is superseded by the daemon (per-task
+  scheduling, live supervision, pause-and-step-in) and marked deprecated in
+  the README. The wrapper keeps working unchanged as the rollback path.
 
 ### Removed
 

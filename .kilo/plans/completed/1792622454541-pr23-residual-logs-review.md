@@ -1,9 +1,9 @@
 # PR #23 review — residual runner exceptions out of retained logs
 
-> Status: VALIDATED (2026-10-22) — S5 all green on the exact dev tree (PR
-> unit tests OK, regression VERDICT: PASS, ruff/bandit no new findings);
-> deployment-validation skip user-confirmed 2026-10-22 01:03 CEST; tree still
-> dirty/uncommitted for S7.
+> Status: DELIVERED (2026-10-22) — S7 complete: 3 commits on Gitea
+> dev/main `44ad25c` (promoted ff-only), GitHub mirror main `d2affd2`
+> (public gate passed), PR #23 closed without merge 2026-10-21T23:16:54Z
+> via API (token worked at S7).
 
 ## PR metadata
 
@@ -205,14 +205,11 @@ All green → Status: VALIDATED.
 - Retaining full tracebacks for debugging (deliberately reduced by design).
 - Orchestrator-side changes (the retention mechanism is untouched; the
   runner's logged content is the target).
-- Posting the PR close comment / closing the PR — S7; currently blocked by
-  the 401 GitHub API credential (web-UI fallback).
 
 ## Open questions
 
-- None for the verdict.
-- Operational: S7's PR close needs a working GitHub API credential or the
-  web-UI fallback (stored token 401 at S2; git protocol unaffected).
+- None. (The S2 401 GitHub API credential issue did not recur at S7 — the
+  stored token worked for the comment POST + close PATCH.)
 
 ## Stage log
 
@@ -242,3 +239,18 @@ All green → Status: VALIDATED.
    `Unreleased → Fixed`, Keep a Changelog order intact, sanitized); no
    README/CONTRIBUTING impact (log-content change only). User-confirmed;
    S7 runs on the next "continue PR #23".
+- **S7 (2026-10-22)**: prerequisite re-checked (tree moved only by doc-only
+   plan commits since the skip confirm; payload files re-verified
+   byte-identical to `refs/pr/23`, PR head still `ce7d470`). dev-commits
+   (user-confirmed): `4762d6f` fix (runner+pause), `144b88a` test (residual
+   logs), `44ad25c` doc (changelog) → pushed to origin/dev. Promotion
+   (user-confirmed): Gitea main ff-only `98af41f → 44ad25c` (35 commits:
+   PR #23 + the delivered M4 batch + docs), `diff main dev` empty, no tag.
+   Mirror (user-confirmed): `sync_github.sh` exit 0, GitHub main
+   `c539b34 → d2affd2` (differs from Gitea by design); public gate passed —
+   no `.kilo`/`.vscode`/`.private`/`openwiki`/`AGENTS.md`/`.openwikiignore`,
+   `.github` holds only `ISSUE_TEMPLATE`, CHANGELOG entry + test file
+   (blob `d6b8a8f`, byte-identical to the PR's) present on GitHub main.
+   PR close (user-confirmed text): comment posted
+   (`6328695558`), PR closed without merge 2026-10-21T23:16:54Z via API —
+   the S2 401 credential issue did not recur. Status DELIVERED.

@@ -111,7 +111,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The cron-driven batch mode (`BillCollector.sh` + cron, a headless
   `docker run` per cron tick) is superseded by the daemon (per-task
   scheduling, live supervision, pause-and-step-in) and marked deprecated in
-  the README. The wrapper keeps working unchanged as the rollback path.
+  the README. The wrapper keeps working as the rollback path (its flock and
+  `docker run` behavior is unchanged); it now prints a deprecation notice to
+  stderr on every start.
 
 ### Removed
 

@@ -201,7 +201,7 @@ Now that we have done a good job installing all the prerequisites, we are focusi
 Pause notifications go to the public [ntfy.sh](https://ntfy.sh) by default. To run your own push server in the same stack:
 
 1. Add `NTFY_HOST=http://ntfy` to the root `.env` (optional: `NTFY_BASE_URL=http://<your-host>:2086` for LAN-absolute deep links).
-2. Start the stack with `docker compose --profile ntfy up -d` - the `ntfy` service (image `ntfy.sh/ntfy`, port `2086`) comes up together with BillCollector.
+2. Start the stack with `docker compose --profile ntfy up -d` - the `ntfy` service (image `ntfy/ntfy`, port `2086`) comes up together with BillCollector.
 
 ## Daemon Mode
 

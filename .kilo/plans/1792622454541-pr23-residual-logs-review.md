@@ -237,3 +237,8 @@ All green → Status: VALIDATED.
    the two verbatim files, documented vault-Settings region only for
    runner.py). Deployment-validation skip user-confirmed 01:03 CEST.
    Status VALIDATED; tree still dirty/uncommitted for S7.
+- **S6 (2026-10-22)**: docs verified, no edits needed — CHANGELOG entry in
+   the working tree word-identical to the PR head's (top of
+   `Unreleased → Fixed`, Keep a Changelog order intact, sanitized); no
+   README/CONTRIBUTING impact (log-content change only). User-confirmed;
+   S7 runs on the next "continue PR #23".

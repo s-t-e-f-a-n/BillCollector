@@ -11,9 +11,12 @@ paths are redirected to ``/login``.
 
 M4 C2 (decision 1): while first-start onboarding is active (the
 ``onboarding_done`` Settings key is not ``1``), authenticated requests
-to any path except ``/onboarding`` redirect to the wizard; serve startup
-auto-completes it for upgraded installs (a hash exists and at least one
-task is enabled) so an existing deployment is not interrupted.
+to any non-public path except ``/onboarding`` redirect to the wizard;
+public paths (NiceGUI static files, ``/_alive``, the socket mount) must
+pass through or a page would not load its own JS/CSS dependencies and
+would render as a dead ES-modules fallback. Serve startup auto-completes
+it for upgraded installs, so the page is normally only seen on a fresh
+first start.
 """
 
 import logging
@@ -128,8 +131,8 @@ def is_public_path(path: str) -> bool:
 class AuthRedirectMiddleware(BaseHTTPMiddleware):
     """Redirect unauthenticated requests to /login; public paths pass through.
 
-    While onboarding is active (M4 C2), authenticated requests to any path
-    except /onboarding redirect to the wizard instead.
+    While onboarding is active (M4 C2), authenticated requests to any
+    non-public path except /onboarding redirect to the wizard instead.
 
     Must sit inside the SessionMiddleware (register it first, see
     :func:`register_auth`). Non-HTTP scopes (websocket, lifespan) pass
@@ -145,6 +148,7 @@ class AuthRedirectMiddleware(BaseHTTPMiddleware):
                 and not request.session.get("authenticated"):
             return RedirectResponse(url="/login", status_code=307)
         if request.session.get("authenticated") \
+                and not is_public_path(request.url.path) \
                 and request.url.path != "/onboarding" \
                 and is_onboarding_active(self.db):
             return RedirectResponse(url="/onboarding", status_code=307)

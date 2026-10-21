@@ -135,6 +135,31 @@ async def test_git_commit_switch_round_trips(user, testdb):
     assert testdb.get_setting("git_commit_enabled") == "false"
 
 
+async def test_vault_fields_round_trip_and_allow_empty(user, testdb):
+    """The vault fields write their Settings rows; clearing one is valid
+    (empty = environment fallback), unlike the required text fields
+    (M4 C1)."""
+    await _login(user, testdb)
+    await user.open("/settings")
+
+    assert _field(user, "vault_api_url").value == ""
+    _field(user, "vault_api_url").value = "http://192.168.1.20:6100"
+    user.find(marker="set-save-vault_api_url").click()
+    assert testdb.get_setting("vault_api_url") == "http://192.168.1.20:6100"
+    assert user.notify.contains("vault_api_url saved")
+
+    _field(user, "vault_api_url").value = "   "
+    user.find(marker="set-save-vault_api_url").click()
+    assert testdb.get_setting("vault_api_url") == ""
+
+    _field(user, "vault_api_host").value = "vault.local"
+    user.find(marker="set-save-vault_api_host").click()
+    assert testdb.get_setting("vault_api_host") == "vault.local"
+
+    await user.open("/settings")  # reload: the value comes from the table
+    assert _field(user, "vault_api_host").value == "vault.local"
+
+
 async def test_password_change_rejects_the_old_and_accepts_the_new(
         user, testdb):
     """The change form writes the new bcrypt hash; the old password is

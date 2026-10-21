@@ -6,7 +6,9 @@
 ``ntfy_topic``, ``pause_deadline_seconds``, ``max_concurrency`` (takes
 effect on the next daemon start - the semaphore is built at
 construction), ``git_commit_enabled``, ``download_dir``,
-``display_start``, ``ui_base_url``, and ``vnc_password``. Each field
+``display_start``, ``ui_base_url``, ``vnc_password``, and the vault API
+``vault_api_url`` / ``vault_api_host`` (M4 C1: empty falls back to the
+``BW_API_URL`` / ``BW_API_HOST`` environment values). Each field
 writes its own Settings row on save (a ``ui.notify`` confirms), so a
 field that fails validation (non-integer, non-positive, or empty where
 required) is the only one not written.
@@ -20,8 +22,9 @@ from .auth import MIN_PASSWORD_LENGTH, hash_password, require_auth, set_password
 from .layout import build_layout
 
 # (key, label, kind, hint): one row per daemon setting. ``kind`` drives
-# the input element and the validation: ``text`` (non-empty), ``int``
-# (positive integer), ``password`` (any value, empty allowed).
+# the input element and the validation: ``text`` (non-empty),
+# ``optional_text`` (empty allowed - env fallback), ``int`` (positive
+# integer), ``password`` (any value, empty allowed).
 FIELDS = (
     ("ntfy_topic", "ntfy topic", "text", ""),
     ("pause_deadline_seconds", "Pause deadline (seconds)", "int", ""),
@@ -31,6 +34,10 @@ FIELDS = (
     ("download_dir", "Download directory", "text", ""),
     ("ui_base_url", "UI base URL", "text", ""),
     ("vnc_password", "VNC password", "password", ""),
+    ("vault_api_url", "Vault API URL", "optional_text",
+     "Empty: use the BW_API_URL environment value."),
+    ("vault_api_host", "Vault API host", "optional_text",
+     "Optional Host header override; empty: the URL's host."),
 )
 
 
@@ -38,7 +45,9 @@ def _validate(key: str, kind: str, value):
     """Normalize a field value for the Settings table.
 
     Returns the string to store, or ``None`` when the value is invalid
-    (the caller surfaces the error and writes nothing)."""
+    (the caller surfaces the error and writes nothing). ``optional_text``
+    accepts the empty value (clearing a field falls back to the
+    environment); required ``text`` does not."""
     if kind == "int":
         try:
             number = int(str(value).strip())
@@ -47,6 +56,8 @@ def _validate(key: str, kind: str, value):
         return str(number) if number > 0 else None
     if kind == "password":
         return str(value)
+    if kind == "optional_text":
+        return str(value or "").strip()
     # text
     text = str(value).strip()
     return text if text else None

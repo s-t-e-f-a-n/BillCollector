@@ -76,6 +76,24 @@ def env(name: str, default=None):
     """Read an environment variable (call :func:`load_env` first at startup)."""
     return os.environ.get(name, default)
 
+
+def vault_settings(db) -> tuple[str, str]:
+    """The effective vault API ``(url, host)`` for a run or a check.
+
+    Per key, a non-empty Settings value (``vault_api_url`` /
+    ``vault_api_host``) wins over the environment (``BW_API_URL`` /
+    ``BW_API_HOST``); an empty result means unset for that key. The two
+    Settings keys are deliberately absent from DEFAULT_SETTINGS: a missing
+    row means "use the environment" (legacy env-only deployments)."""
+    def resolve(key: str, env_name: str) -> str:
+        value = db.get_setting(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+        return str(os.environ.get(env_name) or "").strip()
+    return (resolve("vault_api_url", "BW_API_URL"),
+            resolve("vault_api_host", "BW_API_HOST"))
+
+
 def chromium_args() -> list[str]:
     """Additional Chromium launch arguments, space-separated, from BC_CHROMIUM_ARGS.
 

@@ -202,15 +202,23 @@ def _ensure_logging():
             format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
 
-def _vault_preflight(task):
-    """Production vault preflight for one task: pinned local API URL, an
-    ``unlocked`` status, and the task's credentials.
+def _vault_preflight(task, db):
+    """Production vault preflight for one task: the effective (Settings or
+    env) API URL, a pinned local target, an ``unlocked`` status, and the
+    task's credentials.
 
-    Returns the credentials dict; raises VaultAPIError/VaultTransportError
-    on any failure (the caller maps that to a failed run)."""
-    api_url = config.env("BW_API_URL")
+    The effective (url, host) pair from ``config.vault_settings`` is
+    exported into ``os.environ`` before the vault calls, so the vault
+    transport's ``BW_API_HOST`` read (and any other env-only consumer in
+    this process) sees the same values the preflight validated. Returns
+    the credentials dict; raises VaultAPIError/VaultTransportError on any
+    failure (the caller maps that to a failed run)."""
+    api_url, api_host = config.vault_settings(db)
     if not api_url:
-        raise VaultTransportError("BW_API_URL is not set")
+        raise VaultTransportError(
+            "vault API URL is not set (Settings vault_api_url or BW_API_URL)")
+    os.environ["BW_API_URL"] = api_url
+    os.environ["BW_API_HOST"] = api_host
     pinned_api_url(api_url, VAULT_MAX_ATTEMPTS, VAULT_RETRY_BACKOFF)
     ret, status = bitwarden_api_check_status(api_url)
     if not ret or status != "unlocked":
@@ -813,7 +821,13 @@ def run_task(task_id: int, debug: bool = False) -> int:
 
         result = "failure"
         files = []
-        api_url = config.env("BW_API_URL")
+        # The effective vault API values (Settings win over env) are exported
+        # into the process environment before any vault call, so the vault
+        # transport's BW_API_HOST read and the run context's TOTP re-fetch
+        # both see them; empty values keep the legacy env-only behavior.
+        api_url, api_host = config.vault_settings(db)
+        os.environ["BW_API_URL"] = api_url
+        os.environ["BW_API_HOST"] = api_host
         children = None
         run_id = None
         try:
@@ -829,7 +843,7 @@ def run_task(task_id: int, debug: bool = False) -> int:
             try:
                 children = _start_display_stack(db, run_id, display_number)
                 os.environ["DISPLAY"] = f":{display_number}"
-                credentials = _vault_preflight(task)
+                credentials = _vault_preflight(task, db)
                 ctx = _RunContext(task, run_id, db, debug, credentials, api_url)
                 files, aborted, pause_outcome = _run_recipe(ctx, recipe)
                 result = run_result(aborted, files, pause_outcome)

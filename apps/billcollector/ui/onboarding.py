@@ -71,9 +71,11 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
 
         effective_url, effective_host = config.vault_settings(db)
 
-        with ui.stepper().classes("w-full").props("padding='8px'"):
+        stepper = ui.stepper() \
+            .classes("w-full").props("padding='8px' header-nav")
+        with stepper:
             # ---- Step 1: Vault --------------------------------------------
-            with ui.step("Vault", "1"):
+            with ui.step("Vault", "Vault"):
                 ui.label("Vaultwarden (bw serve) API").classes("text-subtitle1")
                 ui.label(
                     "The local vault API the runs read their portal "
@@ -156,8 +158,18 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                 check_btn.on("click", on_check)
                 save_btn.on("click", on_vault_save)
 
+                with ui.stepper_navigation().classes("items-center"):
+                    continue_btn = ui.button("Continue").mark(
+                        "onb-continue-vault")
+
+                def on_continue_vault(_e=None) -> None:
+                    """Move to the tasks step (the vault is optional)."""
+                    stepper.value = "Tasks"
+
+                continue_btn.on("click", on_continue_vault)
+
             # ---- Step 2: Tasks --------------------------------------------
-            with ui.step("Tasks", "2"):
+            with ui.step("Tasks", "Tasks"):
                 ui.label("Tasks").classes("text-subtitle1")
                 ui.label(
                     "Import the tasks from your INI file or create one "
@@ -278,8 +290,23 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
 
                 add_btn.on("click", on_add_task)
 
+                with ui.stepper_navigation().classes("items-center"):
+                    back_btn = ui.button("Back").props("flat").mark(
+                        "onb-back-tasks")
+                    continue_btn = ui.button("Continue").mark(
+                        "onb-continue-tasks")
+
+                def on_back_tasks(_e=None) -> None:
+                    stepper.value = "Vault"
+
+                def on_continue_tasks(_e=None) -> None:
+                    stepper.value = "Finish"
+
+                back_btn.on("click", on_back_tasks)
+                continue_btn.on("click", on_continue_tasks)
+
             # ---- Step 3: Finish -------------------------------------------
-            with ui.step("Finish", "3"):
+            with ui.step("Finish", "Finish"):
                 ui.label("Finish").classes("text-subtitle1")
 
                 tasks = db.list_tasks()
@@ -301,11 +328,18 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                     "vault API) and on the dashboard (per-task cron and "
                     "enabled)."
                 ).classes("text-grey-6 text-sm")
-                finish_btn = ui.button("Finish onboarding").mark(
-                    "onb-finish")
+                with ui.stepper_navigation().classes("items-center"):
+                    back_btn = ui.button("Back").props("flat").mark(
+                        "onb-back-finish")
+                    finish_btn = ui.button("Finish onboarding").mark(
+                        "onb-finish")
+
+                def on_back_finish(_e=None) -> None:
+                    stepper.value = "Tasks"
 
                 def on_finish(_e=None) -> None:
                     db.set_setting("onboarding_done", "1")
                     ui.navigate.to("/")
 
+                back_btn.on("click", on_back_finish)
                 finish_btn.on("click", on_finish)

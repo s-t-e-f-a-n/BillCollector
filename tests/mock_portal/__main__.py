@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Run the mock portal from the repo root:
 
-    python3 -m tests.mock_portal [--port 8787]
+    python3 -m tests.mock_portal [--host 127.0.0.1] [--port 8787]
 """
 
 import argparse
@@ -14,10 +14,14 @@ from .app import create_app
 
 def main():
     parser = argparse.ArgumentParser(description="BillCollector mock portal")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="listen host (default 127.0.0.1; use 0.0.0.0 so a "
+                             "containerized BillCollector can reach it via "
+                             "host.docker.internal)")
     parser.add_argument("--port", type=int, default=PORT_DEFAULT,
                         help=f"listen port (default {PORT_DEFAULT})")
     args = parser.parse_args()
-    uvicorn.run(create_app(), host="127.0.0.1", port=args.port, log_level="warning")
+    uvicorn.run(create_app(), host=args.host, port=args.port, log_level="warning")
 
 
 if __name__ == "__main__":

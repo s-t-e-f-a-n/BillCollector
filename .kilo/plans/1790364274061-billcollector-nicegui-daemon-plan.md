@@ -117,9 +117,10 @@ Consequences:
 ## Wave 1 — objective and acceptance
 
 **Scope:** M1 (daemon core) + M2 (UI core) + M3 (interactive sessions). M0, M1, M2
-and M3 are done (status below); the live Wave 1 exit pass is complete
-(2026-10-18) and the NAS deploy (Post-Wave 1 item C) is the remaining half of the
-Wave 1 exit; M4 (adoption for other users) is done (exit pass passed
+and M3 are done (status below); the Wave 1 exit is complete — the live exit pass
+(2026-10-18) and the NAS deploy + daemon cutover (Post-Wave 1 item C,
+2026-10-22, `.kilo/plans/completed/1792384312843-wave1-nas-deploy.md`);
+M4 (adoption for other users) is done (exit pass passed
 2026-10-21) and the post-Wave 1 flowcool concessions are the remaining
 follow-ups.
 Wave 1's focus is the three current complicating circumstances, each made operable by a
@@ -1255,9 +1256,11 @@ timezone from the daemon's locale.
 
 **C — Deploy timeline (PS: "2–3 more days").** Not a feature: the in-progress daemon
 deployment (Wave 1 exit = the M3 Wave 1 exit pass + the NAS deploy via the deploy
-skill). No new work beyond finishing that. Status (2026-10-18): the pass half is
-done (the M3 Wave 1 exit pass, live pass 1); the NAS deploy via the deploy skill is
-the open half.
+skill). No new work beyond finishing that. Status (2026-10-22): done — the M3
+Wave 1 exit pass (live pass 1, 2026-10-18) and the NAS deploy + daemon cutover
+(2026-10-22, `.kilo/plans/completed/1792384312843-wave1-nas-deploy.md`,
+DELIVERED). Item C closed; the daemon is the production scheduler and the
+legacy cron is retired.
 
 **Confirmed decisions**
 

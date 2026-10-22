@@ -1,8 +1,8 @@
 # PR #22 review — phased login with a durable failure budget
 
-> Status: AWAITING-DECISION (2026-10-22) — S2 plan complete: verdict
-> approve with maintainer changes; per-file integration plan and validation
-> plan finalized; awaiting user decision.
+> Status: INTEGRATING (2026-10-22) — S4 done: preflight passed (head
+> 58f569a unchanged, pre-images re-verified), 13 files applied to the dev
+> working tree per the confirmed S3 proposal; uncommitted, awaiting S5.
 
 ## PR metadata
 
@@ -290,6 +290,21 @@ Commits to create in S7 (dev-commits, one concern each):
    `tests/test_bc_ui_task_detail.py`.
 3. `doc:` docs — `doc/SAFE_LOGIN.md` (with the maintainer edit) +
    `CHANGELOG.md` entry.
+
+S4 execution (2026-10-22, head re-verified `58f569a`):
+
+- 8 clean-pre-image files + `login.py` + `test_bc_login.py` written
+  byte-for-byte from `refs/pr/22` (verified identical to the head blobs).
+- `runner.py`: author diff applied with `git apply --3way` (clean); the
+  import block carries both the dev redaction import and the PR login
+  import; all dev M4 vault/redaction changes preserved.
+- `db.py`: PR head content with dev's `import_ini(..., force=False)`
+  restored (the one confirmed conflict); diff vs the PR head is exactly
+  that hunk.
+- `doc/SAFE_LOGIN.md`: PR head content with the line-6 sentence updated
+  to the agreed wording (the only diff vs the PR head).
+- All 11 changed/added `.py` files compile (`py_compile`). Tree left
+  uncommitted for S5 validation.
 
 ## Validation plan
 

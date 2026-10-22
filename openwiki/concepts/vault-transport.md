@@ -3,9 +3,6 @@ type: concept
 title: Vault Transport and Security
 description: "How BillCollector connects to the local vault API: BW_API_URL must be plain HTTP resolving only to loopback/private addresses, per-attempt DNS vetting with pinned numeric targets, proxy bypass and redirect refusal, and the VaultAPIError timeout/retry/4xx semantics in billcollector/vault.py."
 tags: [vault, security, dns-vetting, transport, http, bitwarden]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-16T23:42:23.422Z
 sources:
   - id: openwiki-source-34ac71861bffa2962326b678
     resource: repo://apps/BillCollector.py

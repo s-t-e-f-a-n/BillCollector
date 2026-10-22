@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:eee68261f3cd0abd7851cbc588ad0f28349bd4b8ccade29b29a45db93bd30e6d",
+  "pageVersion": "sha256:514bcce5e292201ca97b39a52533dced5eea2473a6af181a87e8654687503a1d",
   "claims": [
     {
       "id": "claim_999f9844c7e845b1ac15dcedd190b3d4",
@@ -27,7 +27,7 @@
       "statement": "The legacy batch schema (a Service registry table plus one PageStatus_<service>_RunN table per run) is created by DatabaseManager in apps/BillCollectorServices_pw.py in the same bc.db file and is left untouched by the daemon; it holds runtime status, not an archive.",
       "evidence": [
         {
-          "resource": "repo://apps/BillCollectorServices_pw.py#L59-L111",
+          "resource": "repo://apps/BillCollectorServices_pw.py#L60-L112",
           "version": "repo-lines-v1:sha256:1fcfb877fae1f955531dc117e7689576477cec89f51fa11d5cd256c2a0c55471:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA4NjQ0MjM3NDQ0ZTkyNzcyOGI5MzY4ZTg2YzgwYmNjMjRkZjJmNWZmZTE3ODVlMjJhNzVjNWY5OWY0MWJmZGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEwZTViOGMwNzEyZmM5NmNlMmRlMDRiNzcwYjVkOGJiZTU3ZDNkN2I1YmRjZGJhMzgxYTIyMTUzMzhhMWQ5NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdiZGE1N2Y4M2Y5YmI1NjMzYTAxZDAxMDU4OGI4MDZjMDc1Y2ZmMzU2ODMxNzJhM2VlOTY2NWI1YmMyY2RjZTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0ZGI2ZTUwNDhlNjFhNmU2ZThhNWQzYWJjMTdhNmY4ZGViYWQ5ODc1MGQxYmI2ZDI2Nzg0NTNlYzliNTU4NWEifQ"
         },
         {
@@ -55,15 +55,15 @@
       "statement": "Run.result starts NULL for an active run and always ends with a terminal value (success, failure, interrupted, cancelled, needs_attention); list_active_runs() is defined as result IS NULL and paused runs are recognized as result IS NULL AND pause_reason IS NOT NULL.",
       "evidence": [
         {
-          "resource": "repo://apps/billcollector/db.py#L262-L272",
+          "resource": "repo://apps/billcollector/db.py#L270-L280",
           "version": "repo-lines-v1:sha256:19b9b68a5b42b7834985c7b274e560c1e90c46cf5edb37c260c4ba5ec9f9d97b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhYzg2NTkwMTg4YTk2OGUzZTJkMzkyNzc5ZDA5NDEwNTI4NDA4NDlhZjkzNWM0OWRhNzJiMTQ5MTMwZTJiNTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0ODdlYTA5N2NhZjlkZjUyMmJiYjgxODZiNTNiYTIxMGM3NjdmN2UxZTEzZWJiNjJhZmQ2ZTE4OWFhM2UzZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk2ZWM0MmM3NjhiM2M3MmNjMDM4MTdlMGQxYmUyZDZiNjM1Y2QxNWNiZmE5NGU1NzYxY2VhNWMwY2E5YjU5ODAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlNjBjNjk2Y2U0MTA0MDc4ODU1OGE0NDUyM2Q4NTJhZGY4ZDBjZDdhNmNhMDVjZjBlNWNhZDlkZTFlOTRjMjEifQ"
         },
         {
-          "resource": "repo://apps/billcollector/runner.py#L117-L135",
+          "resource": "repo://apps/billcollector/runner.py#L118-L136",
           "version": "repo-lines-v1:sha256:bd9f0a178710323455dc7f14688a4f80e073ed35a84c6cce5481e453ef40d6ee:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0NDVlMzllM2VlMzQzYWMyYjFmZDRmMjFjNDA2ZjkzOWRlMWUyM2M0YTljNTdhNTM5ZWE1YmVkZmZhMGUzZjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhZmRjMGJkOGYwYjE1NGFjNTdiZDg3ZjdmOGVhZDBhMDkxMzBmMzFkYzFjZTFjMmExYWI2ZDBmMTNjNWExOGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQzMjQwMGRkNjZkODFmMzFkN2MyMDUyNTM2ZGM2ZTM5NzZhMDhlZjRlNDg2MzgzMWIzYmVmNWYyYWE1MDI0MWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAyYzQ3NmNhNzUwZWNjZjQ3Y2YyMjdjYjlhNzRiMjVlMzk0YWQyMWViOWUzNmQ0Njg5MjI4Mjg2YTNkMDYzNmIifQ"
         },
         {
-          "resource": "repo://apps/billcollector/runner.py#L843-L857",
+          "resource": "repo://apps/billcollector/runner.py#L872-L886",
           "version": "repo-lines-v1:sha256:924eff281c68554145166d903dc1b83e13d547df47aabbdeb36a1d3115ae3271:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYxOGFkZjZiNDAyZTQ3MWI1OTA4ZDQ1NjY2YzFmYzU3NmZmMjY0MGQ2NjQ4OTVhNmI3Nzg0OTk3Y2QyMmVmYTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM0MTI3NmFmYWE1YWUyYzQ4NDM2MTNmNTdiODFjZGE3MThjN2EwZGQ0NDc3YTkyYTgxMzE5ZDViMDEzYWIyZTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRmZWE5MzFjN2E1ZmUyNzNmOTRjNDc5MTUzMWM1ODE2OTUwYTExZGI2MGQ2ZDkyMTJmMGU3YzRhOGRhODkxMmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNjYTNhZDE4MGVkOGY3M2ZiZWNhNDg2YWRjMzRkMjE2MzgyM2IzNzk5NDA1MTA4ZTk1MTQwZmVkNWFmMTNkOWIifQ"
         }
       ]
@@ -77,11 +77,11 @@
           "version": "repo-lines-v1:sha256:ec6c94ed6e48927901e9b4b447ded91f7a61b3840dac20584ddf7e2d585baa4f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2Njg5ZjViOGY3MTliMDZmMjRhYjY1OTAwNmI2NTYzZTJmZWE4ZWY0Zjg3YjQ2NGE1MjVhMDMzYjY3YTRlZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0MDY3MTg4YzFhYzdlODcyYTNlZDFjZGQ5ZDY4NzNiYjVkZmY3NjYwYzc4OThhYTViMTc3MjhlOGJlMDY5NTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNlZjZjYmVlOTRlNWRiOTliYmEyNjZkNTZjZGQzODc0NWRmOWQxNTI2NmJhYTMyMzliZWY3ZTUxMWQ2OGFiOWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkzNmM4ZmQ1YmY3YjAzNDY2YzlkZTczNjI5OTFlODhiMzIyZTlhNmJjNzkxNGVmZTI0YzAxZDJhZjYyMDUxYzkifQ"
         },
         {
-          "resource": "repo://apps/billcollector/pause.py#L164-L174",
+          "resource": "repo://apps/billcollector/pause.py#L167-L177",
           "version": "repo-lines-v1:sha256:5969a3762a447c215c80f626d9927b86e60d66198f416fd7cc94f41a657a8876:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY1NmI3ZDliYzRlNjFlZjBlODVhZjMxOTA4MGY4OGFhYTRkYTFkOTY2YmU4NjFhNTgyMzU3NzJmNDQ5M2VmNjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRhZDFjMDJhMTAzOTc1YTc0NTkyZDdlMzUzNzY0ZTQ1ZDAwNTk4NzdkZDMxZWYxYzI1NDFlNzNkMzJmNzQ3MTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRmYmQwMDkzMTRiYzI3MDg0MTY3MzRhMDJhZTVmZjM5YTFlNDhhMDUwYmU5MWY0M2IyZmFhOTIwMDJjNjJiZmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU3ZTE4ZDI4MzRhY2ZjZWE2NTEzMjI4NTNiNWM2YjgxY2VhNzVmOGJlZWUyNzgyNmViYjRmNmEyNzAzOTQxZDcifQ"
         },
         {
-          "resource": "repo://apps/billcollector/runner.py#L853-L857",
+          "resource": "repo://apps/billcollector/runner.py#L882-L886",
           "version": "repo-lines-v1:sha256:83ad62cf2eb0c6504a4e9c0d1d89419240d2322b67e305249b4c80378de5fd20:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTViYTFiMzY5ZDgyM2NlMGM4MGE3ZmRjOWUzMzczMTEyZmJkNTUxYTFmZjRiMThkNjEyYmFkOThhZTlmOTJlYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzQxMjc2YWZhYTVhZTJjNDg0MzYxM2Y1N2I4MWNkYTcxOGM3YTBkZDQ0NzdhOTJhODEzMTlkNWIwMTNhYjJlMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzYxY2U5OWRmNTlhNTQ2ZTYwZmYyNjQ0MjY2OWVhMjcyYTY5NGI3YzhiOTZjMzc2MmI5NmQzYjNlYmU3OThmNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiM2NhM2FkMTgwZWQ4ZjczZmJlY2E0ODZhZGMzNGQyMTYzODIzYjM3OTk0MDUxMDhlOTUxNDBmZWQ1YWYxM2Q5YiJ9"
         }
       ]
@@ -151,7 +151,7 @@
           "version": "repo-lines-v1:sha256:d5d42c6ff7f6a2ff0e871d908ef5fabb866715dc51f6d93286ad5c7f82955121:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTk4MTU3ZjNhNTY2YjRmM2Q5YzI3YTRmYmUxMmQ3MDBlMGJmMWExODVhYzgzNmI3ODEyMWM3OWFhMGUyZWVmZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzc4ZDBlMGQxODIzODVkZGI5ZDQ4NDJmZjEwMDc4MmRhNzJhZWVlNTViODVkMTEzOGJhN2Q4YzNiZTZhMjRjYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjFjNDRhZjMwYTk3ZjYzYTY0MTgyMTVkMTlkMGNiMGI5NWMxNmQzYTA1NmFhN2RkNDAxNzE3NGZiNDg0ZWUyNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNhYmYxNTMwNGRlYjJjMTA5Y2ZiMzQ0MWVhMDkwMjA0ODRjMGIxYWRjMzZjODg4ZjliMGUxYmFkNDJjZDVjMiJ9"
         },
         {
-          "resource": "repo://apps/billcollector/pause.py#L280-L289",
+          "resource": "repo://apps/billcollector/pause.py#L283-L292",
           "version": "repo-lines-v1:sha256:fd1569b99d042a8e1fad310af73acb659e57ffb126d2015125ec38d2c0d7d168:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzZTBkYjNiODc2Y2Y5ODA0M2EyNDdlNTFlMGI5YWY3ZDJlZTMzZThmYTRiYWEwY2M3NjNmZWNhMWZkYzFjZTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4MGI2YTIzMjc0M2E5OTk5ZTgyZWEwNjZjNGU1OGE1MmRhYjdhMDgyYWJkMGIwZWY3ODc1YjE1Y2VlYjI0NGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA0YmQxYzg4NzRiNzljOTUyZmYxMzg4YzFiZmU2NzZmZWMzNWQ4NjFiODdjNTM4YTc0YTZiZWMwZDEwNWUwOWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNhODhiY2E0OGJmMjBlYzZjODFjOTU1NDUxMGI2MDU4Yzg5MDZmZWZmOTdhYjhjZmZkYzM2ZWZjNDBhMzJhYWQifQ"
         }
       ]
@@ -189,7 +189,7 @@
       "statement": "Recipe files are named recipe-pw__<service>.yaml (lowercased, spaces as underscores) and resolved by config.recipe_path_for; both the batch entry point and the daemon runner validate them with helpers CheckRecipe against the shared schema at run start, and an invalid recipe aborts the run (the batch pair fails; the runner exits 1).",
       "evidence": [
         {
-          "resource": "repo://apps/BillCollectorServices_pw.py#L176-L179",
+          "resource": "repo://apps/BillCollectorServices_pw.py#L177-L180",
           "version": "repo-lines-v1:sha256:ee153436c02aafcd2da787c6a7fda145dd9c3c6a5d6661196f6eaf151cda4199:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTJmY2JkYTkyY2IzM2QyOGE4MWFlOGZmZWFiYTU0YTRlN2E4MDg1ZTk2YzRjM2YxZTYyZjYyOGUzN2E5YTBjZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMmE5ZjFiYTQ2MDAyMDM1MzQyNmNjMWVmY2Q0YTFmNDc5ZjI3MjQyM2Q1NTY5ODliZjBhNDZkMWM1ZTM2NmJhNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjUxYjc3N2ViZWRmMjE1NGJlMTI3YmRhMzU4YTFhMmIyYmZjYjY1N2IxZmQ1YjRiYzhhY2NkMjA2MzczZWFhZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGQwNGM0OWExZDdmZGI3MGMxMGQzNTkxOTg3ZDJmYmU2Y2M2YmU0NTIxMGNjZDhmM2VmNjVjZmYwOGVlMDEwYyJ9"
         },
         {
@@ -197,11 +197,11 @@
           "version": "repo-lines-v1:sha256:865e747ea79ffdc676cb94632b03d8951d19f377ca8bab191fa9a3d62a208faa:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTBkM2Q0YmVjMTM1ZDU3Y2YzMGVlZDQ0ODc4MGE0NzA3OTJjNTJkOTdiMWFhZjQ1ZGRkODA0MDc0YzNkZDA3NSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiN2U3NjlkNTU2ZjRmMDE2MDc5ZGVmNWJjOWE1ZjI4ZDU4NTY3MzdlNmFhYzQ5YWRjMThiZjJjOWQyNTEwMTAxMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzEwMWIzYzFhYjU0ZDZhZWVmMDM1NWNlZGZjOGVjOTU3MGFmZmUxMjIzNDFlMjg0N2QyNWVhYjAwYWMzMTMxNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOWVjZjc4ZmE5MjZlOGZkMjE5ZjY4NjYxMmU3NGE4MDY0ODU2MjViMzBmNGQ0Yjk0NzdkYjA3MDA3YTMwNjExNyJ9"
         },
         {
-          "resource": "repo://apps/billcollector/config.py#L90-L92",
+          "resource": "repo://apps/billcollector/config.py#L108-L110",
           "version": "repo-lines-v1:sha256:e30216a20864aa2ec8166219d0c221a5f4d1b222fa87d10399f0aadce1e2ce03:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZWNmMDc4MjRiMTQ1YzE4M2YzMGRhMzJkZWY1OTdlNzlkZmY2NjM2NDJmYmNkMDJmYzJkYmQ1ODY0Yjg5NTQyMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTk5NDM2ZTMxYzZmOTJmYmQ0ZjMxZWI1NGEzMDk1OWM4OWQxN2FkZThmYzQ3MTcxZmRhZjFjYmZiM2Q3ZGE3OSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTIzZjEyNWRlNjAwNTQxZjBkZjM3YTFhOTg1YmU3OWY2YjkwOTRmNjYyODk2ZTdiNjExNzM1OWFkNjBlOWU2NCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTNjNTAwNzdmMWM3MTJhOGZkMzZmYzQ0NDNkYmMwZTc0M2I5YmQ0YTdmMGE0OGNiY2FjOGU1MTUxZjBjZDBlMiJ9"
         },
         {
-          "resource": "repo://apps/billcollector/runner.py#L785-L789",
+          "resource": "repo://apps/billcollector/runner.py#L807-L811",
           "version": "repo-lines-v1:sha256:a4a81c4a9022453980008bb64ae20f369ac6dc6277b8311a180dd36f6f76399b:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjIwNmRjMDkyZmVkY2VjZjRiMTk4YzE1YmRmODdiNjhjM2Y3MmM0Zjk4YjE5NDUxMzMzODBhYTIzYmM3Zjk1MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiM2U3NTk2MmNmODdkYmJiMzU2Mzk0YTcxNzMzOTFkMzU4MDFjZTk0NzZhYjIzZThkOTMwZDkyODZjMDZlOGFhNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjJhMDE3ZGU2MDI3MDQxYWM4ODQ3ODA4NDQyZWIyZWJkMDAyZmIwYzFhYWMwZDEyYTNkOThlMTVjY2NjNTllMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTM0MDY3YzU1ZTVjZDNmMDI4Nzc1YjUyM2I3MzI4ZGVmZGI5ZTIyODA5Y2M2MDUyMmMzYzg2OGIxMzZlYTE5MCJ9"
         }
       ]
@@ -211,11 +211,11 @@
       "statement": "The graceful flag has one contract-level meaning implemented identically by both step loops: graceful true records the step failure (log and DB) and continues with the next step, while graceful false (the default) aborts the run.",
       "evidence": [
         {
-          "resource": "repo://apps/BillCollectorServices_pw.py#L367-L378",
+          "resource": "repo://apps/BillCollectorServices_pw.py#L370-L381",
           "version": "repo-lines-v1:sha256:67ca50e5184f5f724929628ae82d368f0dad050945bc7828f3028380d4b46757:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkZDgyZGNkMTQxMTg4MTgzNjRkZWJkMTgwNDk5ZjViYjBhN2Q4YzI0MzM3NzBlNzQwNWQ3NThmMDMxMjc5NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1OWZlNzdiOWY1MjUyZDBlOWIxMDAyMmIwZWI0YzkyZjFjMDI5YzE1OGRmMDE0NzIwM2VmYzMyYWNlNDgzZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNkNDY2NDg4ZTE1ODZmNDVlZTI5YWE1YmJkYmRjNjljMmYwOTAyYzA1MzE3YWFiZTc1YmZmOTUxZjFhNGQ2OWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdhZmEyNGFhNzc4YTYxNDc1YTA5NmE5ZDJkZDNkYTU4NjFmYzE1N2ZjZjUzZDEyODljYzBkM2YzYmVlOWMxOGEifQ"
         },
         {
-          "resource": "repo://apps/billcollector/runner.py#L368-L379",
+          "resource": "repo://apps/billcollector/runner.py#L378-L389",
           "version": "repo-lines-v1:sha256:67ca50e5184f5f724929628ae82d368f0dad050945bc7828f3028380d4b46757:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkZDgyZGNkMTQxMTg4MTgzNjRkZWJkMTgwNDk5ZjViYjBhN2Q4YzI0MzM3NzBlNzQwNWQ3NThmMDMxMjc5NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1OWZlNzdiOWY1MjUyZDBlOWIxMDAyMmIwZWI0YzkyZjFjMDI5YzE1OGRmMDE0NzIwM2VmYzMyYWNlNDgzZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNkNDY2NDg4ZTE1ODZmNDVlZTI5YWE1YmJkYmRjNjljMmYwOTAyYzA1MzE3YWFiZTc1YmZmOTUxZjFhNGQ2OWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdhZmEyNGFhNzc4YTYxNDc1YTA5NmE5ZDJkZDNkYTU4NjFmYzE1N2ZjZjUzZDEyODljYzBkM2YzYmVlOWMxOGEifQ"
         }
       ]
@@ -243,7 +243,7 @@
       "statement": "Batch exit-code contract: apps/BillCollector.py exits 0 only when every service/user pair succeeded and exits 1 if any pair failed (per-pair failure isolation continues the loop), on vault preflight failure (pinned local URL, unlocked status, /sync), unreadable INI, or usage errors; a second concurrent start is refused with exit 1 by the flock in BillCollector.sh and acquire_run_lock.",
       "evidence": [
         {
-          "resource": "repo://BillCollector.sh#L9-L22",
+          "resource": "repo://BillCollector.sh#L17-L30",
           "version": "repo-lines-v1:sha256:0f519ebe7ab72b7180a13d80e1639ee0eddc8ee80236f20231c0470163ea7ad5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxMzg1MDUyMzdlYTkyZTBkMmI5YTUwZDQ0ZTI2Y2U2OTVlYmY0OTM3YTgzMmI4Y2QwMTE5YzZkZTk1OGQwOTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNhNzgyMmE1M2NlZThhNjRiZWQxMDZiZmZjMTRkOTg3NDIwMzNkZDhkZTg1YTg4NjY0ZWJhMzI2ZGNiNzBhM2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE0YTM1Yjg2YzFkYzIxM2E5NmNiNjlhZDUxNWJkNDJlZWEwMWI1NzE4YzhkMTZjMDdlYjQyOTdkMWMzOGQ2Y2IifQ"
         },
         {
@@ -265,12 +265,12 @@
       "statement": "Runner exit-code contract: runner.run_task returns 0 exactly when run_result yields success (no abort, at least one download, all download entries successful) and 1 for task-not-found, invalid recipe, display-allocation failure, vault-preflight failure, step failure, or an interrupted run; Run.result carries the richer terminal value.",
       "evidence": [
         {
-          "resource": "repo://apps/billcollector/runner.py#L117-L135",
+          "resource": "repo://apps/billcollector/runner.py#L118-L136",
           "version": "repo-lines-v1:sha256:bd9f0a178710323455dc7f14688a4f80e073ed35a84c6cce5481e453ef40d6ee:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0NDVlMzllM2VlMzQzYWMyYjFmZDRmMjFjNDA2ZjkzOWRlMWUyM2M0YTljNTdhNTM5ZWE1YmVkZmZhMGUzZjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhZmRjMGJkOGYwYjE1NGFjNTdiZDg3ZjdmOGVhZDBhMDkxMzBmMzFkYzFjZTFjMmExYWI2ZDBmMTNjNWExOGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQzMjQwMGRkNjZkODFmMzFkN2MyMDUyNTM2ZGM2ZTM5NzZhMDhlZjRlNDg2MzgzMWIzYmVmNWYyYWE1MDI0MWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAyYzQ3NmNhNzUwZWNjZjQ3Y2YyMjdjYjlhNzRiMjVlMzk0YWQyMWViOWUzNmQ0Njg5MjI4Mjg2YTNkMDYzNmIifQ"
         },
         {
-          "resource": "repo://apps/billcollector/runner.py#L769-L876",
-          "version": "repo-lines-v1:sha256:a2157f8c71546896aeffdcd357c7f5ecbe9d3f7a27a4ba40ff3560a530bb06bc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI1MTc4ZjliNmM5MThhNThlNjc5ODNhZjg3YTJkM2JkNThlMjA1NGViYjlhMGQwOTk4MGQ3OWZjMTVhYzMzMTVmIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ZjY1YzJiYmUzZjU2MGNiMDBkN2IxMGNiMGVlMzQyNTA3ODU5NGE2OTdmNmE3NmViZGY5NDQ0NTI4ZjUxZjA1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJhODU2Y2QzZDdiNmY0MjY2Y2Y2MTJjODlkZjNmNjZjMjNmZDNhYTlhZmRhZjIwNjBhNjU5NmI1NTZmOWIxMGNhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+          "resource": "repo://apps/billcollector/runner.py#L791-L905",
+          "version": "repo-lines-v1:sha256:fcd28190a9e2ca42246cd29a23867c2dd0283c696f91bea8fd2a2c3f50a83a88:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI1MTc4ZjliNmM5MThhNThlNjc5ODNhZjg3YTJkM2JkNThlMjA1NGViYjlhMGQwOTk4MGQ3OWZjMTVhYzMzMTVmIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ZjY1YzJiYmUzZjU2MGNiMDBkN2IxMGNiMGVlMzQyNTA3ODU5NGE2OTdmNmE3NmViZGY5NDQ0NTI4ZjUxZjA1IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJhODU2Y2QzZDdiNmY0MjY2Y2Y2MTJjODlkZjNmNjZjMjNmZDNhYTlhZmRhZjIwNjBhNjU5NmI1NTZmOWIxMGNhIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
         }
       ]
     },
@@ -293,14 +293,28 @@
           "version": "repo-lines-v1:sha256:6667e1a30e0e27c836eef17f955c401e42c4176200bb6b88738eb765840a281a:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzA3M2FmNjkxNzEzMjg1NTQ0NzY5ZTAzMDg1NjQwMWNhNzM3MTU0ZjkwYzBjMTE0OTRlN2JmZmY5OTMzMzZkYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMTYxYTRmOWZhNDlmNjg4MGIxZDIxNTQ5NWU1ODU3MTU4NGU2MWQ2N2YxNzEyOTJkMzZjZDUzNjYyOWZkMzAxYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2JiMDljMTQ5YjUxMTUxOTBjMTAxYTBjYzZmMjliODE0NTBhMTkzNGZmMzU4ZjAzNzFmY2JhMzczOGEwMzU0MCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
         },
         {
-          "resource": "repo://README.md#L306-L322",
+          "resource": "repo://README.md#L447-L463",
           "version": "repo-lines-v1:sha256:99a45a824d48882771507af7c2d1c0cc90a91701964cfd650ac1b2f0953fe4bd:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyMTJjMjhiMTc2NDdjMmQ0NjJjMWE2Y2QwZjc4YmJmZjQzYWE3ZDZjNzUwYWI3ZDk2ZGYwMTU0MzgzOGVjOGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1NWI2ODM4MGExM2ZkOTA0OWE2NzM1ODYzZjJlZWUyMzhmNzAzNWQ3ZjdhM2Y5Y2Q3ZWM1OGQwODgwNDNjMGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA2ZmMyYmEyMjExOWY5ZTA2YTdmZTdmM2Q2OWIyOGQyYzJkYTEwNzIxMWJhYjU2NGIyMDhiYzIxMjU0MGYyN2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM1ZjgwZDgxYTRiZmUyYWFlNTgwOWZjMWZhNDVjOGRkNjA5NGQxN2Q2ZDc1MDNhZjc0ZWJlNWQxODlkMzZjYjkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_28ecad426cfc42ed89ffaceed0b614ce",
+      "statement": "CheckRecipe (apps/helpers/BillCollectorCheckRecipe.py) signals recipe validity by return value, not by exit status: it returns the parsed recipe when valid and None when the recipe file is missing or fails schema validation (logging the error), while its CLI always exits 0 in those cases (exit 1 only when the schema file itself is missing or invalid); the batch path and the daemon runner therefore abort on the None return rather than on a helper exit code.",
+      "evidence": [
+        {
+          "resource": "repo://apps/helpers/BillCollectorCheckRecipe.py#L39-L77",
+          "version": "repo-lines-v1:sha256:64045c1d2a7b2b80cda439ba2b6ddf9a9fbf5806a52cbf56c1c661e519b23424:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdjNWQ4MTIzZGQwYzNhOWYzNDgyZTA0ZWVkOTA2YTlkNWYzOTg0MTVhMmZlZmU4YjY5ZjM3MzRjYTEzODAxZDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVlN2M5NTdiY2I0NGZiNjczYzk4YjAwNTBhNzVkMzgwODJkYjgxZDkxOGRlMzEzYTNmMDdjMTIzNTMwNmQ3ZWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU5MjE1ZjFkOTcwZjBmODkzZGRhNGE2YWM2NDJjZTBkNTVkNzBiNWE3YTZkZDg1MmUzODU2MjdiNDE2OTJlNzMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZlMjZkNmNlMGE5MjE3ZDgwYjc5ZjNmN2VjYTk5Mzk5YmY4ZmZkNmJkZTA2MzM3NTA3ZjgyMmRmMWI2MWY1MmQifQ"
+        },
+        {
+          "resource": "repo://apps/helpers/BillCollectorCheckRecipe.py#L79-L98",
+          "version": "repo-lines-v1:sha256:08f443d1965bb9e20f19933df8632950b6fce049ea83c9879e0bfd56af929f69:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY0ODZmZjVjZjkzNjNiNDQyOTMzNjgwM2IyYzk2MGU3M2RhOGM0N2ZhMGM2ZjY3NjU4ZDE0YjMyM2NkMjJkMzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNiZDE2MjAxOGM2ODgzOTQwOWVhN2IwMTg1Y2U3Yzg1MjhjMGFjZWU1OWUzNzM1ZTIzMDFhNzYyNGEyMzFiZDkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRhMGMxMTA4MjkwZWY2MDZkNjEzN2NkZDk0NzgzYmFmOTMzMDUyODY0NTQ2YjFlZGY4NzQxZGQxNjU0MjRiNjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-16T23:42:23.422Z"
+    "at": "2026-10-21T23:26:25.264Z"
   }
 }

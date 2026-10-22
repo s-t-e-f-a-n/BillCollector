@@ -2,9 +2,6 @@
 type: "Reference"
 title: "Run Lifecycle: Scheduling, Locking, and Step Recording"
 description: A run traced end to end in both coexisting modes - the cron-launched batch path with its two flock guards, per-pair failure isolation, and legacy run-table finalization, and the daemon path from scheduler job to claim, subprocess spawn, the step loop with its retry budget and PageStatus recording, Run finalization, and the orchestrator's fallback finalization.
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-18T05:11:23.466Z
 sources:
   - id: openwiki-source-34ac71861bffa2962326b678
     resource: repo://apps/BillCollector.py

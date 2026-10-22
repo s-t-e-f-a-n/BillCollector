@@ -31,9 +31,6 @@ sources:
   - id: openwiki-source-15bb91349133f738d2eaa49d
     resource: repo://apps/recipes_playwright/recipe-pw-schema.yaml
 generated: { by: "openwiki/0.7.2", at: "2026-10-18T11:52:37.839Z" }
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-18T05:11:23.466Z
 ---
 
 # Recipe System

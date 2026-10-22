@@ -3,9 +3,6 @@ type: "Reference"
 title: "Architecture Overview: Batch Engine and Daemon"
 description: The two coexisting operating modes of BillCollector - the cron-launched batch engine and the NiceGUI daemon with isolated runner subprocesses - their shared components, and the top-level invariants (task status machine, terminal Run results, process isolation, exit codes).
 tags: [architecture, batch-engine, daemon, nicegui, playwright, sqlite, process-isolation, run-lifecycle]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-18T05:11:23.466Z
 sources:
   - id: openwiki-source-34ac71861bffa2962326b678
     resource: repo://apps/BillCollector.py

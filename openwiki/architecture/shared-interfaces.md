@@ -3,9 +3,6 @@ type: "Reference"
 title: "Shared Interfaces (Contracts)"
 description: "The four shared interfaces of BillCollector that must not break without an issue - the SQLite schema, the daemon control protocol, the recipe contract, and the process exit codes - with their shape, invariants, and where each is enforced."
 tags: [contracts, shared-interfaces, sqlite-schema, control-protocol, recipe-contract, exit-codes]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-16T23:42:23.422Z
 sources:
   - id: openwiki-source-34ac71861bffa2962326b678
     resource: repo://apps/BillCollector.py
@@ -40,11 +37,14 @@ sources:
   - id: openwiki-source-23775c3de52f3ab95a13cb8b
     resource: repo://README.md
 generated: { by: "openwiki/0.7.2", at: "2026-10-16T23:42:23.422Z" }
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-21T23:26:25.264Z
 ---
 
 # Shared Interfaces (Contracts)
 
-[CONTRIBUTING.md](../../CONTRIBUTING.md) names four **shared interfaces**: the database schema, the control protocol, the recipe contract, and the exit codes. A change to any of them is agreed in an issue before code, and the PR that touches one references that issue. This page documents each contract: its shape, its invariants, and the code that enforces it. Both operating modes depend on these interfaces - the batch engine (`apps/BillCollector.py`) and the daemon (`apps/billcollector/`) - so a silent change on either side breaks the other. See [Architecture Overview](overview.md) for the two modes.
+[CONTRIBUTING.md](../../CONTRIBUTING.md) names four **shared interfaces**: the database schema, the control protocol, the recipe contract, and the exit codes. A change to any of them is agreed in an issue before code, and the PR that touches one references that issue. This page documents each contract: its shape, its invariants, the code that enforces it, and a verification command with its expected result. Both operating modes depend on these interfaces - the batch engine (`apps/BillCollector.py`) and the daemon (`apps/billcollector/`) - so a silent change on either side breaks the other. See [Architecture Overview](overview.md) for the two modes.
 
 ## 1. SQLite schema
 
@@ -121,6 +121,14 @@ The legacy batch schema lives in the **same file**: `DatabaseManager` in `apps/B
 - `claim_task_run` (db.py) for the row lock; `pause.persist_pause` (pause.py) for the `waiting` flip; the runner teardown in `runner.run_task` for finalization.
 - The legacy shape is enforced by `DatabaseManager` (`create_service_run_table`, `finalize_service_run`) in `apps/BillCollectorServices_pw.py`.
 
+**Verification** (from the repository root, against the production `bc.db`; paths are overridable via `BC_*` env vars):
+
+```bash
+apps/.venv/bin/python -c "import sqlite3; print(sqlite3.connect('apps/db/bc.db').execute('SELECT name FROM sqlite_master WHERE type=? ORDER BY name', ('table',)).fetchall())"
+```
+
+Expected: the five daemon tables `Download`, `PageStatus`, `Run`, `Settings`, `Task` appear in the list, beside the legacy `Service` and `PageStatus_*_Run*` tables in the same file.
+
 ## 2. Daemon control protocol
 
 ### Shape
@@ -161,6 +169,27 @@ sequenceDiagram
 - `ControlServer._serve_connection` in `apps/billcollector/control.py` (version check, reserved actions, 4 MiB cap, malformed-JSON rejection) and `ControlClient.request` (raises `ControlError` on transport failure or `ok: false`).
 - The handler map (`screenshot`, `elements`, `context`, `click`, `fill`, `press`, `drag`) is built in `pause.make_action_handlers`; the waiting loop in `pause.pause_loop` binds the socket, records `Run.control_sock`, and exits on `resume`, `cancel`, or deadline.
 
+**Verification** (from `apps/`, no run required - the server is exercised directly):
+
+```bash
+.venv/bin/python - <<'EOF'
+import json, os, socket, tempfile
+from billcollector.control import ControlServer
+path = os.path.join(tempfile.mkdtemp(), "c.sock")
+server = ControlServer(path, {})   # no handlers: reserved actions still work
+server.start()
+for req in ({"v": 99, "action": "screenshot"}, {"v": 1, "action": "nope"}):
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.connect(path)
+    s.sendall((json.dumps(req) + "\n").encode())
+    print(s.recv(65536).decode())
+    s.close()
+server.close()
+EOF
+```
+
+Expected: one `ok: false` line per request - `unsupported protocol version 99` for the version mismatch, `unknown action 'nope'` for the unknown action; both peers fail closed instead of acting.
+
 ## 3. Recipe contract
 
 ### Shape
@@ -185,6 +214,14 @@ Files are named `recipe-pw__<service>.yaml` (service lowercased, spaces as under
 - `recipe-pw-schema.yaml` itself (draft-07, `additionalProperties: false` at the top level).
 - `CheckRecipe` in `apps/helpers/BillCollectorCheckRecipe.py` (batch + runner) and `validate_recipe` in `apps/billcollector/recipes.py` (UI editor and repair flow). See [Recipe System](../concepts/recipes.md) for authoring details.
 
+**Verification** (from `apps/`, the `CheckRecipe` CLI in both production gate sites' shared helper):
+
+```bash
+.venv/bin/python helpers/BillCollectorCheckRecipe.py recipes_playwright/recipe-pw__winsim.yaml recipes_playwright/recipe-pw-schema.yaml
+```
+
+Expected: exit `0` with no error output for a valid recipe (the success line is logged at debug level); a missing file logs `Cannot open <file>.` and a schema violation logs `Validation fault: ...`, in both cases `CheckRecipe` returns `None`, which the batch path and the runner treat as "invalid" and abort with (batch: the pair fails; runner: exit `1`).
+
 ## 4. Process exit codes
 
 ### Shape
@@ -208,6 +245,15 @@ Files are named `recipe-pw__<service>.yaml` (service lowercased, spaces as under
 - Runner: the return paths of `runner.run_task` (and `run_result` for the terminal `Run.result` mapping - cancel -> `cancelled`, timeout -> `needs_attention`).
 - Harness: `tests/run_regression.py` (documented in the README, "Local Regression Test Environment").
 
+**Verification** (from the repository root):
+
+```bash
+apps/.venv/bin/python apps/BillCollector.py
+echo "exit=$?"
+```
+
+Expected: the usage line `Usage: python3 BillCollector.py <ini-filename> ["debug"] [--service <NAME>]` and `exit=1` - the usage-error path of the batch contract. For the runner half, the regression harness is the end-to-end check: `apps/.venv/bin/python tests/run_regression.py --ini tests/bc_regression.ini` must exit `0`, asserting the engine return values, the DB rows, the downloads, and the exit semantics of every pair.
+
 ## Change rules and cross-references
 
 - Any change to the four interfaces is agreed in an issue first; the PR references it ([CONTRIBUTING.md](../../CONTRIBUTING.md), "Shared interfaces").
@@ -215,4 +261,4 @@ Files are named `recipe-pw__<service>.yaml` (service lowercased, spaces as under
 - Control-protocol changes need the `PROTOCOL_VERSION` bump and a doc update in the same change.
 - Exit-code changes ripple to cron wrappers, the orchestrator's `_finalize_run` mapping, and the regression harness's expectations, which is why they are shared rather than per-process.
 
-Related pages: [Architecture Overview](overview.md), [Recipe System](../concepts/recipes.md), [Vault Transport](../concepts/vault-transport.md).
+Related pages: [Architecture Overview](overview.md), [Recipe System](../concepts/recipes.md), [Vault Transport](../concepts/vault-transport.md), [Verification](../testing/verification.md), [Run Lifecycle](../workflows/run-lifecycle.md).

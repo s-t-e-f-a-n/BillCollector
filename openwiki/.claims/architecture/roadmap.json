@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:63c7564542cd9f6eeeed4f1fdff1d89365fef6532bcc68643f18429e5de2a4d1",
+  "pageVersion": "sha256:f13ecabec265b6815c354cb8220f637b48cac6faa53eb4c7cb57d1774b40f7c0",
   "claims": [
     {
       "id": "claim_03926b6b783b48b1825d378877a0d6f3",
@@ -14,15 +14,19 @@
     },
     {
       "id": "claim_69c6f38fe567493b929b120a47762660",
-      "statement": "The daemon entrypoint is `python3 -m billcollector serve` (NiceGUI on port 8000 by default), which imports the INI files into the Task table on start, seeds the UI password hash from BC_UI_PASSWORD before serving, and `python3 -m billcollector run <task_id>` executes a single task run standalone; NiceGUI and Playwright are imported lazily per subcommand.",
+      "statement": "The daemon entrypoint is `python3 -m billcollector serve` (NiceGUI bound to 127.0.0.1:8000 by default; --host/--port or BC_UI_HOST override), which imports the INI files into the Task table on start, seeds the UI password hash from BC_UI_PASSWORD and auto-completes the onboarding wizard for upgraded installs before serving; `python3 -m billcollector run <task_id>` executes a single task run standalone, and NiceGUI and Playwright are imported lazily per subcommand.",
       "evidence": [
         {
-          "resource": "repo://README.md#L170-L178",
-          "version": "repo-lines-v1:sha256:6a256ba2744ad552312e3c5520ca263411ffdc657257d01b3dcf610260e2c486:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOWEyYzM3MzU4YTExMmE5YmJjZjFkMjdlMmI5NDc5M2IwZTg2MzRjMTE5NjQ2Y2M2MDM2ZGViNDFmM2EzMTI1YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMmE1NzhmNjJmYzNkYzRhOTc2MTZmMjNmMjQ2OWQxZDE2YzVjZTUyY2M1ZWY5YTI2Y2QxMTgxZmUyMWUwOTQxNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzg5ZWIwOTIwYWYxMDE3OGYyMGNlOWI0ZDAxYmM2MGY1YzgyNzY5MDVmMDhkNDFjMzJiZGZmM2UzMzg3OGI4ZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTdkN2FmMzgwYzBkNmU2OGI3ZjRhOWFlYzVjMzA5M2QzMTc5YWQ2M2RkZDNiZDJiYTE1M2JlNmEwMTBlNjI2MyJ9"
+          "resource": "repo://CHANGELOG.md#L14-L20",
+          "version": "repo-lines-v1:sha256:0a4901da92a5cd52a618d3604da74099a74a83642e1eb0bfbb06bf0ca07bf2a5:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjExYjk4NmUxODFmYmQ5YTU3YTMxMmE4YWYyNzNjMDlmNzQzZjczZGM2ZTQyNzhiYjgyODM1MTk0MWM0MDM2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDNhNGIxNzEzZDA3Y2YzMjQ0YTJkOTBlMTRiZDNkNGY4NzgzNGRkZDM3YjY4YzgwNDE0OWI2MGNiNTY2ODgxYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjA4NzdhN2MzODZhOGUwNDhhYTI5MmUxZGE0ODc3OTAxN2U4ZmQyNWI3ZjI3NGI5OTE5ODM1ZmRhOWM2NjA3ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmU3NjRkNjRmNWUwNjMwMjU3ZDBkYzlhYmQ4ZTIwZTNjOTdmMDZjMGU5ZDRhYjA2MjBhYmE2NGM5MGFhYjFjNyJ9"
         },
         {
-          "resource": "repo://apps/billcollector/cli.py#L41-L74",
-          "version": "repo-lines-v1:sha256:f15c3e29c375b96e0b56e0141b480e2c3c1660143d8ff99435addd8a1bb1c597:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2OWFkZTE1ZTc0NDY1ZDczODAyYjg2ZWI0MjViYTk4OTA4MzgzOTdhMjdjNTNiNDUyMmUzZTVkNDRmNmQxYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxZTczNWIwMGNkMTc0NmFmZTI3ZDM1Njg0NTJjM2Q3N2MyZDBhNDEwYTJjODcxZTY5NDQ0MGQ5ODgwNmZkNGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlkZGM4OTM3NTAxN2YxODU1OWFmNDA4Njc2MzUyZDYyYWI0MDY1ODQxM2JhMTAyZWM1MmNmYTlkNjVkMWJjOTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://README.md#L206-L208",
+          "version": "repo-lines-v1:sha256:178b5d76281c6ba98fb3ac362147506e093b84a7f4f64d42bb4f0031cdba1321:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTVmZjQ4YmQ3MDVkMjUyNTFlOTVkODgyMjVlNjAxZDE0MmVkNWM1YmU5YTlhYjRkZTJmYzQwMWFmZmFlMjMzZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMWQ4ZWYxYWZhYjMwOGY0YjJmNDcxNThlNWMwNjhlOTBmM2MzYTk0NTQyYjQzYzg3ZmE1NjAxZDJlNzIzYWQxNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODExMzc2NjIyOWNlZTYxODlhYzg1MTBlYjkwNTM3NTJlZDJjMTVlYzBlMmFlODcwNDY3OTlhYTdhNDdiZmI2ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzYyYTcwYTM4ZTY5ODg2NzQ5MzMxMTI5ZDQ0OWViOTU2OGEwM2QwYTQ3ODQzOGI1MzZiYmM0MDEyYzE1MGFlMSJ9"
+        },
+        {
+          "resource": "repo://apps/billcollector/cli.py#L41-L77",
+          "version": "repo-lines-v1:sha256:04f6db060326876755f3beabfbf06674bac9e6424a82598b6e81b2a59e1467b2:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2OWFkZTE1ZTc0NDY1ZDczODAyYjg2ZWI0MjViYTk4OTA4MzgzOTdhMjdjNTNiNDUyMmUzZTVkNDRmNmQxYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlkZGM4OTM3NTAxN2YxODU1OWFmNDA4Njc2MzUyZDYyYWI0MDY1ODQxM2JhMTAyZWM1MmNmYTlkNjVkMWJjOTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUxZTczNWIwMGNkMTc0NmFmZTI3ZDM1Njg0NTJjM2Q3N2MyZDBhNDEwYTJjODcxZTY5NDQ0MGQ5ODgwNmZkNGYifQ"
         }
       ]
     },
@@ -59,7 +63,7 @@
           "version": "repo-lines-v1:sha256:9eae99e606b67129a2cb4581fe364778843caf76232f0158b1e4589a10ec2450:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEwYWViYWJkZWRjZmU4MjFiMzllZDgyMGJiOWEzMWRjMzViNmI5ZjY3YjQ5MWVkZWNiMzdiMjQwNTIzNDVlYjIifQ"
         },
         {
-          "resource": "repo://apps/billcollector/runner.py#L92-L114",
+          "resource": "repo://apps/billcollector/runner.py#L93-L115",
           "version": "repo-lines-v1:sha256:87b28cd8c972e4e9b26bf0ffc7febef6055a0c8226c50ebd94dcfc186550a552:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5Y2Q2OTJiZjRhYTA3YjQyMjc1NmJhMDQ0MWQzZDk3MjE0MmFmMzQzZjU2ODc1OTRjNmEwMTdlZjhkYTkwYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc0Yjk3NDUyMDUzOWQ1OWJmZTM0ZTI2NzNhNGQ1MGE5OTdmNTIwZjcwZWUwMjFmYTllNWU3MDE1ZWVlMzIzMDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdhYjczZTE1OTg3ODc4MzUzZDMzZDlhNjBkZDc0YjM1MTlkMGVmM2M4NjM3NjU2NjQxMDg2ZjhkN2QzNTU5MTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZkNTIyNjE4ZTYyMWFjNDVkMjI1NzdiYTE3NjRlMDE4MTFjMjYzODRhMjk1YWJmYzg4OGZiZTUxNDVhODliZGIifQ"
         }
       ]
@@ -69,38 +73,38 @@
       "statement": "A stuck daemon run (a non-graceful step failing after 3 attempts, a failed download, or an explicit wait_user step) pauses instead of aborting: the runner builds a machine-readable pause context, persists it on the Run row, flips the task to waiting, and serves the versioned control-socket protocol (v1: screenshot, elements, context, click, fill, press, drag, resume, cancel) from its main thread until resume, cancel, or the pause deadline; every pause also pushes an ntfy deep link to the session page, best-effort.",
       "evidence": [
         {
-          "resource": "repo://apps/billcollector/control.py#L1-L43",
-          "version": "repo-lines-v1:sha256:e9afa878ff95e745b1cb9a40523ff5ab5a2acd0ac8d4fd5b2bdfac24c5e48053:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEwZjg4ZjI2YjhkYzgxY2UzZjU5MjBjOGZlYzQzMjA1NWEyY2M3MDAwMDcxNDViY2VjZDVhMTc0YTRkMzI4ZmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJjNTgwNjVlNWQ4YTRiMmRhNGM4ZTJmMjBmZTMwZGY5MDY3Y2UzZTRmNWFmODkyYjUwMTNlNzRjMmNhZTc1NmQifQ"
+          "resource": "repo://apps/billcollector/control.py#L1-L29",
+          "version": "repo-lines-v1:sha256:45aacc5584d76e15717e5bbd7ae5ea9957a5c94f131c1c46d6726a2f2955ae07:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEwYWViYWJkZWRjZmU4MjFiMzllZDgyMGJiOWEzMWRjMzViNmI5ZjY3YjQ5MWVkZWNiMzdiMjQwNTIzNDVlYjIifQ"
         },
         {
-          "resource": "repo://apps/billcollector/notify.py#L1-L17",
-          "version": "repo-lines-v1:sha256:8da0c9bf512527726ee8d015f1b028eb52e0fe3a8c432afabf10a38b464de16d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzYzBmOGU1YmI1ZTE5NDk1N2IzODE2NTQxYWQxM2Y0NWI3OGVmYWFjMzMyMDljNDAyMGYxMjk0MWMzMjE5ZTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzODE0MmNlZWRlNDY5MzExNTg1M2YyM2M2ODU1YmU4NDdmNTU4M2ExZjMwOWVlOTBiOGZhY2IyNGU0YzEwNzkifQ"
+          "resource": "repo://apps/billcollector/notify.py#L1-L8",
+          "version": "repo-lines-v1:sha256:99fe0d441f2463849b75766e38d4c75b0d5696522b04fe807b271711b8de9d88:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOGIwODRhOWYzNzgxMjRiMmIxYTUxNTYzYmYzYzIyNDQ0ZWI3ZmYzMzY5MjAxN2RhMjhiMjEzNmFlNTY5ODdlZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTMwM2VjZGQ0YTRkMTBmMTljNzNmZDQyZmQxMjQzN2ZkMzM1NGE4MjY4MTYwNWRhNTI1NWE5N2EzOTA2OGRiYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjliZWM0YTE5OTlhYjI3OGZjOTI2NWY4M2Q2ZjExZGZmZTcxMDQ2ZGMzNjM2MmFmMDQ3YWM1MDdmNjQ0YTYyOSJ9"
         },
         {
-          "resource": "repo://apps/billcollector/pause.py#L1-L53",
-          "version": "repo-lines-v1:sha256:fa1d7b6668a51e3622b7d5cc1705a1140ec08e03bfa74cf124bbf3911b3b1274:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFiNzBmYjc4MjNjNDBlNGYwZjQzMjI0YzU0MGFkOTJlYWMzMjIzY2Y1ODhmMjY2YTE5YTIxOTVhNjBkNGJlY2MifQ"
+          "resource": "repo://apps/billcollector/pause.py#L1-L14",
+          "version": "repo-lines-v1:sha256:22db251710cb5ee392b929acb60db5660d3d57899b390363d25232e463d4d8c4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgwZDg3ZTE0NWU2NzU5NTY5MzI1ZDgxN2M5ZjAzNzVhMGY1NGFiNmI3ZjU1MTczZTJhY2E1MjA4YzUzNzc3N2MifQ"
         }
       ]
     },
     {
       "id": "claim_068b04e3aa5a4518be74ac77de6a758a",
-      "statement": "The daemon UI surface is fully wired in ui/app.py: dashboard (/) with task table, filters, waiting badge, per-row Run now/Stop and live log pane, task detail (/tasks/<task_id>) with run history and screenshots, the intervention session page (/runs/<run_id>, the ntfy deep-link target) with Copilot view and noVNC tab, the recipe editor (/recipes/<service>), the downloads page (/downloads), the settings page (/settings), and session-cookie authentication with a set-password form on first start.",
+      "statement": "The daemon UI surface is fully wired in ui/app.py: session-cookie authentication with a set-password form on first start (/login), the first-start onboarding wizard (/onboarding), the dashboard (/) with task table, filters, waiting badge, per-row Run now/Stop and live log pane, task detail (/tasks/<task_id>) with run history and screenshots, the intervention session page (/runs/<run_id>, the ntfy deep-link target) with Copilot view and noVNC tab, the recipe editor (/recipes/<service>), the downloads page (/downloads), the settings page (/settings) exposing the daemon Settings fields plus the UI password (each field writes its own Settings row on save), and the /runfiles static directory for screenshots.",
       "evidence": [
         {
           "resource": "repo://apps/billcollector/ui/app.py#L1-L29",
           "version": "repo-lines-v1:sha256:0ae12aae065390d6201ee61f6aceb3da52f02ec88310fc4da385d50432868a0e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIzZmQwNDU5OWNjMjk1OGYzNDJkMjlhODg2Mjc4ZmVjNGE3YmUzZDZkZTg3YzhlNjAwMjkyNTJmZWRiNzk0MjYifQ"
         },
         {
-          "resource": "repo://apps/billcollector/ui/app.py#L153-L192",
-          "version": "repo-lines-v1:sha256:99fee3ec13f1251c59814a4f38a6cfc5e632cfb554ffb74c1283be6d9d6ebe2c:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5ZmFkMzExN2RkYzk1OGYyMGEyNzI1ZDhhY2JiN2YwMTI4ZmZjMmRkNmU4OWZiMDgzMzYxYzViMTEwYWIzYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjZTZiNzYxOWIzZjIxNDA4M2ZhY2RjYzZiZDIwMTA2ZTQ0MWIwM2M0MTFjZjI2NjhhZjMwM2NlM2I2NGY2MWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY4OGZiNmQwZTg4OGZlNmU5MmZlMzYwZjNjMzBlYTZmOGU2YjJmZGZmNDRiZjI1NDY4NTFiMTkyMGVmZDg0MDYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://apps/billcollector/ui/app.py#L162-L194",
+          "version": "repo-lines-v1:sha256:59f4bde32d2795ea2d93a0153175652b2c858803022750a484f2ccee13155ede:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgxN2UzNDM4YTNiYjI2Y2M4MDY5YWU1ODQzYmIxNGZiNzc5ODhhZWJkMzZhZjE4OGE2N2MxZjQ3OWY2NjY1NWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjZTZiNzYxOWIzZjIxNDA4M2ZhY2RjYzZiZDIwMTA2ZTQ0MWIwM2M0MTFjZjI2NjhhZjMwM2NlM2I2NGY2MWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE3MjlmODAxNWU5NmU3MWI0NzJlNGE1YWQ1MmU1MDlmZGRjZjZiMDAwZGU0Nzc5YzI5NjJhNTMzMmJmMDkyZmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         },
         {
-          "resource": "repo://apps/billcollector/ui/session.py#L1-L54",
-          "version": "repo-lines-v1:sha256:9187f0ea26ea5ba7e85294bd61c04d11f1d9383c478caf612c210cfb65899269:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjExYmI0ZDhiYzIzZDkxYWRiN2Y5MGU2YTM5MDhmMGE4YmJjMjU4MzcyNGVjNmU5MmQyYjhlOTRkNzMwNzhhMDgifQ"
+          "resource": "repo://apps/billcollector/ui/onboarding.py#L1-L26",
+          "version": "repo-lines-v1:sha256:5ccfb926e2fc15d4770751435754364e99519174d6d7a937fadc501aca37fbc8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhZmU0N2ZiMGJlZGZhMGI0NWYwYTgzNjg1ODgwYmE2MjIzZjRmNjRkOTUwODg2YmNiNWRkYmZjZTZlOWIzOTUifQ"
         },
         {
-          "resource": "repo://apps/billcollector/ui/settings.py#L1-L34",
-          "version": "repo-lines-v1:sha256:ea26fb9ba8377f8f12af8a4421464ea9e1975a9256c1a756a3758c20a020f1c5:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhZmJhMDUyN2MzOTUzYzRiNmUwZTViNTczOWJhODM2MTJmODA1M2JjZGM5NDY2NzMwMTkzY2QxZDU5MGI0MDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI0NDU5ZjkyOGYwMzYyZDdlMjJjZTk0Yjg2ODBhNGI1MzlkMzMxMTQwM2Y0Y2FmODBjZjk0OGYwOWQwY2RiZmEifQ"
+          "resource": "repo://apps/billcollector/ui/settings.py#L1-L41",
+          "version": "repo-lines-v1:sha256:eb1bf5648188bb4740d470cb11d914b5676b11f5a4b1271d86ea685a35910546:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhZmJhMDUyN2MzOTUzYzRiNmUwZTViNTczOWJhODM2MTJmODA1M2JjZGM5NDY2NzMwMTkzY2QxZDU5MGI0MDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI0NDU5ZjkyOGYwMzYyZDdlMjJjZTk0Yjg2ODBhNGI1MzlkMzMxMTQwM2Y0Y2FmODBjZjk0OGYwOWQwY2RiZmEifQ"
         }
       ]
     },
@@ -123,26 +127,30 @@
       "statement": "The local regression test environment (shipped in v0.4) is live: a mock web portal with scenario sites (happy path with OTP and downloads, bad login, graceful step failure, download failure, empty document list, CAPTCHA-style friction) and a harness (tests/run_regression.py) that executes a scope INI through the production scraping engine and verifies per-scenario expectations (engine return value, DB rows, downloaded files, exit semantics), including a --vault end-to-end mode against a real Vaultwarden.",
       "evidence": [
         {
-          "resource": "repo://CHANGELOG.md#L75-L85",
+          "resource": "repo://CHANGELOG.md#L178-L188",
           "version": "repo-lines-v1:sha256:0d3b2342f95504152e4d9366a55cd8ff7de712ebe5d7c68713455b0d39626118:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwYjg3NWY0ZmMzNmIwMDczNzlkNTZiNzhiMGRiYTI2YTcwMzIxNmIxZDEwZjI3ODRmYWQ1ZmViYmVhNTg1ODUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJiNmI5ZDM5YzY1NWJmMTA1MWNhZmIxMWVmYTA1YmJlNDliNGU1OGI4Mzc3NGIyOTc2ZTk1YzRmMWVhMWZjNmEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc2MzQyNzBlYjNhMDU0MzBkNzE5YTYzNjA0YjMwMzlmODUzN2M5N2FjMDg1ZWE2ZTFlNDAzZGE3ZTUyMWYxMDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjljZGQ1MTJkODE3NjYyYWIwYzI4ZjM3ZWNlY2QxMTBlYjRiOTExYjM1YmM3NGE1YzQwMjU1MmFmZDlkNTI2OTMifQ"
         },
         {
-          "resource": "repo://README.md#L306-L322",
+          "resource": "repo://README.md#L447-L463",
           "version": "repo-lines-v1:sha256:99a45a824d48882771507af7c2d1c0cc90a91701964cfd650ac1b2f0953fe4bd:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyMTJjMjhiMTc2NDdjMmQ0NjJjMWE2Y2QwZjc4YmJmZjQzYWE3ZDZjNzUwYWI3ZDk2ZGYwMTU0MzgzOGVjOGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1NWI2ODM4MGExM2ZkOTA0OWE2NzM1ODYzZjJlZWUyMzhmNzAzNWQ3ZjdhM2Y5Y2Q3ZWM1OGQwODgwNDNjMGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA2ZmMyYmEyMjExOWY5ZTA2YTdmZTdmM2Q2OWIyOGQyYzJkYTEwNzIxMWJhYjU2NGIyMDhiYzIxMjU0MGYyN2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM1ZjgwZDgxYTRiZmUyYWFlNTgwOWZjMWZhNDVjOGRkNjA5NGQxN2Q2ZDc1MDNhZjc0ZWJlNWQxODlkMzZjYjkifQ"
         }
       ]
     },
     {
       "id": "claim_fa58c927eb5f49d09f24f43b5cb2f4cf",
-      "statement": "The legacy cron batch system keeps running unchanged and coexists with the daemon: BillCollector.sh -> BillCollector.py -> BillCollectorServices_pw.py still runs under cron with its own flock double-start guard, and both modes share one SQLite file with the legacy batch tables left as-is ('runtime status, not an archive').",
+      "statement": "The legacy cron batch system is deprecated but keeps running unchanged as the daemon's rollback path and coexists with it: BillCollector.sh -> BillCollector.py -> BillCollectorServices_pw.py still runs under cron, now printing a deprecation notice to stderr on every start while keeping its flock double-start guard and docker run behavior, and both modes share one SQLite file with the legacy batch tables left as-is ('runtime status, not an archive').",
       "evidence": [
         {
-          "resource": "repo://BillCollector.sh#L1-L33",
-          "version": "repo-lines-v1:sha256:baa77ecd82d7387f62998fef213e3c8a742532e820d9e003b75eefd0f243343b:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI4NzVmOTI4NTQ2YWVlNzg1NWNiMWRiOWFmYzhhYjNmMWE4YTM0ZDQzZGU1YmJkNjJmNzA3NmQ3YmE5ZjM5MTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhNDhkMDNlOWY5Y2JiYTBmMjQ5NTFjNWRmMjNjNjAzOWE2ODdhOGFkZDczZTRjYWFiYzEwYzM0MDU5OWFmN2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://BillCollector.sh#L3-L30",
+          "version": "repo-lines-v1:sha256:abe2e58e3e1f2ecedf932af8423275e6f97fe9c8484b4c524c44f1d658215ba9:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0MGJkZThlOTRlYTM1YTQ4OGIwNDA5MDdkYmI5MjQ0NDMzMmU5YmZkNGJhNzdhOTc1YjU3MmFjOWNhZjZiMTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA3Mjk3N2I3Y2I4YjMwY2JmOTUyZWQ3OTNmZDJiMjEyNWVhNDBjZDdiYmU5N2FkNjYxNTJiNmIxYjcwODRkYzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE0YTM1Yjg2YzFkYzIxM2E5NmNiNjlhZDUxNWJkNDJlZWEwMWI1NzE4YzhkMTZjMDdlYjQyOTdkMWMzOGQ2Y2IifQ"
         },
         {
-          "resource": "repo://README.md#L357-L359",
-          "version": "repo-lines-v1:sha256:3c4c189d5df1d80d3d6e6175b01191d9163353c45e839cba929b1406a3a3cd96:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjU4NDk5YzIwZmVlMjVjZDYyMzdmYjkxMjI2Y2Q1YTU1Y2Q0MTY5MDI4Yzg4ZGM2NGZkODdiYzk2YjZjNTljZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiM2IxNjg0MzQ4MjExM2E5MGY3ZGNiYjBhYTY0OTY2NjY3MzM4MjZmOWNjYjY5MmZjODkwNmE3Nzk4MDkxMjcwZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGE1ZDJiY2IwZGI3NGFmZDIxZTAwMmJlNmY5ZTZiODdmOWViMTdmMjdlYThhM2NmMmYyOWM2YzgzNzYwYjAxMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+          "resource": "repo://README.md#L368-L377",
+          "version": "repo-lines-v1:sha256:fc6b829fb7585550a441fa67b2a19294eac4b82acfddea039fd063fcbc948c1e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI3YzM3YzI0MmZiMzlmYzNmY2FlMjBiOThlMGU0Zjc5NTM5NWJhZGYxZmJhZGI4ZDZiYWUxZWQxNTNhZDE4MmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAzMTc1ZTNjZGRiOWE0ZTExOTg3MGZiZTg0YWZlYTgwODJkOGI2NmVjNWE4Mjc0NWE4NTU3ZTI3NDBhMjVmNWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA2ZmMyYmEyMjExOWY5ZTA2YTdmZTdmM2Q2OWIyOGQyYzJkYTEwNzIxMWJhYjU2NGIyMDhiYzIxMjU0MGYyN2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQzMGJjMjNjZDY1OTIxMDk4MThkYmYxOWI5ODE1MDM2MTlhN2Q1ZjdlNDNhYWVkM2U0NGYwMDIyNTExMmYxMDEifQ"
+        },
+        {
+          "resource": "repo://README.md#L429-L445",
+          "version": "repo-lines-v1:sha256:9874005007c858bab357cddd000c84295469dc470f7bfb01b78919289eb94119:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2NDdhNWZiYzZmYzg2OGY4ZGJmYmU1NTM1ZWVkZTJlMzI1NTRlM2Q5YjU5MWU2N2JiNTQ2NWUwODVkYzEzZmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1Y2Q0MzFiNTQ2ZGM1MmFmMzNmMTRhZTFjYjY1YzUxOWRhM2FkYTU5MmU5NDE3Y2Y5OTZlY2Q0ODQ1ZDMyMmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdkNTBmZDRiMzI0OWY1YTIzMjFlMTA5ODkwODQ1NWQ1ZjI0NjM1M2M3Y2JhZjdjYTAwYWViNjg0YWZmNmY1M2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFlOWU1N2MyZWY2YWFmNTE5OGM5NTI1ZDAyNTAyNzUwNzY2YjNjMWU4ODRjMzM3OWVjNDNmNmUxOTQxYTg4ODEifQ"
         },
         {
           "resource": "repo://apps/billcollector/db.py#L1-L8",
@@ -163,8 +171,8 @@
           "version": "repo-lines-v1:sha256:62a194b3e1fa5fb3b60feffcbb0de7ce5d381944b0b49a48466e7bea598146a6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMDg0YTlmMzc4MTI0YjJiMWE1MTU2M2JmM2MyMjQ0NGViN2ZmMzM2OTIwMTdkYTI4YjIxMzZhZTU2OTg3ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVlNTdlN2ZlM2I2YWU1YTllMTE2Mzg3Yjg4Y2E1ODQ4Mjg2OWVhNmFlYWYwYWQyNzUwZTMwNzNiNjNkM2QwMTUifQ"
         },
         {
-          "resource": "repo://apps/billcollector/downloads.py#L40-L92",
-          "version": "repo-lines-v1:sha256:fcbfff81e35719f4e2598bd3c0cd012f0f3319c9ac8fa5163aad2af6ae37e30c:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM4MTExYjdmZTViYzFkNmYxMGEzMjQ0ZjYyYjZmMGI2ZGIxNjg1MmUyODg4NjFmZWY1MGE2NmU1OWM1ZjJlMjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVmZWMzMjVlZTg2MTliMWU3YmJkZGZlMTM0NjRjNzNhM2Q0MDZhYTFkYjk5YTc2YzMwNGQwNDAzMjEyMzRjMmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://apps/billcollector/downloads.py#L41-L94",
+          "version": "repo-lines-v1:sha256:7f4812775e6fec4ccc9690328f0861e20cbd0ef33f298e18d70ac4e673468c27:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM4MTExYjdmZTViYzFkNmYxMGEzMjQ0ZjYyYjZmMGI2ZGIxNjg1MmUyODg4NjFmZWY1MGE2NmU1OWM1ZjJlMjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVmZWMzMjVlZTg2MTliMWU3YmJkZGZlMTM0NjRjNzNhM2Q0MDZhYTFkYjk5YTc2YzMwNGQwNDAzMjEyMzRjMmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
@@ -187,12 +195,16 @@
       "statement": "Self-healing / assisted repair is planned but not implemented: per-step run tracking in SQLite (the executed method chain, the interactive elements found, the result) is documented in the README as 'the foundation for the planned self-healing/assisted-repair features' and in the CHANGELOG (0.1pw) as 'the foundation for the self-healing idea'; what exists today is manual, UI-assisted repair of a paused run.",
       "evidence": [
         {
-          "resource": "repo://CHANGELOG.md#L126-L139",
-          "version": "repo-lines-v1:sha256:6c459bb39b9a98f216ce05c23c404546c518ec6cd87e02840bc13321c306c406:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFiODU3ZWY3ZmJkOTFmMzE2ZWEwMzJhZmU3YWYwNTNlYzEzY2U5ZjI2YzZiZjc4ZTQzYzNmNWM3NGE4Y2Q2M2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRmNDFmNjBkOGM2ZTYxM2JmOTg2ZTNkNTBhYzBkOTUwY2YwZGJkOGEyYWU5M2RjOWY0YzU4MzViNjg1MDE4NzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMzMDcyMDA0ZDFhNzg2Njc5NTRkMjBlN2IxZjUwODY2ODQ0ZDEzYjY5OWQ3ZjZjNGMyNjNhNjAxNmJiMTNiODYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMxNzA0OGU0M2Y3NjZhYzgyNzFkOWViYWYwMzM0ZDhiZmUwNGNjMTc0NzdiNTBkNDMwYWZiZmUxZjk3Yzg5NTUifQ"
+          "resource": "repo://CHANGELOG.md#L240-L242",
+          "version": "repo-lines-v1:sha256:124dc437ed4a98d7ebbfd2d309998929d4095916d4aee5343b8b4c2022e0d7c5:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWI1MjNkZTJhM2YwYjc3NTFiMmJhOTcwYTc4YmM3Yjc3ODNhMDY5NWY1Y2YwYWQ1YWQwY2IxOWU3MjU4MjU5ZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZGY0MWY2MGQ4YzZlNjEzYmY5ODZlM2Q1MGFjMGQ5NTBjZjBkYmQ4YTJhZTkzZGM5ZjRjNTgzNWI2ODUwMTg3OSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMmVkY2U2OGQyOGZlYjNhMWQ2NmVjZGEyYTJmZGE1NjI2NWEwYTNlMzRlYjRmZTc5YTgyYzFhMTIzMzY3YzZiMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzE3MDQ4ZTQzZjc2NmFjODI3MWQ5ZWJhZjAzMzRkOGJmZTA0Y2MxNzQ3N2I1MGQ0MzBhZmJmZTFmOTdjODk1NSJ9"
         },
         {
-          "resource": "repo://README.md#L43-L49",
-          "version": "repo-lines-v1:sha256:27b88f03602ffa3350d2da63f65cc1a4f4c7394af509438d41aa53395a408557:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDI3MzMwYTIwOGEyMTU4NzE3NjY5NjYzODA3ODRjMDExMDJhYzI4NGY3NWY5ZmQ4M2JjNzE0YzQ5NjAyOGRkNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZWRjNGFjMzQ1MjlhMjVhMGNmZTY3OTk5ZjBhMWI5NGVmMWQyMDdjZTIyYjZiZDk5NDFmYmIwY2IwZWNmMzg5ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWMxMTViZDgzNThjZDI1Nzc1NDQzNDg3OWQ4MmI1Y2Q1MDBjMmY5YjRjNTBiOTkxNWNhMzg3NDQ3YzYzNzhjMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDIzYTA5N2YyNWIyNzk2MjBmY2FhNDg1ZGMxYTIzYTIzODM4NjRhNTdmMGQzZDlmNWYwMDU4OTEyOWJjMWQ1ZSJ9"
+          "resource": "repo://README.md#L498-L500",
+          "version": "repo-lines-v1:sha256:349dd645cb5723412b7f0a4ab8e91c4bcd1116008e0ba73c1e5c83381cdeb340:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjU4NDk5YzIwZmVlMjVjZDYyMzdmYjkxMjI2Y2Q1YTU1Y2Q0MTY5MDI4Yzg4ZGM2NGZkODdiYzk2YjZjNTljZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMTY0YzBjNGIzOTgxM2IzMmI3Njk5YThlYmM4ZDhhMjBlNTNhYzg3ZDJmMzNjZjc0OTU5MjZkOTc5ODY3OGQxOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGE1ZDJiY2IwZGI3NGFmZDIxZTAwMmJlNmY5ZTZiODdmOWViMTdmMjdlYThhM2NmMmYyOWM2YzgzNzYwYjAxMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        },
+        {
+          "resource": "repo://README.md#L59-L59",
+          "version": "repo-lines-v1:sha256:b7ed25fedd9d692d2a95a8bb487fd2e146db85cc8e7c2ec8329b57830e7e5880:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjdlZDI1ZmVkZDlkNjkyZDJhOTVhOGJiNDg3ZmQyZTE0NmRiODVjYzhlN2MyZWM4MzI5YjU3ODMwZTdlNTg4MCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjdlZDI1ZmVkZDlkNjkyZDJhOTVhOGJiNDg3ZmQyZTE0NmRiODVjYzhlN2MyZWM4MzI5YjU3ODMwZTdlNTg4MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTA5NDUyNDQyNjVkMDUzMTBhZDk5OTljNzhmNDc0ZjVjMGI1OGE0NGQyNTY0YWRlZDE5ODRmMWZkY2I5ZTBhZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDIzYTA5N2YyNWIyNzk2MjBmY2FhNDg1ZGMxYTIzYTIzODM4NjRhNTdmMGQzZDlmNWYwMDU4OTEyOWJjMWQ1ZSJ9"
         }
       ]
     },
@@ -201,7 +213,7 @@
       "statement": "The repository follows a trunk-based model where main is the verified production state that moves forward only once a milestone has been validated in a production run, so main reflects the published production state rather than in-flight work; release tags are snapshots for pinning deployments or one-command rollback.",
       "evidence": [
         {
-          "resource": "repo://README.md#L346-L353",
+          "resource": "repo://README.md#L487-L494",
           "version": "repo-lines-v1:sha256:4d522b9db67a28f705d3c435fdb651c6ad4fa65fd37f469b60119338825fe467:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDAxMjJiNzE5NGJlY2QxOGYxOTE3OTIwNDU1ZjViMThhMTUxOTU2ODM5ZjZkY2I0ZDJiNDM0MWI3NzM3NzMxZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTkwNWNiNmY1ODZhMDQyNGYxZGY5OWM4OWYyNWM1NWNmNGU1YTVhMmIzYjM0NGEyMTY5YTUxM2MzNzEyNjdjMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjdhMDA1ZjgwNzNiZTk3MDYzMjk0MjMwZWZlODc4MTA3ZjdkOTdiZWJlNWY5NDE0ZGViZGYxNTU4MTA0OTYwMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGE1ZDJiY2IwZGI3NGFmZDIxZTAwMmJlNmY5ZTZiODdmOWViMTdmMjdlYThhM2NmMmYyOWM2YzgzNzYwYjAxMiJ9"
         }
       ]
@@ -209,6 +221,6 @@
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-18T05:11:23.466Z"
+    "at": "2026-10-21T23:26:25.264Z"
   }
 }

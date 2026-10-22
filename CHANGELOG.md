@@ -92,7 +92,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   mount targets are no longer hardcoded: `CONSUMER_DIR`/`DB_DIR` are read from
   the environment or a `.env` file next to the script (validated before the
   build), and `SKIP_MOUNT_SETUP=1` skips the mount step for local image
-   builds. `deploy_remote.sh` forwards the two variables to the NAS.
+   builds. `deploy_remote.sh` forwards the two variables to the NAS. It also
+  creates and chowns the daemon compose bind paths (`apps/data`,
+  `apps/browser/profiles`) so the first `docker compose up` does not create
+  them root-owned and the non-root daemon cannot write into them.
 - The shared foundation (database, vault client, page-state recording,
   downloads, notifications, control protocol) was extracted into the
   `apps/billcollector/` package, which the batch entry points

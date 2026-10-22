@@ -1,7 +1,8 @@
 # PR #22 review — phased login with a durable failure budget
 
-> Status: REVIEWING (2026-10-22) — S1 review complete, findings recorded;
-> verdict and integration plan pending S2.
+> Status: AWAITING-DECISION (2026-10-22) — S2 plan complete: verdict
+> approve with maintainer changes; per-file integration plan and validation
+> plan finalized; awaiting user decision.
 
 ## PR metadata
 
@@ -231,22 +232,90 @@ dependency on merge order. #22 is the active chain.
 
 ## Verdict
 
-Pending S2.
+**Approve with maintainer changes.**
+
+- The implementation matches the contract agreed in issue #20 on
+  2026-10-22 (single-attempt login transaction, durable failure budget,
+  uncertain-submit consumption, one-attempt clear, existing pause deadline in
+  v1).
+- No existing behavior changed outside the login-protection scope; the new
+  runtime state is additive (five `Task` columns, `task-locks/` dir under the
+  existing data dir).
+- The test suite is comprehensive (DB / runner / daemon / process levels,
+  27-row requirement-to-test map) and the CONTRIBUTING process check passes.
+- The four maintainer-side changes below are integration-side adaptations;
+  none changes the PR's intent:
+  1. Manual resolution of the single `db.py` conflict (keep dev's
+     `import_ini(..., force=False)` signature plus the PR's login methods).
+  2. `doc/SAFE_LOGIN.md`: update the stale "Stefan has not agreed the recipe
+     or database interface" sentence to reflect the 2026-10-22 agreement.
+  3. CHANGELOG entry authored by the maintainer in S6 (the author added
+     none; the PR-head `CHANGELOG.md` is stale and is skipped).
+  4. Skip the stale PR-head `README.md` (dev version stays).
 
 ## Integration plan
 
-Pending S2 (per-file apply/skip/manual decisions follow from the
-classification above).
+Apply from the PR head (`refs/pr/22`), file by file:
+
+| File | Action | Note |
+|---|---|---|
+| `apps/billcollector/login.py` | apply | new; no conflict |
+| `apps/billcollector/db.py` | manual | one mechanical conflict after `claim_task_run` (dev's `import_ini(..., force=False)` vs the PR's login methods) — keep both, eyeball in S4 |
+| `apps/billcollector/runner.py` | apply | auto-merges; verify the import block (dev redaction import + PR login import) |
+| `apps/billcollector/notify.py` | apply | clean pre-image |
+| `apps/billcollector/orchestrator.py` | apply | clean pre-image |
+| `apps/billcollector/recipes.py` | apply | clean pre-image |
+| `apps/billcollector/ui/dashboard.py` | apply | clean pre-image |
+| `apps/billcollector/ui/task_detail.py` | apply | clean pre-image |
+| `apps/recipes_playwright/recipe-pw-schema.yaml` | apply | clean pre-image; additive `phases` / `submit` |
+| `doc/SAFE_LOGIN.md` | apply + maintainer edit | stale "not agreed" sentence updated (recorded in S6) |
+| `tests/conftest.py` | apply | clean pre-image; forced env vars + socket guard affect the whole suite |
+| `tests/test_bc_login.py` | apply | new |
+| `tests/test_bc_ui_task_detail.py` | apply | clean pre-image |
+
+Skip (dev versions stay):
+
+- `CHANGELOG.md` — stale in the PR head (−53 lines vs dev); maintainer
+  authors the entry in S6.
+- `README.md` — stale in the PR head (−268 lines vs dev).
+- The 71 private-path deletions — comparison artifacts, already absent from
+  the current `github/main`.
+
+Commits to create in S7 (dev-commits, one concern each):
+
+1. `feat:` code — `login.py`, `db.py`, `runner.py`, `notify.py`,
+   `orchestrator.py`, `recipes.py`, `ui/dashboard.py`, `ui/task_detail.py`,
+   `apps/recipes_playwright/recipe-pw-schema.yaml`.
+2. `test:` tests — `tests/test_bc_login.py`, `tests/conftest.py`,
+   `tests/test_bc_ui_task_detail.py`.
+3. `doc:` docs — `doc/SAFE_LOGIN.md` (with the maintainer edit) +
+   `CHANGELOG.md` entry.
 
 ## Validation plan
 
-Pending S2. Baseline commands from the repo root:
+Run on the exact dev tree that will be promoted, from the repo root:
 
-- `LC_ALL=C apps/.venv/bin/python -m pytest tests/test_bc_login.py -v`
-- `LC_ALL=C apps/.venv/bin/python -m pytest tests/ -q` (full suite,
-  conftest change affects everything)
-- `apps/.venv/bin/python tests/run_regression.py --ini tests/bc_regression.ini`
-- ruff + bandit on the changed files vs the known baseline.
+1. PR unit tests:
+   `LC_ALL=C apps/.venv/bin/python -m pytest tests/test_bc_login.py -v`
+   -> all pass (DB-level, runner-level against the loopback portal +
+   headless chromium, daemon-level, process-level; runner tests need
+   playwright chromium, present in the venv).
+2. Full suite (the `conftest.py` change affects every test — risk #2):
+   `LC_ALL=C apps/.venv/bin/python -m pytest tests/ -q` -> 0 failures.
+   Fork claim: 357 passed, 2 skipped, 37 subtests; counts on the dev tree
+   may differ slightly — any new failure is diagnosed before promotion.
+3. End-to-end regression:
+   `apps/.venv/bin/python tests/run_regression.py --ini
+   tests/bc_regression.ini` -> exit 0, VERDICT: PASS (7 scenarios / 8 PDFs).
+   Exit codes follow the deploy-skill semantics (exit 3 = a real run holds
+   the lock; stop it first).
+4. Lint / security on the changed files:
+   ruff (F821, E4/E7/E9) + bandit -> nothing new beyond the known baseline
+   (B608 dynamic SQL table names, B104 UI bind).
+5. Deployment-process validation: **not triggered** — the PR touches no
+   Dockerfile, compose, install/deploy scripts, INI keys, or `.env`
+   handling (risk #6). The skip is recorded with the user confirmation at
+   S5.
 
 ## Deployment validation
 
@@ -266,8 +335,13 @@ user-confirmed skip (or run) at S5.
 
 ## Open questions
 
+All resolved at S2:
+
 1. S6 CHANGELOG entry: authored by the maintainer (the author added none).
+   -> Confirmed: the maintainer authors it in S6.
 2. `doc/SAFE_LOGIN.md` "Stefan has not agreed" sentence: update on
-   integration in S6, or leave to the author?
+   integration, or leave to the author?
+   -> Resolved: the maintainer updates it on integration (S4 apply, recorded
+   in S6); the closing PR comment notes it.
 3. Ordering with PR #19: #22 proceeds first (it is the active chain); #19
-   re-runs pre-image checks if integrated later.
+   re-runs pre-image checks if integrated later. -> Confirmed.

@@ -61,7 +61,10 @@ elif source in {"browser", "recipe"}:
 elif source == "task":
     task_db = Mock()
     task_db.create_run.return_value = run_id
-    task_db.get_task.return_value = {"recipe_file": "synthetic", "service": "synthetic"}
+    task_db.get_task.return_value = {
+        "recipe_file": "synthetic", "service": "synthetic",
+        "login_locked": 0, "login_pending_run_id": None,
+    }
     with patch.object(runner, "Database", return_value=task_db), \\
             patch.object(runner, "CheckRecipe", return_value={"services": []}), \\
             patch.object(runner, "_install_signal_handlers"), \\

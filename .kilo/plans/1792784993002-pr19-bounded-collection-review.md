@@ -1,9 +1,10 @@
 # PR #19 review — bounded Playwright collection actions
 
-> Status: AWAITING-DECISION (2026-10-23) — S2 gate passed: verdict approve
-> with maintainer changes, **Path A confirmed** (author rebases onto
-> `42d4337`, then S1 re-runs on the new head); the S3 rebase-request PR
-> comment awaits user confirmation of the exact text.
+> Status: AWAITING-DECISION (2026-10-23) — S3 done: rebase-request comment
+> posted on #19 (`6373943417`, 2026-10-23T20:20:28Z, exact text user-
+> confirmed as is). Waiting on the author's rebase onto `42d4337` + un-draft
+> (Path A per the #18 agreement); when the head moves, a new session re-runs
+> S1 on the new head before any integration.
 
 ## PR metadata
 
@@ -332,3 +333,23 @@ only). Recorded skip; no S5 deployment-process block.
   rebase target stays the then-current `main`; if further deliveries move
   it before the author rebases, the comment's target hash is updated in the
   S1 re-run, not by re-commenting.
+
+## S3 (2026-10-23)
+
+- Rebase-request comment posted on #19 after the user confirmed the exact
+  text as is (gate satisfied — the agent never comments without it):
+  comment `6373943417`, 2026-10-23T20:20:28Z, posted from `s-t-e-f-a-n` —
+  the #18 contract decisions are confirmed, the #20 login contract is
+  already integrated into `main`, request to rebase onto the current `main`
+  (`42d4337`) and un-draft, maintainer reviews after the rebase.
+- Re-verified 2026-10-23 after posting: `refs/pr/19` head still
+  `13d002c`, `github/main` still `42d4337` — the comment's target hash
+  remains valid.
+- N1 (nested-guard message for login phases) stays deferred to the S3
+  proposal, which is finalized when the rebased head is reviewed.
+- Next: wait for the author (no further action until the head moves or the
+  user asks). "continue PR #19" in a new session: head-moved failure mode —
+  diff the new head against the reviewed `13d002c`, non-empty → re-run S1 on
+  the new head (five-decision re-check + pre-image checks against `dev`),
+  update this doc, then S2 again. If `github/main` moves before the rebase,
+  the target hash is updated in the S1 re-run, not by re-commenting.

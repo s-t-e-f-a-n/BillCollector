@@ -1,9 +1,9 @@
 # PR #19 review — bounded Playwright collection actions
 
-> Status: AWAITING-DECISION (2026-10-23) — S2: verdict approve with
-> maintainer changes; integration is blocked on the author's rebase onto the
-> then-current `main` per the #18 sequencing note; the fallback path (manual
-> integration of the reviewed head) is fully specified below.
+> Status: AWAITING-DECISION (2026-10-23) — S2 gate passed: verdict approve
+> with maintainer changes, **Path A confirmed** (author rebases onto
+> `42d4337`, then S1 re-runs on the new head); the S3 rebase-request PR
+> comment awaits user confirmation of the exact text.
 
 ## PR metadata
 
@@ -310,10 +310,25 @@ only). Recorded skip; no S5 deployment-process block.
 
 ## Open questions (S2 gate)
 
-1. **Path A or B?** A: ask the author to rebase onto `42d4337` (per the
-   #18 note; the #22 precondition is met) and un-draft, then re-run S1 on
-   the new head. B: integrate the reviewed head `13d002c` now with the
-   specified manual resolutions.
+1. **Path A or B?** -> **Confirmed Path A** (2026-10-23): ask the author to
+   rebase onto `42d4337` and un-draft (per the #18 note; the #22
+   precondition is met), then re-run S1 on the new head. The path-B manual
+   resolutions above are retained as the fallback characterization only.
 2. **N1:** generalize the nested-guard message for login phases (small
-   maintainer-side change), or accept the current message?
-3. If path B: confirm the per-file resolutions above as the S3 proposal.
+   maintainer-side change), or accept the current message? -> Deferred to
+   the S3 proposal (it belongs to the maintainer-side changes list, which
+   is finalized when the rebased head is reviewed).
+3. ~~If path B: confirm the per-file resolutions above as the S3
+   proposal.~~ Moot under Path A.
+
+## S2 gate (2026-10-23)
+
+- Verdict + plan reviewed by the user; Path A confirmed. Plan doc committed
+  `edf55a3` (doc-only) to `dev`.
+- Next (S3): post the rebase-request PR comment on #19 — exact text
+  user-confirmed first (the agent never comments on a PR without the gate).
+  Then wait for the author; when the head moves, a new session re-runs S1
+  on the new head (head-moved failure mode) before any integration. The
+  rebase target stays the then-current `main`; if further deliveries move
+  it before the author rebases, the comment's target hash is updated in the
+  S1 re-run, not by re-commenting.

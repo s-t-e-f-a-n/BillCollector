@@ -22,6 +22,7 @@ import jsonschema
 import yaml
 
 from . import config
+from .login import validate_login_recipe
 
 
 def validate_recipe(text: str, schema_path=None) -> tuple:
@@ -46,6 +47,10 @@ def validate_recipe(text: str, schema_path=None) -> tuple:
         return False, "; ".join(
             f"{'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}"
             for e in errors), None
+    try:
+        validate_login_recipe(data)
+    except ValueError as e:
+        return False, f"invalid login contract: {e}", None
     return True, None, data
 
 
@@ -91,7 +96,9 @@ def _step_entry(step, depth: int = 0) -> dict:
         "graceful": bool(step.get("graceful")),
         "methods": [_method_text(m) for m in step.get("methods") or []],
         "depth": depth,
-        "children": [_step_entry(s, depth + 1) for s in step.get("steps") or []],
+        "children": [_step_entry(s, depth + 1) for s in step.get("steps") or []]
+                    + ([_step_entry(step["submit"], depth + 1)] if "submit" in step else [])
+                    + [_step_entry(phase, depth + 1) for phase in step.get("phases", [])],
     }
 
 
@@ -124,7 +131,7 @@ def parse_steps(data) -> list:
 # and replaces the whole chain (decision 7).
 _CHAIN_END_METHODS = frozenset({
     "click", "fill", "press", "goto", "close",
-    "expect_download", "wait_user",
+    "expect_download", "wait_user", "login",
 })
 
 

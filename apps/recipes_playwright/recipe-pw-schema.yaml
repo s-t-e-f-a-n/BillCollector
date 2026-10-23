@@ -45,6 +45,24 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/step"
+      phases:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [submit, success]
+          additionalProperties: false
+          properties:
+            success:
+              type: object
+            steps:
+              type: array
+              items:
+                $ref: "#/definitions/step"
+            submit:
+              $ref: "#/definitions/step"
+      submit:
+        $ref: "#/definitions/step"
   method:
     type: object
     required:

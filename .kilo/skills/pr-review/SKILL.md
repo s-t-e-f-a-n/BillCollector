@@ -35,6 +35,11 @@ confirmation.
 - Commits follow the dev-commits skill (one concern per commit); promotion
   and mirroring follow the deploy skill (ff-only; no tag unless a release is
   decided separately).
+- Publication routine (agreed in GitHub issue #25, 2026-10-23): every
+  integrated delivery ends with the S7 close comment (public commit link +
+  maintainer-side adaptations + validation result), the related-issue
+  closure, and a per-public-update GitHub Discussion summary — each
+  public text is still user-confirmed before posting.
 - One PR per workflow chain. The review plan document is the single state
   carrier; every stage ends by committing its plan-doc update to `dev`
   (doc-only).
@@ -201,11 +206,21 @@ Gate: user confirms the docs.
     `AGENTS.md` / `.openwikiignore` / `.github/workflows/`, and the integrated
     content is present.
 4. Close the PR (user confirms the exact comment text first): `POST
-   .../issues/N/comments` (mirror flow explained, content confirmed in
-   place, nits noted) + `PATCH .../pulls/N` `{"state":"closed"}` — closed
-   without merge; the change reached GitHub via the mirror, keeping public
-   history canonical.
-5. Plan doc: Status: DELIVERED with the dev / main / GitHub hashes + close
+   .../issues/N/comments` (mirror flow explained, content confirmed in place
+   with the public commit link on `github/main`, maintainer-side adaptations
+   listed, validation result summarized, nits noted) + `PATCH .../pulls/N`
+   `{"state":"closed"}` — closed without merge; the change reached GitHub via
+   the mirror, keeping public history canonical.
+5. Close the related issues (user confirms each comment text first): for
+   every issue the PR references ("Closes #N"), post a short comment
+   stating what landed (public commit link) and `PATCH .../issues/N`
+   `{"state":"closed"}`; if the acceptance criteria are not met, leave the
+   issue open and comment what remains (publication routine, issue #25).
+6. Per-public-update summary (user confirms the text first): post a short
+   GitHub Discussion summary of the included contributions and maintainer
+   changes, so contributors can subscribe instead of comparing `main`
+   (publication routine, issue #25).
+7. Plan doc: Status: DELIVERED with the dev / main / GitHub hashes + close
    timestamp; doc-only commit + push to `dev` (stays private; `.kilo/` never
    reaches GitHub).
 

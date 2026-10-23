@@ -345,6 +345,11 @@ only). Recorded skip; no S5 deployment-process block.
 - Re-verified 2026-10-23 after posting: `refs/pr/19` head still
   `13d002c`, `github/main` still `42d4337` — the comment's target hash
   remains valid.
+- Issue #18 still open (the PR's "Closes #18"): sequencing-milestone
+  comment posted after user confirmation — comment `6374211209`,
+  2026-10-23T20:35:11Z, from `s-t-e-f-a-n`: the #20 login contract
+  (PR #22) is integrated into `main`, the rebase request is on PR #19,
+  review follows the head move.
 - N1 (nested-guard message for login phases) stays deferred to the S3
   proposal, which is finalized when the rebased head is reviewed.
 - Next: wait for the author (no further action until the head moves or the

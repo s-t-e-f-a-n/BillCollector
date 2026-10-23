@@ -492,6 +492,7 @@ def process_step(bcs, step, collection_actions=None):
                 collection.validate_terminal_action(
                     methods, method_index, method_name
                 )
+                processed_args = [process_argument(arg, bcs) for arg in arguments]
                 if previous_result is bcs.page:
                     raise ValueError(
                         f"{method_name} requires a locator prefix"

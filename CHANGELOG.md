@@ -73,6 +73,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `apps/.env` mount (the runner exports the effective values into the
   environment before the vault calls; empty values keep the legacy env-only
   behavior).
+- Phased login protection for task runs (issue #20, contract in
+  [doc/SAFE_LOGIN.md](doc/SAFE_LOGIN.md)): a new recipe method `login` with an
+  explicit success locator and, for multi-factor portals, ordered `phases`
+  (each `steps` + `submit` + `success`; the last phase must prove the final
+  success locator). The runner skips the block when the success locator is
+  already visible (a live session), reserves one attempt of a persistent
+  failure budget before the first submission, submits each phase exactly
+  once, and consumes the reserved attempt without retry when a submission's
+  outcome is uncertain.
+- Persistent login failure budget per task (additive Task columns
+  `login_failures`, `login_failure_limit`, `login_locked`,
+  `login_cycle_active`, `login_pending_run_id`; existing databases are
+  migrated in place). Reaching the limit (default 2, configurable per task
+  and per recipe) locks the task: scheduled, manual and CLI runs are refused
+  until an explicit clear, a crash or restart settles an in-flight attempt
+  (the orphan cleanup consumes it), and a successful session proof resets the
+  budget.
+- Login state in the Web UI: a Login column on the dashboard (available /
+  pending / blocked; the bulk run skips blocked tasks and Run now is
+  disabled while blocked), the budget state on the task detail page
+  (unproven attempts / limit), and a "Clear login block" button (idle +
+  locked only, confirm dialog) that grants exactly one further attempt while
+  preserving the profile and schedule.
+- An ntfy notification when a task's login is locked (existing `ntfy_topic`
+  transport; task id and failure count, a deep link to the task detail when
+  the UI base URL is set).
 
 ### Changed
 
@@ -108,6 +134,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   wizard, first task); new sections for daemon mode (env vars, container
   semantics), UI usage per page, cron-to-daemon migration, and the F5 debug
   workflow; the legacy batch section is now marked deprecated.
+- Concurrent executions of one task are now refused by a per-task file lock
+  held for the duration of the run (`task-locks/` under the data dir, never
+  unlinked): a second CLI or daemon start of the same task stops before
+  touching the recipe, the vault, or a display. Task claiming is guarded in
+  the database (locked or pending login tasks are refused, and a rejected
+  contender cannot release a task another active run still owns).
 
 ### Deprecated
 

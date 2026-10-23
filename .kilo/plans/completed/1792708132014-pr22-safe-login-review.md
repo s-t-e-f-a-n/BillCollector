@@ -1,9 +1,10 @@
 # PR #22 review — phased login with a durable failure budget
 
-> Status: VALIDATED (2026-10-23) — S5 all green (54 PR tests; full suite
-> 408 passed / 1 skipped / 53 subtests; regression PASS; ruff/bandit no new
-> findings), deployment-validation skip user-confirmed 2026-10-23T05:37Z;
-> S6 docs written, awaiting the doc gate.
+> Status: DELIVERED (2026-10-23) — S7 complete: 4 commits on Gitea dev/main
+> `9d8ebcf` (promoted ff-only), GitHub mirror main `42d4337` (public gate
+> passed), PR #22 closed without merge 2026-10-23T06:49:30Z via API (first
+> attempt 401 — the stored userinfo carries `user:token`; the bare token
+> part after the colon is the Bearer credential; clean on re-run).
 
 ## PR metadata
 
@@ -403,3 +404,40 @@ All resolved at S2:
    in S6); the closing PR comment notes it.
 3. Ordering with PR #19: #22 proceeds first (it is the active chain); #19
    re-runs pre-image checks if integrated later. -> Confirmed.
+
+## S7 delivery (2026-10-23)
+
+- **Preflight**: on `dev` (`cb2ebfd` = origin/dev), clean tree apart from
+  the uncommitted private `openwiki/` refresh (excluded from the payload,
+  as decided in S6); `main` = `44ad25c` unchanged since S1 (ff-only
+  guaranteed); PR head re-verified `58f569a` (unchanged since S1). Payload
+  re-verified against the S5-validated content: the 8 tracked
+  clean-pre-image files byte-identical to `refs/pr/22`; `login.py` /
+  `test_bc_login.py` byte-identical; `db.py` only the documented
+  `import_ini(force=False)` hunk; `runner.py` carries both the dev
+  redaction import and the PR login import plus `_execute_login` / flock;
+  `SAFE_LOGIN.md` only the agreement sentence; the S5 `test_bc_residual_logs.py`
+  stub fix in place. The tree moved since the S5 skip confirmation
+  (2026-10-23T05:37Z) only by doc-only files (`CHANGELOG.md`, `README.md`)
+  + private `openwiki/` — cannot invalidate the S5 code validation.
+- **Commits (dev-commits, user-confirmed)**: `09e5253` feat (9 code files),
+  `b5b0a29` test (3 PR test files), `bdfb663` test (residual-logs stub
+  fix), `9d8ebcf` doc (SAFE_LOGIN.md + CHANGELOG + README) → pushed
+  `cb2ebfd..9d8ebcf` to origin/dev.
+- **Promotion (user-confirmed)**: Gitea main ff-only `44ad25c → 9d8ebcf`,
+  `diff main dev` empty, no tag (integration, not a release — the CHANGELOG
+  entry stays in `[Unreleased]`). The uncommitted `openwiki/` refresh was
+  stashed for the checkout dance and restored on `dev` afterwards.
+- **Mirror (user-confirmed)**: `sync_github.sh` exit 0, GitHub main
+  `d2affd2 → 42d4337` (differs from Gitea by design); public gate passed —
+  no `.kilo` / `.vscode` / `.private` / `openwiki` / `AGENTS.md` /
+  `.openwikiignore`, `.github/workflows` gone (the openwiki workflow was
+  its only entry), and `login.py` / `test_bc_login.py` / `SAFE_LOGIN.md`
+  (with the agreement sentence) verified on GitHub main.
+- **PR close (user-confirmed text)**: comment `6359232535` posted, PR
+  closed without merge 2026-10-23T06:49:30Z. The closing comment notes the
+  stale "still requires upstream agreement" sentence in the SAFE_LOGIN.md
+  Boundaries section as an informational follow-up for the author, and that
+  issue #20 stays open for the separate deployment decision.
+- **Residual (not part of this PR)**: the `openwiki/` refresh (5 modified +
+  2 untracked) stays uncommitted on `dev` for its own later docs commit.

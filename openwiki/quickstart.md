@@ -105,11 +105,7 @@ The pytest suite (`apps/.venv/bin/python -m pytest tests/ -q`, expected: exit `0
 | --- | --- | --- |
 | Change a recipe (YAML automation for a portal) | [Recipe System](concepts/recipes.md) | Only if the **recipe contract** itself changes: [Shared Interfaces](architecture/shared-interfaces.md) — and open an issue first |
 | Change the DB schema | [Shared Interfaces](architecture/shared-interfaces.md), [Architecture Overview](architecture/overview.md) | Open an issue first, then [Shared Interfaces](architecture/shared-interfaces.md), [Architecture Overview](architecture/overview.md), and [Testing and Verification](testing/verification.md) (the harness reads the batch tables back) |
-<!-- openwiki: broken internal link [workflows/pause-repair.md] file "workflows/pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [workflows/pause-repair.md] file "workflows/pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 | Touch the pause/control flow | [Pause, Intervention & Recipe Repair](workflows/pause-repair.md), [Shared Interfaces](architecture/shared-interfaces.md) (control protocol), [Run Lifecycle](workflows/run-lifecycle.md) | [Pause, Intervention & Recipe Repair](workflows/pause-repair.md); [Shared Interfaces](architecture/shared-interfaces.md) if the protocol changes; [Run Lifecycle](workflows/run-lifecycle.md) |
-<!-- openwiki: broken internal link [ui/web-ui.md] file "ui/web-ui.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [ui/web-ui.md] file "ui/web-ui.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 | Change a UI page | [Web UI Pages](ui/web-ui.md) | [Web UI Pages](ui/web-ui.md) |
 | Change the Docker image | [Development and Deployment](operations/deployment.md), [Testing and Verification](testing/verification.md) (context check) | [Development and Deployment](operations/deployment.md); run `python3 tests/check_docker_context.py` (expected: `Docker context: 19 private canaries excluded, 5 source files retained`) |
 
@@ -130,9 +126,7 @@ From [CONTRIBUTING.md](../CONTRIBUTING.md) — these are enforced, not style adv
 - [Recipe System](concepts/recipes.md) — anatomy and mechanics of the YAML recipes.
 - [Vault Transport and Security](concepts/vault-transport.md) — how BillCollector reaches the local `bw serve` API, and what it refuses.
 - [Run Lifecycle](workflows/run-lifecycle.md) — scheduling, locking, and step recording end to end in both modes.
-<!-- openwiki: broken internal link [workflows/pause-repair.md] file "workflows/pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Pause, Intervention & Recipe Repair](workflows/pause-repair.md) — the runner's pause subsystem and the repair workflow.
-<!-- openwiki: broken internal link [ui/web-ui.md] file "ui/web-ui.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Web UI Pages](ui/web-ui.md) — one section per UI page: purpose, state, actions.
 - [Testing and Verification](testing/verification.md) — every check with its exact command and expected result.
 - [Development and Deployment](operations/deployment.md) — the install, image-build, and remote-deploy scripts.

@@ -37,7 +37,6 @@ generated: { by: "openwiki/0.7.2", at: "2026-10-18T11:52:37.839Z" }
 
 # Run Lifecycle: Scheduling, Locking, and Step Recording
 
-<!-- openwiki: broken internal link [pause-repair.md] file "pause-repair.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 BillCollector runs documents in two coexisting modes, and both have a full run lifecycle: the **batch mode** is a cron-launched, one-shot, headless process that walks every (service, user) pair of an INI file, while the **daemon mode** is a long-running NiceGUI server that schedules one isolated runner subprocess per Task. This page traces a run from the moment a schedule fires (or a cron line invokes the wrapper) through claim, spawn, the step loop, and Run finalization, in both modes, and marks where pauses are entered. The state machines and shared contracts are summarized on [Architecture Overview](../architecture/overview.md); the protocol and schema contracts are on [Shared Interfaces](../architecture/shared-interfaces.md); the pause/repair loop itself is covered on [Pause and Repair](pause-repair.md).
 
 The two modes share the SQLite file (`apps/db/bc.db`, WAL mode, `busy_timeout=30000`), the vault client, the recipe files, the `PageState` scan, and the success contract (a run is `success` only when it completed without aborting **and** at least one file downloaded with `result == "success"`), but they write different tables and guard against double starts with different locks.

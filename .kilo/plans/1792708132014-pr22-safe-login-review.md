@@ -1,8 +1,9 @@
 # PR #22 review — phased login with a durable failure budget
 
-> Status: INTEGRATING (2026-10-22) — S4 done: preflight passed (head
-> 58f569a unchanged, pre-images re-verified), 13 files applied to the dev
-> working tree per the confirmed S3 proposal; uncommitted, awaiting S5.
+> Status: VALIDATED (2026-10-23) — S5 all green (54 PR tests; full suite
+> 408 passed / 1 skipped / 53 subtests; regression PASS; ruff/bandit no new
+> findings), deployment-validation skip user-confirmed 2026-10-23T05:37Z;
+> S6 docs written, awaiting the doc gate.
 
 ## PR metadata
 
@@ -332,10 +333,52 @@ Run on the exact dev tree that will be promoted, from the repo root:
    handling (risk #6). The skip is recorded with the user confirmation at
    S5.
 
+## S5 validation record (2026-10-22, tree = dev `e0e39da` + uncommitted S4 integration + test fix)
+
+1. `LC_ALL=C apps/.venv/bin/python -m pytest tests/test_bc_login.py -v`
+   -> 54 passed in 132s (DB / runner / daemon / process levels, incl.
+   headless-chromium browser tests).
+2. Full suite, first run: 408 passed, 1 failed, 1 skipped, 52 subtests.
+   Failure: `test_bc_residual_logs.py` source `task` — the dev M4 stub
+   mocked `runner.Database.get_task` with a pre-login task dict, so the PR's
+   new admission check (`_run_task`, runner.py:902) raised
+   `KeyError: 'login_locked'`. Fix on dev (test-only, intent preserved):
+   the stub mock now returns
+   `{"recipe_file": "synthetic", "service": "synthetic", "login_locked": 0,
+   "login_pending_run_id": None}`. Re-run: 1 passed (7 subtests); full
+   suite re-run -> 408 passed, 1 skipped, 53 subtests (272s), 0 failures.
+3. Regression `tests/run_regression.py --ini tests/bc_regression.ini`
+   -> exit 0, VERDICT: PASS (7 scenarios / 8 PDFs; the three
+   expected-failure pairs exit 1 as pinned).
+4. ruff 0.17.0 (F821, E4/E7/E9) on all 12 changed/added `.py` files
+   (incl. the test fix) -> all checks passed.
+5. bandit 1.9.4 (scratch venv `/tmp/kilo/lint`, project venv untouched)
+   on the same files -> 2x B608 in pre-existing dev `update_task` /
+   `update_run` (baseline), 1x B110 in pre-existing dev `_run_recipe`
+   close-swallow, B404/B603 subprocess usage in the new process-level
+   tests, 1x B105 pre-existing synthetic test password, B101 asserts in
+   tests only. Nothing new beyond the known baseline in the changed code.
+
+## S6 documentation (2026-10-23)
+
+- CHANGELOG.md `## [Unreleased]`: Added — 4 items (phased `login` contract +
+  runner semantics; persistent budget + in-place migration; UI states;
+  lock notification), Changed — 1 item (per-task run lock + guarded task
+  claiming). Sanitized: no private details.
+- README.md: Dashboard + Task-detail bullets extended with the login states;
+  new "Blocking repeated login failures" paragraph after "Pausing a stuck
+  run" with the SAFE_LOGIN.md pointer.
+- CONTRIBUTING.md: unchanged (contributor rules untouched).
+- doc/SAFE_LOGIN.md: the S4 maintainer edit (agreement sentence) stands;
+  noted in the closing PR comment per the S2 resolution.
+
 ## Deployment validation
 
-Not triggered at S1 (no deployment-relevant files). To be recorded with the
-user-confirmed skip (or run) at S5.
+Not triggered (recorded at S5, 2026-10-22): the PR touches no Dockerfile,
+compose file, install/deploy scripts, INI keys, or `.env` handling; the new
+runtime state is the additive Task columns and a `task-locks/` directory
+under the existing data dir. User-confirmed skip recorded
+2026-10-23T05:37Z (the "continue PR #22" given at the S5 gate).
 
 ## Out of scope
 

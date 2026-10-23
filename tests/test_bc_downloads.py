@@ -47,6 +47,40 @@ class DownloadTrackingTests(unittest.TestCase):
         return bcdl.track_download(_StubDownload(src, filename, url),
                                    self.rid, self.task, self.db)
 
+    def test_consumer_receives_a_committed_row_and_stable_key(self):
+        observed = []
+
+        def consume(record):
+            reader = bcd.Database(path=self.db.path)
+            try:
+                row = reader.find_download_by_sha(self.tid, record["sha256"])
+                observed.append((row is not None, record.get("idempotency_key")))
+            finally:
+                reader.close()
+
+        from unittest.mock import patch
+        with patch.object(bcdl, "CONSUMERS", [consume]):
+            record = self._track("a.pdf", b"durable document", "http://x/a.pdf")
+        self.assertEqual(observed, [(True, f"{self.tid}:{record['sha256']}")])
+
+    def test_failed_consumer_is_retried_after_database_reopen(self):
+        from unittest.mock import patch
+        attempts = []
+
+        def consume(record):
+            attempts.append(record["idempotency_key"])
+            if len(attempts) == 1:
+                raise OSError("synthetic consumer unavailable")
+
+        with patch.object(bcdl, "CONSUMERS", [consume]):
+            record = self._track("a.pdf", b"retry delivery", "http://x/a.pdf")
+            self.db.close()
+            self.db = bcd.Database(path=Path(self.tmp.name) / "test.db")
+            bcdl.recover_downloads(self.db)
+            bcdl.recover_downloads(self.db)
+        self.assertEqual(attempts, [f"{self.tid}:{record['sha256']}"] * 2)
+        self.assertEqual(self.db.list_downloads()[0]["state"], "consumed")
+
     def test_first_download_tracked(self):
         data = b"first file bytes"
         rec = self._track(

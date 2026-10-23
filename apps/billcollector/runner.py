@@ -1025,6 +1025,14 @@ def _run_task(task_id: int, debug: bool = False) -> int:
             print(f"runner: task {task_id} not found", file=sys.stderr)
             return 1
 
+        # Recover before display/vault/browser setup. Consumers remain in the
+        # runner subprocess, never on the daemon/UI event loop.
+        try:
+            downloads.recover_downloads(db)
+        except (OSError, ValueError) as e:
+            logger.error("Download recovery failed: %s", failure_record("download_recovery", e))
+            return 1
+
         if task["login_locked"] or task["login_pending_run_id"] is not None:
             print("runner: task login is blocked or unresolved; no run started", file=sys.stderr)
             return 1

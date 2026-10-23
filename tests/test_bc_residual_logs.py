@@ -60,6 +60,9 @@ elif source in {"browser", "recipe"}:
         assert runner._run_recipe(ctx, recipe) == ([], True, None)
 elif source == "task":
     task_db = Mock()
+    task_db.path = db.path
+    task_db.get_setting.side_effect = db.get_setting
+    task_db.list_downloads.side_effect = db.list_downloads
     task_db.create_run.return_value = run_id
     task_db.get_task.return_value = {
         "recipe_file": "synthetic", "service": "synthetic",

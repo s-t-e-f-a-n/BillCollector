@@ -120,9 +120,10 @@ Consequences:
 and M3 are done (status below); the Wave 1 exit is complete — the live exit pass
 (2026-10-18) and the NAS deploy + daemon cutover (Post-Wave 1 item C,
 2026-10-22, `.kilo/plans/completed/1792384312843-wave1-nas-deploy.md`);
-M4 (adoption for other users) is done (exit pass passed
-2026-10-21) and the post-Wave 1 flowcool concessions are the remaining
-follow-ups.
+M4 (adoption for other users) is done (exit pass passed 2026-10-21).
+Post-Wave 1 concessions: B (login-failure lock) delivered via the #20
+contract / PR #22 (DELIVERED 2026-10-23); A (date variables) is the only
+remaining item, gated on flowcool's contract issue (nudged 2026-10-23).
 Wave 1's focus is the three current complicating circumstances, each made operable by a
 human from the web UI:
 
@@ -1238,13 +1239,17 @@ mock portal — without shell access to the daemon.
 
 ### Post-Wave 1 — flowcool concessions (Discussion #8)
 
-> **Status: PLANNED — gated on Flo's issues.** The 2026-10-16 reply to flowcool
-> (Gitea Discussion #8, Roadmap, comment 18930306) committed to the two **daemon**
-> features below (unpublished work, not the public batch variant) plus the deployment
-> timeline (item C). Per the process confirmed with Flo, each feature is agreed in an
-> issue he opens before code (A touches the recipe contract; B touches the task state /
-> DB schema — both shared interfaces per CONTRIBUTING). This section locks the confirmed
-> architecture so realization can start once the issues land.
+> **Status: B DELIVERED, C closed, A gated on Flo's issue (nudged 2026-10-23).**
+> The 2026-10-16 reply to flowcool (Gitea Discussion #8, Roadmap, comment 18930306)
+> committed to the two **daemon** features below (unpublished work, not the public
+> batch variant) plus the deployment timeline (item C). Per the process confirmed with
+> Flo, each feature is agreed in an issue he opens before code (A touches the recipe
+> contract; B touches the task state / DB schema — both shared interfaces per
+> CONTRIBUTING). This section locks the confirmed architecture. B landed as the #20
+> contract delivered in PR #22 (safe login with a durable per-task failure budget +
+> explicit unlock — a superset of the B1–B3 sketch; issue #20 closed as met
+> 2026-10-23, `.kilo/plans/completed/1792708132014-pr22-safe-login-review.md`); A
+> awaits its issue (Roadmap discussion nudge 2026-10-23).
 
 **A — Date variables in recipes.** Fixed set: `{{TODAY}}`, `{{DATE_FROM}}`,
 `{{DATE_TO}}`, day offsets (`{{DATE-7d}}`); usable in `goto` URLs and `fill` arguments;

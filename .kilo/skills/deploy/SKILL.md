@@ -117,8 +117,10 @@ call happens before the user has reviewed the suggested body.
      Bearer fails with 401.
    - GitHub: `POST https://api.github.com/repos/s-t-e-f-a-n/BillCollector/releases`
      with `{tag_name, name, body}`. The stored secret is a token -> Bearer.
-   - Extract secrets into shell variables only (never print them); strip both
-     the `https://` prefix and the trailing `@host` (a wrong suffix -> 401).
+    - Extract secrets into shell variables only (never print them): each entry
+      is `https://user:secret@host` - Gitea uses the whole `user:secret` for
+      `curl -u`, GitHub uses only the secret between `:` and `@` as the Bearer
+      token (passing the whole `user:secret` -> 401).
    - Build the JSON payload in a temp file (e.g. `/tmp/kilo`), send with
      `curl -d @file`, delete the temp files afterwards.
 3. Verify: `GET .../releases/tags/vX.Y` on each API -> 200 with the right tag

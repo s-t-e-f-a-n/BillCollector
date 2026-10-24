@@ -206,7 +206,7 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                                     value=bool(task["enabled"])) \
                                     .mark(f"onb-toggle-{task['id']}")
 
-                                def on_toggle(_e=None, task_id=task["id"]) \
+                                def on_toggle(_e=None, task_id=task["id"], toggle=toggle) \
                                         -> None:
                                     task = db.get_task(task_id)
                                     if task is None:

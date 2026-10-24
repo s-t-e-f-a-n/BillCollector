@@ -13,6 +13,7 @@ manual task creation, task toggle, finish).
 
 import configparser
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -405,6 +406,45 @@ async def test_task_toggle_updates_enabled_and_syncs(user, onboarding,
     assert testdb.get_task(task_id)["enabled"] == 1
     assert synced == [task_id]
     assert user.notify.contains("Task onb-tog / u1 enabled")
+
+
+async def test_task_switches_are_independent(user, onboarding, testdb, monkeypatch):
+    synced = []
+    monkeypatch.setattr(TaskScheduler, "sync_task",
+                        lambda self, task_id: synced.append(task_id))
+    first = testdb.create_task("onb-first", "u1", enabled=False, cron="0 0 1 * *")
+    second = testdb.create_task("onb-second", "u2", enabled=False, cron="0 0 1 * *")
+    await _login(user, testdb)
+    await user.open("/onboarding")
+    (first_toggle,) = user.find(marker=f"onb-toggle-{first}").elements
+    (second_toggle,) = user.find(marker=f"onb-toggle-{second}").elements
+    first_toggle.value = True
+    assert testdb.get_task(first)["enabled"] == 1
+    assert testdb.get_task(second)["enabled"] == 0
+    second_toggle.value = True
+    first_toggle.value = False
+    assert testdb.get_task(first)["enabled"] == 0
+    assert testdb.get_task(second)["enabled"] == 1
+    assert synced == [first, second, first]
+    await user.open("/onboarding")
+    (first_reload,) = user.find(marker=f"onb-toggle-{first}").elements
+    (second_reload,) = user.find(marker=f"onb-toggle-{second}").elements
+    assert first_reload.value is False
+    assert second_reload.value is True
+    # A new process opens the persisted database, as after daemon restart.
+    result = subprocess.run(
+        [sys.executable, "-c",
+         "import json,sys; from billcollector.db import Database; "
+         "from billcollector.scheduler import TaskScheduler; "
+         "db=Database(sys.argv[1]); scheduler=TaskScheduler(db, lambda _: None); "
+         "scheduler.resync(); "
+         "print(json.dumps([t['enabled'] for t in db.list_tasks()])); "
+         "assert [j.id for j in scheduler.scheduler.get_jobs()]==['task-'+sys.argv[2]]; "
+         "db.close()",
+         str(testdb.path), str(second)],
+        env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "apps")},
+        check=True, capture_output=True, text=True, timeout=15)
+    assert result.stdout.strip() == "[0, 1]"
 
 
 # ---- decision 2, step 3: finish ---------------------------------------------

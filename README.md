@@ -375,7 +375,7 @@ services:
 You are running BillCollector with cron (`BillCollector.sh` in the crontab) and want to move to the daemon:
 
 1. **Import the tasks.** Your INI file is already known to the daemon: on its first start the `[Playwright]` sections of `bc_default.ini`/`bc_test.ini` are imported as tasks (each (service, user) pair, initially disabled with a default monthly cron). If the daemon already started, press **Import from INI** in the onboarding wizard, or add a task from the dashboard **Add task** dialog.
-2. **Set the schedules.** Open each task's **Edit** dialog on the Dashboard, set its cron (a 5-field crontab expression, e.g., `0 6 1 1,15 * *` for the 1st and 15th at 06:00), and enable it.
+2. **Set the schedules.** Open each task's **Edit** dialog on the Dashboard, set its cron (a 5-field crontab expression, e.g., `0 6 1,15 * *` for the 1st and 15th at 06:00), and enable it.
 3. **Verify one run.** Press **Run now** for the task, watch the session page until the run reaches `success`, and check the document on the Downloads page and in the consumer folder.
 4. **Stop the cron entry.** Comment out or delete the crontab line that calls `BillCollector.sh`. **Rollback = re-enable the cron entry**: the legacy path keeps working unchanged.
 

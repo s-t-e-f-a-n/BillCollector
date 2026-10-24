@@ -11,6 +11,7 @@ services:
       - url: "https://www.buhl.de/mein-buhlkonto/?buhlparam=1010101"
   - step: 2
     description: ''
+    graceful: true
     methods:
     - method: get_by_label
       arguments:
@@ -43,7 +44,7 @@ services:
       - name: "E-Mail-Adresse"
     - method: press
       arguments:
-      - value: "Tab"
+      - key: "Tab"
   - step: 6
     description: ''
     methods:

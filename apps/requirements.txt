@@ -1,6 +1,6 @@
 aiofiles==25.1.0
 aiohappyeyeballs==2.7.1
-aiohttp==3.14.3
+aiohttp==3.14.4
 aiosignal==1.4.0
 annotated-doc==0.0.5
 annotated-types==0.8.0
@@ -9,7 +9,7 @@ APScheduler==3.11.3
 attrs==26.1.0
 bcrypt==5.0.0
 bidict==0.24.1
-certifi==2026.7.22
+certifi==2026.10.19
 charset-normalizer==3.5.1
 click==8.5.0
 dnspython==2.8.0

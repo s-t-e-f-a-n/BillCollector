@@ -2,6 +2,7 @@
 
 From the repository root, after building the image:
     docker run --rm --network none --shm-size 256m \
+        --security-opt seccomp="$PWD/docker/chromium-seccomp.json" \
         -v "$PWD/tests:/checks:ro" --entrypoint python3 IMAGE \
         /checks/check_image_runtime.py
 
@@ -24,7 +25,7 @@ from playwright.sync_api import sync_playwright
 
 def check_browser(headless):
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=headless)
+        browser = playwright.chromium.launch(headless=headless, chromium_sandbox=True)
         try:
             page = browser.new_page()
             page.set_content("<h1>BillCollector runtime check</h1>")

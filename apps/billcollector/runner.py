@@ -312,6 +312,7 @@ def _launch_browser(ctx, p):
     ctx.context = p.chromium.launch_persistent_context(
         user_data_dir=str(profile_dir),
         headless=False,
+        chromium_sandbox=True,
         args=config.chromium_args(),
     )
     ctx.page = ctx.context.new_page()

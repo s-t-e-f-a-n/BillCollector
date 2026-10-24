@@ -17,3 +17,4 @@ paths, so a moved file gains the `completed/` prefix.
 |---|---|
 | `1792793307574-recipe-repair-llm-options.md` | Public service recipe recovery — LLM-assisted repair options analysis (pre-step); Stage 0 triage done 2026-10-24, all 7 services classified |
 | `1792819039884-recipe-doctor-implementation.md` | Stage 1: offline LLM recipe doctor (`billcollector doctor`) implementation plan + pilot (buhl, datev) — both pilots green 2026-10-24 (runs 16/18, downloads succeeded); extended 2026-10-24 with Stage 1b continuation (remaining 5 services: 1und1, winsim, freenet_mobilfunk, nuernberger via doctor iterations, kabeldeutschland via Option D) |
+| `1792861675256-issue27-maintainer-commitments.md` | Issue #27 product-audit triage (closed 2026-10-24): maintainer-side commitments C1-C8 (F04, F09, F08 contract, F06 contract, F02, F03, F05, F10) with acceptance criteria, dependencies and proposed order |

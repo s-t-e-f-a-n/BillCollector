@@ -1,10 +1,12 @@
 # PR #19 review — bounded Playwright collection actions
 
-> Status: VALIDATED (2026-10-24) — S6 done: CHANGELOG entry applied (pure
-> addition to `## [Unreleased] → ### Added`, the S3-confirmed wording);
-> README bullets already in place from S4; no CONTRIBUTING change. Tree =
-> validated 7 files + doc-only CHANGELOG. Next session: S7 commit + push
-> (three commits per S3), promote, mirror, PR close.
+> Status: DELIVERED (2026-10-24) — S7 done: three commits on dev
+> (feat `9820a10` / test `71c7d69` / doc `4b336d2`), promoted ff-only to
+> main (`4b336d2`), mirrored to GitHub main (`b4cf023f`, public gate
+> passed). PR #19 closed without merge with the #25-routine close comment
+> (14:00:16Z); issue #18 closed (criteria met, 14:00:19Z); Announcements
+> Discussion #29 posted. Private-trees-in-public-history finding reported,
+> deferred by the user. Recipe-doctor WIP stash restored on dev.
 
 ## PR metadata
 
@@ -592,3 +594,43 @@ only). Recorded skip; no S5 deployment-process block.
   promote ff-only, mirror + public gate, PR close with the user-confirmed
   comment, Status: DELIVERED) — and `git stash pop` the recipe-doctor WIP
   after S7.
+
+## S7 (2026-10-24) — commit + push, promote, mirror, close
+
+- Steps 1–3 (previous session, re-verified 2026-10-24): the S3-structured
+  commits on `dev` — feat `9820a10` / test `71c7d69` / doc `4b336d2` —
+  pushed to `origin/dev`; `main` promoted ff-only to `4b336d2` and pushed;
+  mirror sync → GitHub `main` = `b4cf023f` (sanitized tip amend by
+  `sync_github.sh`).
+- Public gate (re-verified): `git ls-remote github refs/heads/main` =
+  `b4cf023f`; the root listing carries no `.kilo` / `.private` / `.vscode`
+  / `openwiki` / `AGENTS.md` / `.openwikiignore` / `.github/workflows`
+  (the `.github` dir holds `ISSUE_TEMPLATE` only);
+  `apps/billcollector/collection.py` is present on public `main` with the
+  validated content.
+- Step 4 (PR close, user gate 2026-10-24): close comment `6385109938`
+  posted on #19 (mirror flow explained; public commit links `9820a10` /
+  `71c7d69` / `b4cf023f` on `github/main`; maintainer-side adaptations =
+  the N1 line + the CHANGELOG entry; validation result summarized; no open
+  nits) per the #25 publication routine; PR closed without merge at
+  2026-10-24T14:00:16Z — the change reached GitHub via the mirror, keeping
+  public history canonical.
+- Step 5 (related issue, user gate): issue #18 acceptance criteria met
+  (both actions landed; loopback-only proof + regression passing) — comment
+  `6385110362` posted with the public commit links; closed at
+  2026-10-24T14:00:19Z (state_reason: completed).
+- Step 6 (per-public-update summary, user gate): Announcements Discussion
+  #29 posted (https://github.com/s-t-e-f-a-n/BillCollector/discussions/29;
+  category node `DIC_kwDOOF013s4CoYir`; repo discussions use the
+  `createDiscussion` mutation — `newDiscussion` is the team variant).
+- Finding (2026-10-24): `sync_github.sh` sanitizes only the tip commit, so
+  every older commit on GitHub `main` carries the private trees (`.kilo/`,
+  `.private/`, `openwiki/`, `AGENTS.md`, `.openwikiignore`,
+  `.github/workflows/openwiki-update.yml`) in its tree. Confirmed on the
+  pre-sync Gitea-main commit `9d8ebcf` and on today's `930891d` —
+  pre-existing, not introduced by this delivery. Reported to the user with
+  the fix option (full-history sanitization rewrite + force-push of GitHub
+  `main`); the user deferred the decision to a separate follow-up.
+- Step 7: Status DELIVERED. dev = `4b336d2` + this doc commit; main =
+  `4b336d2`; GitHub main = `b4cf023f`. Recipe-doctor WIP stash popped on
+  dev.

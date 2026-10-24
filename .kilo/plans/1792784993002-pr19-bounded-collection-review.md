@@ -1,23 +1,31 @@
 # PR #19 review — bounded Playwright collection actions
 
-> Status: AWAITING-DECISION (2026-10-23) — S3 done: rebase-request comment
-> posted on #19 (`6373943417`, 2026-10-23T20:20:28Z, exact text user-
-> confirmed as is). Waiting on the author's rebase onto `42d4337` + un-draft
-> (Path A per the #18 agreement); when the head moves, a new session re-runs
-> S1 on the new head before any integration.
+> Status: AWAITING-DECISION (2026-10-24) — S1 re-run complete on the new
+> head `49bbda5` (author rebased onto `42d4337` and un-drafted,
+> 2026-10-23T21:48:17Z). Clean rebase; all 7 files apply to `dev` with zero
+> conflicts (Path A, as predicted). Verdict unchanged: approve with
+> maintainer changes. Awaiting the user's S2 gate on the updated findings,
+> then the S3 proposal (clean apply, no manual resolutions).
 
 ## PR metadata
 
-- PR: #19 on `s-t-e-f-a-n/BillCollector` (public mirror), open, **draft**
-  ("draft until the recipe-contract decisions in #18 are confirmed" — the
-  decisions are confirmed, un-drafting is the author's move)
+- PR: #19 on `s-t-e-f-a-n/BillCollector` (public mirror), open, **not a
+  draft** (un-drafted by the author with the rebase, 2026-10-23T21:48:17Z)
 - Title: feat: add bounded Playwright collection actions
-- Author: flowcool; created 2026-10-20T12:43:19Z, updated 2026-10-23T06:41:27Z
-- Head: `13d002cfcda2bf095cbe279dbef64f14d99e783d`, branch
-  `feature/playwright-collection-analysis` (flowcool/BillCollector);
-  re-verified unchanged by `git ls-remote` 2026-10-23 (S2)
-- GitHub base ref: `main` (`42d4337`, the PR #22 delivery mirror); merge-base
-  with `github/main`: `baa4046` (2026-10-19)
+- Author: flowcool; created 2026-10-20T12:43:19Z, updated 2026-10-23T21:48:17Z
+- Head (S1 re-run 2026-10-24): `49bbda5231a43984cc967a98f2794719cecf60a0`,
+  branch `feature/playwright-collection-analysis` (flowcool/BillCollector);
+  verified by `git ls-remote` 2026-10-24 and the GitHub API. **Moved from the
+  reviewed `13d002cfcda2bf095cbe279dbef64f14d99e783d`** (non-fast-forward
+  rebase; `refs/pr/19` force-updated locally). Four author commits on the new
+  base: `4162e6f` (feat: prototype bounded Playwright collections) →
+  `cbeef51` (fix: address collection analysis reviews) → `3468172` (fix:
+  resume partial Playwright collections safely) → `49bbda5` (fix: compute
+  collection options after lazy argument processing — **new in the rebase**).
+- GitHub base ref: `main` (`42d4337`); merge-base with `github/main`:
+  `42d4337` — a clean rebase onto exactly the requested target; the old
+  orphaned sanitized recommit `4508909` is no longer in the PR history
+  (the new lineage continues the canonical public main).
 - Issue refs: #18 ("Agree bounded Playwright collection actions for
   pagination and multi-download"), still open; the PR body says "Closes #18".
   Maintainer agreement comment on issue #18 posted 2026-10-22T22:03:11Z:
@@ -27,59 +35,63 @@
   duplicate suggested filenames fail before overwrite; implementation
   ownership — a focused PR against the then-current `main`). Sequencing note:
   start with PR #22 first (done, DELIVERED 2026-10-23), then "rebase onto the
-  then-current `main` and I'll review it after". The head has **not** been
-  rebased since (still on the `baa4046`-era base).
+  then-current `main` and I'll review it after" — **done**: rebased onto
+  `42d4337` + un-drafted 2026-10-23T21:48:17Z.
 - AI disclosure: Codex implemented and reviewed under the contributor's
   direction; Claude Code and CodeRabbit supplied external review findings,
   each checked against the reviewed SHA before a fix (CONTRIBUTING.md
-  disclosure satisfied).
-- GitHub diff stats (inflated by the orphaned recommit): 79 files,
-  +1933/−15199. Real author change (`4508909..13d002c`): 7 files,
-  +1861/−19.
-- PR body evidence (claimed at head `13d002c`): `pytest -q` 324 passed,
-  3 skipped, 37 subtests passed; Chromium loopback collection suite 25
-  passed; `run_regression.py` 7 accounts / 8 files VERDICT PASS; scoped
-  ruff, `py_compile`, bandit on the new module + `git diff --check` pass
-  (wider bandit: only pre-existing B608/B110 in the legacy runners).
+  disclosure satisfied). The new rebase commit `49bbda5` additionally carries
+  `Co-Authored-By: Claude Sonnet 5.5` + a `Claude-Session` link — disclosure
+  remains satisfied.
+- GitHub diff stats (now exact, no orphaned recommit): 7 files,
+  +1863/−19 (4 commits, per the GitHub API).
+- PR body: unchanged by the rebase. Its Evidence section still cites the
+  old head `13d002c` (324 passed, 3 skipped, 37 subtests; Chromium loopback
+  25 passed; `run_regression.py` 7 accounts / 8 files VERDICT PASS; scoped
+  ruff, `py_compile`, bandit; wider bandit B608/B110) — S5 re-establishes the
+  evidence on the new tree. The "draft until the #18 decisions are confirmed"
+  line is stale body text (the PR is un-drafted).
 
-Local state at review time (S1 2026-10-23, re-verified at S2):
+Local state (S1 re-run 2026-10-24):
 
 | ref | tip |
 |---|---|
-| Gitea `dev` | `d6a695da56af6359209181df2c514c47bf4e32a0` |
+| Gitea `dev` | `c555df8212fac08f5a120493017051ce060f3f26` |
 | Gitea `main` | `9d8ebcfea9539e6a107e2502811a928a6cfa6665` |
 | GitHub `main` | `42d4337874afb9db0e4a1e491dc0e52df9da656a` |
 
-Cross-PR: no other open PR on the mirror at S2 (only #19); no ordering
-dependencies. PR #22 (the #20 contract, which this PR's sequencing waits on)
-is DELIVERED (see `completed/1792708132014-pr22-safe-login-review.md`), so
-the #18 precondition "rebase onto the then-current main" is actionable now.
+`dev` moved 9 commits since S2 (`d6a695d` → `c555df8`): plan docs, the
+pr-review skill publication routine, an `apps/requirements.txt` dep bump
+(aiohttp 3.14.3→3.14.4, certifi 2026.7.22→2026.10.19), and an openwiki
+refresh — **none touch the 7 candidate files** (verified per file below).
+
+Cross-PR: only #19 is open on the mirror (re-checked 2026-10-24); no
+ordering dependencies.
 
 ## Verdict
 
-**Approve with maintainer changes.**
+**Approve with maintainer changes** (unchanged by the S1 re-run).
 
 The implementation matches the agreed #18 contract on all five decisions,
 the safety properties in the PR body hold in code, and the test bar (unit
 contract suite + opt-in loopback Chromium smoke + the existing regression
-command) is the one the maintainer named in #18. Maintainer-side changes:
+command) is the one the maintainer named in #18. The S1 re-run on the new
+head `49bbda5` confirms: the contract core is byte-identical to the
+reviewed head, the rebase carried the author hunks faithfully, and the one
+new change (the 2-line `processed_args` fix) is correct and required.
+Maintainer-side changes:
 
 1. CHANGELOG entry — the author shipped none (see S6).
-2. Conflict resolutions — required only on fallback path B (the dev drift
-   since the merge base); fully specified below.
+2. Conflict resolutions — **not needed**: the rebased head applies to `dev`
+   with zero conflicts (verified empirically, S1 re-run). The path-B manual
+   resolutions below are retained as the documented fallback only.
 3. Optional nit N1 (generalize the nested-guard error message for login
    phases) — user's call at S3.
 
-Blocker before S3: the head is not rebased onto the then-current `main`
-(`42d4337`) as the #18 agreement requires. Two paths, user chooses:
-
-- **Path A (recommended, matches #18):** ask the author to rebase onto
-  `42d4337` and un-draft. Then the head moved → re-run S1 on the new head
-  (failure mode: head moved after S1). Because Gitea `dev` = `main` + two
-  doc-only `.kilo/` commits, a rebased head should apply to `dev` with no
-  conflicts (S4 preflight re-verifies the pre-images).
-- **Path B (fallback):** integrate the reviewed head `13d002c` as-is via the
-  manual resolutions in the integration plan below.
+The former blocker (rebase onto the then-current `main`) is resolved:
+Path A was executed by the author (rebase onto `42d4337` + un-draft), and
+the S1 re-run found the rebase clean with no adaptation beyond the 2-line
+fix. Path B remains only as the documented fallback characterization.
 
 ## Verified facts
 
@@ -118,6 +130,52 @@ Blocker before S3: the head is not rebased onto the then-current `main`
 - No INI keys, `.env` handling, DB schema, control protocol, or exit-code
   changes; no new network exposure (browser-side actions only, loopback in
   tests); no secrets in code, tests, or artifacts.
+
+S1 re-run (2026-10-24, new head `49bbda5`) — verified facts:
+
+- `refs/pr/19` force-updated to `49bbda5` (non-fast-forward: rebased
+  lineage); `git ls-remote` and the GitHub API agree on the head.
+- `github/main` still `42d4337` — the rebase-request comment's target hash
+  remains valid; no re-comment needed.
+- `git merge-base 49bbda5 github/main` = `42d4337`; `github/main` is an
+  ancestor of the new head → clean rebase onto exactly the requested target.
+- The head-to-head delta (`13d002c` → `49bbda5`) decomposes exactly into:
+  the main-side changes (`baa4046` → `42d4337`, the PR #22 safe-login
+  delivery + docs) + a faithful carry of the reviewed author hunks + the new
+  2-line fix commit `49bbda5` (verified hunk-by-hunk via diff-of-diffs on
+  the 5 overlapping files).
+- `apps/billcollector/collection.py` and `tests/test_bc_collection.py` are
+  **byte-identical** to the reviewed head (empty diff).
+- `README.md`: the three contract bullets are textually identical; the
+  indentation was normalized to the new main's list level (6 → 5 leading
+  spaces, consistent with the sibling bullets in both heads).
+- The 5 overlapping files carry the same author hunks as reviewed, correctly
+  rebased onto main's restructures: `_CHAIN_END_METHODS` is now
+  `"expect_download", "wait_user", "login", "click_until_absent",
+  "download_all"`; the attempts line is now
+  `1 if single_attempt or collection_methods else step_attempts(graceful)`;
+  `fail_step`/`expect_download` context uses main's `failure_record`/
+  `sanitize_url` forms.
+- New fix commit `49bbda5` (+2 lines, one per runner) — verified against the
+  pre-fix rebase state `3468172`: after the rebase, `processed_args` was
+  computed only in the **standard** branch (main's lazy per-method
+  `process_argument` evaluation, the PR #22 restructure), while the
+  collection-terminal branch still referenced it — i.e. it would reuse the
+  previous loop iteration's value (for a `[locator, action]` step, the
+  locator's `[]`), so **every collection step would have failed with
+  "requires one options object"** at runtime. The fix recomputes
+  `processed_args` from the action's own `arguments` inside the terminal
+  branch, after `validate_terminal_action` and before the arity check —
+  correct placement in both `runner.py` and `BillCollectorServices_pw.py`.
+- Pre-image vs current `dev` (`c555df8`): all 5 overlapping files are
+  **byte-identical** between `dev` and `42d4337` (the 9-commit dev drift
+  touched only plan docs, the skill, `requirements.txt`, openwiki); the two
+  new files are absent from `dev`. Empirical `git apply --3way` of the full
+  author diff (`42d4337..49bbda5`) on a scratch `dev` worktree: **all 7
+  files applied cleanly, zero conflict markers**.
+- No INI keys, `.env` handling, DB schema, control protocol, or exit-code
+  changes in the re-run delta; no new network exposure; no secrets (the only
+  content not covered by the original S1 review is the 2-line fix).
 
 ## Code review findings
 
@@ -199,6 +257,22 @@ nested `steps`. All schema bounds mirror the code constants
 `README.md`: three bullets documenting the contract — sanitized,
 public-safe wording, no private details.
 
+New in the rebase — `49bbda5` "fix: compute collection options after lazy
+argument processing" (+2 lines):
+
+- `apps/billcollector/runner.py` `_process_step` terminal branch and
+  `apps/BillCollectorServices_pw.py` `process_step` terminal branch each gain
+  `processed_args = [process_argument(arg, bcs) for arg in arguments]`
+  directly after `validate_terminal_action(...)`, before the locator-prefix
+  and options-arity checks.
+- Behavior: unchanged from the reviewed head for every input (the reviewed
+  head computed the same expression for the same `arguments` at the top of
+  the loop; the rebase moved the computation into the standard branch only).
+  The fix restores the reviewed semantics on the rebased tree — without it,
+  the terminal branch would dispatch a stale (previous-iteration) value.
+- Contract impact: none — options validation, deadline, event window, and
+  dedup behavior are all in `collection.py` / the adapters, untouched.
+
 `tests/test_bc_collection.py` (new, 999 lines): offline contract suite
 (pagination states, disabled control, stall/bound exhaustion, snapshot
 validation, budget exhaustion before any click, budget re-checks under slow
@@ -213,54 +287,73 @@ profile + temp dirs — no real portal, credential, or external service).
 
 Nits:
 
-- **N1** — After PR #22, `_execute_step(..., parent_step=step["step"],
-  single_attempt=True)` is also used for login preparation/submit steps.
-  The PR's nested guard (`parent_step is not None`) therefore also rejects
-  collection actions inside a login phase, with the message "cannot be
-  nested under expect_download" — misleading in the login context. The
-  merged schema structurally permits them there (phases/submit reference
-  `#/definitions/step`). Fail-closed is acceptable; optional
-  maintainer-side change: generalize the message to "cannot be nested under
-  expect_download or in login phases".
+- **N1** (still open at the new head) — After PR #22,
+  `_execute_step(..., parent_step=step["step"], single_attempt=True)` is
+  also used for login preparation/submit steps. The PR's nested guard
+  (`parent_step is not None`) therefore also rejects collection actions
+  inside a login phase, with the message "cannot be nested under
+  expect_download" — misleading in the login context (verified unchanged at
+  `49bbda5`: `runner.py` guard + `BillCollectorServices_pw.py` `run_step
+  (nested=True)`). The merged schema structurally permits them there
+  (phases/submit reference `#/definitions/step`). Fail-closed is
+  acceptable; optional maintainer-side change: generalize the message to
+  "cannot be nested under expect_download or in login phases".
 - **N2** — 50 ms `wait_for_timeout` polling loops (pagination stall, event
   window, snapshot stability) are bounded by the action deadline; no
   unbounded wait.
 - **N3** — The PR body's bandit note cites B608/**B110** in the legacy
   runners; the recorded baseline is B608/B104. Re-verify the bandit
   baseline on S5 and record the actual set.
-- **N4** — Head not rebased onto the then-current `main` per the #18
-  sequencing note (the blocker; see Verdict).
+- **N4** — ~~Head not rebased onto the then-current `main` per the #18
+  sequencing note.~~ Resolved 2026-10-23: rebased onto `42d4337` +
+  un-drafted; S1 re-run confirmed the rebase clean.
 
 ## Risks
 
-- **R1** — Rebase pending: if the author pushes a rebased head, the S4
-  preflight hash check fails and S1 re-runs on the new head (never
-  integrate an unreviewed head). If path B is chosen, the hash check
-  applies to `13d002c`.
-- **R2** — Path B manual merges (5 files): the schema merge interacts the
-  login `phases`/`submit` properties with the new collection `allOf`;
-  mitigated by the specified resolutions plus the schema accept/reject
-  matrix in the unit suite on S5.
+- **R1** — Head-moved risk now applies to `49bbda5`: if the author pushes
+  again before S4, the S4 preflight hash check fails and S1 re-runs on the
+  new head (never integrate an unreviewed head).
+- **R2** — ~~Path B manual merges (5 files).~~ Moot under the executed Path A
+  (clean apply verified); the specified manual resolutions remain the
+  documented fallback if the tree ever diverges again.
 - **R3** — Behavior outside collection actions: the legacy runner's
   `service_aborted` finalization flag (previously the result was inferred
-  from entries only), single-attempt in `_execute_step` limited to
-  collection methods, and the pause-prompt wording for collection steps.
-  Existing retry/timeout/graceful/download behavior is otherwise preserved.
+  from entries only), single-attempt in `_execute_step` (now combined with
+  main's `single_attempt` for login phases: `1 if single_attempt or
+  collection_methods else step_attempts(graceful)`), and the pause-prompt
+  wording for collection steps. Existing retry/timeout/graceful/download
+  behavior is otherwise preserved; the `processed_args` fix restores the
+  reviewed semantics for the terminal branch.
 - **R4** — The loopback browser smoke is opt-in; if the S5 environment lacks
   the venv Chromium, the offline unit suite + full regression must carry the
-  validation (record which ran).
+  validation (record which ran). The PR body's evidence numbers are from the
+  old head — S5 re-establishes them on the new tree.
 
 ## Integration plan
 
-Candidate set: exactly the 7 author files (the 72 deletions in the
-full-range diff are comparison artifacts — never applied).
+Candidate set: exactly the 7 author files (no private paths; the full-range
+diff is the author change itself after the clean rebase).
 
-Path A (author rebases onto `42d4337`): all 7 files expected to apply
-cleanly on `dev` (dev = main + two doc-only `.kilo/` commits); S4 preflight
-re-runs the pre-image checks and the hash check.
+Path A — **executed and verified (S1 re-run 2026-10-24)**: all 7 files apply
+to `dev` cleanly (empirical `git apply --3way`, zero conflicts):
 
-Path B (manual resolutions on the reviewed head, as characterized in the
-scratch 3-way merge):
+| file | action |
+|---|---|
+| `apps/billcollector/collection.py` | apply from PR head (new) |
+| `tests/test_bc_collection.py` | apply from PR head (new) |
+| `README.md` | apply from PR head (clean) |
+| `apps/BillCollectorServices_pw.py` | apply from PR head (clean) |
+| `apps/billcollector/recipes.py` | apply from PR head (clean) |
+| `apps/billcollector/runner.py` | apply from PR head (clean) |
+| `apps/recipes_playwright/recipe-pw-schema.yaml` | apply from PR head (clean) |
+| `CHANGELOG.md` | no PR entry — author one in S6 (Keep a Changelog `Added`, sanitized wording) |
+
+S4 preflight re-runs the hash check (`refs/pr/19` = `49bbda5`), the
+`github/main` check (`42d4337`), and the pre-image checks, then applies
+each file's content from `refs/pr/19`.
+
+Path B (manual resolutions on the reviewed head `13d002c`, as characterized
+in the scratch 3-way merge — documented fallback only, not planned):
 
 | file | action |
 |---|---|
@@ -311,14 +404,13 @@ only). Recorded skip; no S5 deployment-process block.
 
 ## Open questions (S2 gate)
 
-1. **Path A or B?** -> **Confirmed Path A** (2026-10-23): ask the author to
-   rebase onto `42d4337` and un-draft (per the #18 note; the #22
-   precondition is met), then re-run S1 on the new head. The path-B manual
-   resolutions above are retained as the fallback characterization only.
+1. ~~**Path A or B?**~~ -> **Resolved**: Path A executed by the author
+   (2026-10-23) and verified clean by the S1 re-run (2026-10-24). The
+   path-B manual resolutions above are the documented fallback only.
 2. **N1:** generalize the nested-guard message for login phases (small
-   maintainer-side change), or accept the current message? -> Deferred to
-   the S3 proposal (it belongs to the maintainer-side changes list, which
-   is finalized when the rebased head is reviewed).
+   maintainer-side change), or accept the current message? -> Live for the
+   S3 proposal: the rebased head is reviewed, so the maintainer-side changes
+   list is final (CHANGELOG entry + N1 decision).
 3. ~~If path B: confirm the per-file resolutions above as the S3
    proposal.~~ Moot under Path A.
 
@@ -358,3 +450,33 @@ only). Recorded skip; no S5 deployment-process block.
   the new head (five-decision re-check + pre-image checks against `dev`),
   update this doc, then S2 again. If `github/main` moves before the rebase,
   the target hash is updated in the S1 re-run, not by re-commenting.
+
+## S1 re-run (2026-10-24) — head moved
+
+- Trigger: "continue PR #19" — `git ls-remote github refs/pull/19/head`
+  shows `49bbda5` (was `13d002c`); non-fast-forward (rebased lineage),
+  `refs/pr/19` force-updated. GitHub API: open, **un-drafted**, base
+  `main` @ `42d4337`, updated 2026-10-23T21:48:17Z, 7 files +1863/−19,
+  4 commits, mergeable clean.
+- `github/main` still `42d4337` — the comment's target hash remains valid;
+  no re-comment.
+- Diff vs the reviewed head: main-side changes + faithful author carry +
+  the new 2-line fix commit `49bbda5` (verified hunk-by-hunk; see Verified
+  facts / Code review findings above). Five-decision contract re-check:
+  all five hold (core files byte-identical to the reviewed head; decision 5
+  — focused PR against the then-current `main` — now literally met).
+- Pre-image vs `dev` (`c555df8`): all 5 overlapping files byte-identical to
+  the PR base; empirical `git apply --3way` of the full author diff on a
+  scratch `dev` worktree → 7/7 files clean, zero conflict markers.
+- Process check: issue ref #18 present; AI disclosure satisfied (PR body +
+  new commit trailers); no secrets in the delta; no new network exposure;
+  shared interface (recipe contract) agreed in #18 before code.
+- Cross-PR: only #19 open; no dependencies.
+
+## S2 gate (2026-10-24, re-run)
+
+- Updated plan doc reflects the S1 re-run; verdict unchanged (approve with
+  maintainer changes); Path A verified clean → S3 proposal will be the
+  clean-apply integration (no manual resolutions) plus the N1 decision.
+- Awaiting the user's review of the updated findings; on confirmation the
+  doc-only commit + push happen (dev-commits gate), then S3.

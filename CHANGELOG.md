@@ -99,6 +99,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - An ntfy notification when a task's login is locked (existing `ntfy_topic`
   transport; task id and failure count, a deep link to the task detail when
   the UI base URL is set).
+- Bounded Playwright collection actions (issue #18): two new terminal
+  recipe methods that take one page locator plus one options object -
+  `click_until_absent` drives a cumulative "load more" control until it is
+  absent or hidden (every click must increase the visible progress count;
+  `max_clicks` 1-100, `timeout_ms` 1-120000; page-replacement pagination and
+  virtualized lists fail closed), and `download_all` downloads every item of
+  a stable ordered list (non-empty unique `key_attribute` per item, exactly
+  one download per click observed over a full per-item `event_window_ms`
+  window, `max_items` 1-200, `timeout_ms` 1-600000, with the per-item event
+  budget re-validated against the deadline before every click). Collection
+  steps are single-attempt (no automatic retry after partial side effects),
+  cannot be nested under `expect_download` or marked `graceful: true`, and
+  an operator resume of `download_all` skips the item keys already persisted
+  for the step; a suggested filename already saved earlier in the run fails
+  instead of being overwritten.
 
 ### Changed
 

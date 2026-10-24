@@ -1,5 +1,0 @@
-# Files
-
-- [Architecture Overview: Batch Engine and Daemon](overview.md) - The two coexisting operating modes of BillCollector - the cron-launched batch engine and the NiceGUI daemon with isolated runner subprocesses - their shared components, and the top-level invariants (task status machine, terminal Run results, process isolation, exit codes).
-- [Roadmap: Daemon Migration Status](roadmap.md) - The public-safe position of the BillCollector migration from cron batch tool to self-hosted daemon: what is live today (daemon with scheduler, orchestrator, runner, full UI surface with pause/intervention/repair, regression environment) and what is planned or deliberately open (empty document-consumer hook slot, self-healing), while the batch system keeps running unchanged.
-- [Shared Interfaces (Contracts)](shared-interfaces.md) - The four shared interfaces of BillCollector that must not break without an issue - the SQLite schema, the daemon control protocol, the recipe contract, and the process exit codes - with their shape, invariants, and where each is enforced.

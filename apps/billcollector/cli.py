@@ -35,6 +35,38 @@ def _build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("task_id", type=int, help="Task id to run")
     p_run.add_argument("--debug", action="store_true", help="run in debug mode")
 
+    p_doctor = sub.add_parser(
+        "doctor", help="propose a recipe fix for a pause context "
+                       "(offline LLM, dev-side)")
+    p_doctor.add_argument("service", help="service name (e.g. buhl)")
+    p_doctor.add_argument("--pause",
+                          help="pause-context JSON file, or a directory "
+                               "(newest *_pause.json wins)")
+    p_doctor.add_argument("--from-run", dest="from_run", type=int,
+                          help="read Run.pause_context from the local DB "
+                               "by run id")
+    p_doctor.add_argument("--llm-url", dest="llm_url",
+                          help="OpenAI-compatible base URL (default "
+                               "$BC_LLM_URL)")
+    p_doctor.add_argument("--llm-model", dest="llm_model",
+                          help="model name (default $BC_LLM_MODEL)")
+    p_doctor.add_argument("--llm-api-key", dest="llm_api_key",
+                          help="optional API key (default $BC_LLM_API_KEY)")
+    p_doctor.add_argument("--prompt-file", dest="prompt_file",
+                          help="write the prompt to this file and exit "
+                               "(no LLM call)")
+    p_doctor.add_argument("--llm-response", dest="llm_response",
+                          help="use this file as the LLM reply instead "
+                               "of calling the endpoint (offline test)")
+    p_doctor.add_argument("--out",
+                          help="write the proposed YAML here instead of "
+                               "printing (recipe file untouched)")
+    p_doctor.add_argument("--apply", action="store_true",
+                          help="write the proposed YAML to the recipe "
+                               "file (validated, atomic)")
+    p_doctor.add_argument("--timeout", type=float, default=120,
+                          help="LLM request timeout in seconds")
+
     return parser
 
 
@@ -74,5 +106,24 @@ def main(argv=None) -> int:
         from . import runner
 
         return runner.run_task(args.task_id, args.debug)
+
+    if args.command == "doctor":
+        # Lazy import: requests is only needed for the offline doctor.
+        from . import doctor
+
+        return doctor.run_doctor(
+            args.service,
+            pause=args.pause,
+            from_run=args.from_run,
+            db=database,
+            llm_url=args.llm_url or config.env("BC_LLM_URL", ""),
+            llm_model=args.llm_model or config.env("BC_LLM_MODEL", ""),
+            llm_api_key=args.llm_api_key or config.env("BC_LLM_API_KEY", ""),
+            prompt_file=args.prompt_file,
+            llm_response=args.llm_response,
+            out=args.out,
+            apply=args.apply,
+            timeout=args.timeout,
+        )
 
     return 2  # unreachable: subcommand dispatch is exhaustive

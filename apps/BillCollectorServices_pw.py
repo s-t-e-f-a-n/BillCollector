@@ -9,8 +9,10 @@ import json
 from datetime import datetime
 from playwright.sync_api import Playwright, sync_playwright, Route, Request, Page
 from helpers import *
+from billcollector import collection
 from billcollector.config import chromium_args
 from billcollector.redaction import failure_category, failure_record, sanitize_url
+from billcollector.interrupt import RunInterrupted
 
 logger = logging.getLogger(__name__)
 
@@ -224,11 +226,70 @@ def perform_actions(bcs):
                     bcs.db = DatabaseManager(DB_FILE)
                     bcs.run_table = bcs.db.create_service_run_table(service_name)
                     service_files = []
+                    service_aborted = False
+                    collection_filenames = set()
 
-                    def run_step(step):
+                    def download_collection(locator, options):
+                        """Legacy batch adapter for one bounded collection."""
+                        collection_filenames.update(
+                            entry["suggested_filename"]
+                            for entry in service_files
+                            if entry.get("result") == "success"
+                        )
+
+                        def save_collection_download(download):
+                            filename = str(download.suggested_filename)
+                            if filename in collection_filenames:
+                                raise collection.CollectionError(
+                                    "collection produced a duplicate "
+                                    "suggested filename"
+                                )
+                            filepath = os.path.join(DOWNLOAD_DIR, filename)
+                            download.save_as(filepath)
+                            entry = {
+                                "url": str(download.url),
+                                "suggested_filename": filename,
+                                "result": "success",
+                            }
+                            collection_filenames.add(filename)
+                            service_files.append(entry)
+                            return entry
+
+                        return collection.download_all(
+                            bcs.page,
+                            bcs.drv,
+                            locator,
+                            save_collection_download,
+                            options,
+                        )
+
+                    collection_actions = {
+                        "click_until_absent": lambda locator, options: (
+                            collection.click_until_absent(
+                                bcs.page, locator, options
+                            )
+                        ),
+                        "download_all": download_collection,
+                    }
+
+                    def run_step(step, *, nested=False):
                         """Process one step and record it; on abort, record the failing step first."""
+                        methods = {
+                            entry.get("method")
+                            for entry in step.get("methods", [])
+                            if isinstance(entry, dict)
+                        }
+                        if nested and methods & {
+                            "click_until_absent", "download_all"
+                        }:
+                            raise StepAbortError(
+                                "bounded collection actions cannot be nested "
+                                "under expect_download"
+                            )
                         try:
-                            step_state = process_step(bcs, step)
+                            step_state = process_step(
+                                bcs, step, collection_actions=collection_actions
+                            )
                         except StepAbortError as e:
                             if e.page_state is not None:
                                 bcs.db.insert_page_status(bcs.run_table, e.page_state)
@@ -250,9 +311,10 @@ def perform_actions(bcs):
                                 try:
                                     with bcs.page.expect_download() as download_info:
                                         for nested_step in sorted(step.get("steps", []), key=lambda x: x.get("step", 0)):
-                                            run_step(nested_step)
+                                            run_step(nested_step, nested=True)
                                     download = download_info.value
-                                    filepath = os.path.join(DOWNLOAD_DIR, str(download.suggested_filename))
+                                    filename = str(download.suggested_filename)
+                                    filepath = os.path.join(DOWNLOAD_DIR, filename)
                                     download.save_as(filepath)
                                 except StepAbortError:
                                     raise
@@ -270,6 +332,9 @@ def perform_actions(bcs):
                                         "url": sanitize_url(str(download.url)),
                                         "suggested_filename": str(download.suggested_filename),
                                         "result": result_value})
+                    except Exception:
+                        service_aborted = True
+                        raise
                     finally:
                         # All steps processed (or the run aborted) - finalize the service
                         # run, so the DB always holds a terminal result.
@@ -277,7 +342,14 @@ def perform_actions(bcs):
                             service_name=service_name,
                             run_table=bcs.run_table,
                             download_info = json.dumps(service_files) if service_files else {},
-                            result = "failure" if not service_files or not all(entry["result"] == "success" for entry in service_files) else "success"
+                            result = "failure" if (
+                                service_aborted
+                                or not service_files
+                                or not all(
+                                    entry["result"] == "success"
+                                    for entry in service_files
+                                )
+                            ) else "success"
                         )
                         # Close the database connection
                         bcs.db.close_connection()
@@ -297,7 +369,7 @@ def perform_actions(bcs):
     finally:
         return files_downloaded, aborted
 
-def process_step(bcs, step):
+def process_step(bcs, step, collection_actions=None):
     """ Processes a step by executing a chain of methods """
 
     def process_argument(arg, bcs):
@@ -339,7 +411,11 @@ def process_step(bcs, step):
                 continue  # Skip invalid methods
 
             # Categorize as locator or action (just a simple heuristic based on action names)
-            if method_name in ["click", "fill", "expect_download", "goto", "close", "content_frame", "first"]:
+            if method_name in [
+                "click", "fill", "expect_download", "goto", "close",
+                "content_frame", "first", "click_until_absent",
+                "download_all",
+            ]:
                 transformed_step["actions"] = transformed_step.get("actions", [])
                 transformed_step["actions"].append({
                     "action": method_name,
@@ -361,7 +437,6 @@ def process_step(bcs, step):
     step_number = step.get("step", 0)
     logger.debug(f"Processing Step {step_number}")
     step_results = {}
-    chain_mapping = []  # This will accumulate our mapping entries.
     previous_result = bcs.page  # Starting object.
 
     page_state = PageState(bcs.service, step_number, bcs.page)
@@ -370,6 +445,21 @@ def process_step(bcs, step):
     # A step is "graceful" when its failure must not abort the run:
     # the error is recorded (log + DB) and the run continues with the next step.
     graceful = bool(step.get("graceful", False))
+    methods = step["methods"]
+    try:
+        collection.validate_collection_chain(methods)
+    except collection.CollectionError as e:
+        page_state.set_error({"error": [str(e)]})
+        raise StepAbortError(f"Step {step_number} failed: {e}", page_state)
+
+    if graceful and any(
+        isinstance(entry, dict)
+        and entry.get("method") in {"click_until_absent", "download_all"}
+        for entry in methods
+    ):
+        message = "bounded collection actions cannot be graceful"
+        page_state.set_error({"error": [message]})
+        raise StepAbortError(f"Step {step_number} failed: {message}", page_state)
 
     def fail_step(error_entry):
         """Record a step failure; continue when graceful, otherwise abort the run."""
@@ -380,7 +470,7 @@ def process_step(bcs, step):
         else:
             raise StepAbortError(f"Step {step_number} failed: {error_entry}", page_state)
 
-    for method_entry in step["methods"]:
+    for method_index, method_entry in enumerate(methods):
         method_name = method_entry.get("method")
         arguments = method_entry.get("arguments", [])
 
@@ -396,6 +486,35 @@ def process_step(bcs, step):
                 page_state.set_error({
                     "error": [failure_record("expect_download", category="download")]
                 })
+            break
+        elif method_name in {"click_until_absent", "download_all"}:
+            try:
+                collection.validate_terminal_action(
+                    methods, method_index, method_name
+                )
+                processed_args = [process_argument(arg, bcs) for arg in arguments]
+                if previous_result is bcs.page:
+                    raise ValueError(
+                        f"{method_name} requires a locator prefix"
+                    )
+                if (len(processed_args) != 1
+                        or not isinstance(processed_args[0], dict)):
+                    raise ValueError(
+                        f"{method_name} requires one options object"
+                    )
+                if collection_actions is None:
+                    raise RuntimeError(
+                        f"{method_name} is unavailable in this runner"
+                    )
+                collection_actions[method_name](
+                    previous_result, processed_args[0]
+                )
+            except RunInterrupted:
+                raise
+            except Exception as e:
+                fail_step({"method": method_name, "message": str(e)})
+            else:
+                page_state.set_error(step_results)
             break
         # Standard handling of methods
         else:

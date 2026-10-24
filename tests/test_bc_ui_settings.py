@@ -110,9 +110,25 @@ async def test_invalid_field_values_are_rejected(user, testdb):
     user.find(marker="set-save-max_concurrency").click()
     assert testdb.get_setting("max_concurrency") == "1"
 
+
+async def test_ntfy_topic_is_opt_in(user, testdb):
+    """The ntfy topic is opt-in (C1/F04): an unseeded fresh install has an
+    empty topic (no push notifications), setting a topic stores it, and
+    clearing it back to empty is a valid save (stores ""), unlike the
+    required text fields."""
+    assert testdb.get_setting("ntfy_topic") == ""
+    await _login(user, testdb)
+    await user.open("/settings")
+
+    _field(user, "ntfy_topic").value = "my-phone-topic"
+    user.find(marker="set-save-ntfy_topic").click()
+    assert testdb.get_setting("ntfy_topic") == "my-phone-topic"
+    assert user.notify.contains("ntfy_topic saved")
+
     _field(user, "ntfy_topic").value = "   "
     user.find(marker="set-save-ntfy_topic").click()
-    assert testdb.get_setting("ntfy_topic") == "billcollector"
+    assert testdb.get_setting("ntfy_topic") == ""
+    assert user.notify.contains("ntfy_topic saved")
 
 
 async def test_git_commit_switch_round_trips(user, testdb):

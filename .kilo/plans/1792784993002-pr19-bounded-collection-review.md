@@ -1,9 +1,10 @@
 # PR #19 review — bounded Playwright collection actions
 
-> Status: VALIDATED (2026-10-24) — S5 done: all checks green on the exact
-> tree (unit 25 OK, loopback Chromium smoke OK, regression 7 scenarios /
-> 8 PDFs PASS, ruff/bandit nothing new; N3 resolved). Deployment skip as
-> recorded. Next session: S6 documentation, then S7 commit + push.
+> Status: VALIDATED (2026-10-24) — S6 done: CHANGELOG entry applied (pure
+> addition to `## [Unreleased] → ### Added`, the S3-confirmed wording);
+> README bullets already in place from S4; no CONTRIBUTING change. Tree =
+> validated 7 files + doc-only CHANGELOG. Next session: S7 commit + push
+> (three commits per S3), promote, mirror, PR close.
 
 ## PR metadata
 
@@ -572,3 +573,22 @@ only). Recorded skip; no S5 deployment-process block.
   wording; README already carries the PR's bullets), then S7 (three
   commits per the S3 structure + push, promote, mirror, PR close) — and
   `git stash pop` the recipe-doctor WIP after S7.
+
+## S6 (2026-10-24) — documentation
+
+- CHANGELOG.md: the S3-confirmed entry appended to `## [Unreleased] →
+  ### Added` (after the login-lock ntfy entry). Verified pure addition
+  (`git diff` — no existing line touched; one earlier edit had re-indented
+  the preceding entry and was corrected before the gate). Sanitized,
+  public-safe wording (no private hosts/paths).
+- README.md: no S6 change — the PR's three contract bullets were applied
+  in S4 (byte-identical to the PR head, `README.md:307-309`).
+- CONTRIBUTING.md: no change — contributor rules unaffected.
+- Validation standing: S5 validated the exact 7-file code tree; the S6
+  change is doc-only (CHANGELOG), so no re-validation is required before
+  S7.
+- **Gate passed (2026-10-24): user confirmed the docs.** Next session: S7
+  (preflight hash checks, three commits per the S3 structure, push dev,
+  promote ff-only, mirror + public gate, PR close with the user-confirmed
+  comment, Status: DELIVERED) — and `git stash pop` the recipe-doctor WIP
+  after S7.

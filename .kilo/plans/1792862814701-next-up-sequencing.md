@@ -57,6 +57,15 @@ and C1 now, then C3; then move to plan 2 Stage 1b.**
 5. **Stays deferred by design (no action now):** C4 (draft once #24/#26
    settle), C5 (F02 design), C6 (F03 design), C8 (after #24 lands).
 
+## Status (2026-10-24)
+
+- Step 0 housekeeping: done (plan files committed and pushed).
+- Step 1 C2 (F09): done and pushed (`09fb199` + plan update `5324051`).
+- Step 2 C1 (F04): done — code, Settings hints, README section, opt-in test;
+  gate green (ruff + pytest 451 passed); committed and pushed per the
+  dev-commits cycle.
+- Step 3 C3 (F08 contract): next.
+
 ## Explicitly not doing
 
 - No blocking wait for flowcool's PRs; when they arrive, they are handled

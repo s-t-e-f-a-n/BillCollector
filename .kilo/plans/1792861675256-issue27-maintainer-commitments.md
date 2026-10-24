@@ -59,7 +59,14 @@ on dev.
   before an explicit choice; installation-specific destination; minimal
   payload; a user-triggered test notification is a follow-up item (Settings
   "Send test push").
-- Status: not started.
+- Status: done 2026-10-24 — `ntfy_topic` now defaults to empty (a fresh
+  installation sends nothing until the operator sets a topic in Settings;
+  both push paths no-op on an empty topic, `notify.py:26-28` and
+  `notify.py:54-57`); Settings surfaces the topic as opt-in with a public
+  ntfy.sh vs. bundled self-hosted hint, and `ui_base_url` with the
+  LAN-reachability explanation; the README documents the opt-in flow in the
+  "Pause notifications (ntfy)" section. The "Send test push" follow-up stays
+  open.
 
 ### C2 — F09: shipped default INI (P1, small)
 
@@ -201,6 +208,6 @@ when picked up). O01 stays deferred per #21.
 ## Status
 
 - Plan created 2026-10-24; triage decision posted on issue #27
-  (comment 6387035799). C2 (F09) done 2026-10-24; C1 (F04) and
-  C3 (F08 contract) next, per the sequencing plan
-  (`1792862814701-next-up-sequencing.md`).
+  (comment 6387035799). C2 (F09) done 2026-10-24; C1 (F04) done 2026-10-24
+  (gate green: ruff + pytest 451 passed); C3 (F08 contract) next, per the
+  sequencing plan (`1792862814701-next-up-sequencing.md`).

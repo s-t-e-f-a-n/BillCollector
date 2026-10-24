@@ -99,7 +99,15 @@ on dev.
   names/types and unsupported variables before vault/browser access; report
   the service and step; compatibility checks include valid legacy and new
   collection/login recipes.
-- Status: not started.
+- Status: done 2026-10-24 - the method contract is published in
+  `doc/RECIPE_METHODS.md` (commit `5745e59`, gate green: ruff + pytest
+  451 passed) and posted to issue #27 (comment 6388757576) so flowcool
+  can start the F08 lane. It covers the legacy collection recipes, the
+  doc/SAFE_LOGIN.md login recipes and the PR #19 bounded collection
+  actions; the Playwright surface is defined as the introspectable
+  public API of the pinned `playwright==1.63.0` sync API (Page,
+  Locator, Frame, FrameLocator, ElementHandle), and section 5 splits
+  what the existing gates already enforce from what F08 must add.
 
 ### C4 — F06: result semantics contract (P1, contract-first)
 
@@ -209,5 +217,8 @@ when picked up). O01 stays deferred per #21.
 
 - Plan created 2026-10-24; triage decision posted on issue #27
   (comment 6387035799). C2 (F09) done 2026-10-24; C1 (F04) done 2026-10-24
-  (gate green: ruff + pytest 451 passed); C3 (F08 contract) next, per the
-  sequencing plan (`1792862814701-next-up-sequencing.md`).
+  (gate green: ruff + pytest 451 passed); C3 (F08 contract) done
+  2026-10-24 (`doc/RECIPE_METHODS.md` commit `5745e59`, issue #27 comment
+  6388757576). Next per the sequencing plan
+  (`1792862814701-next-up-sequencing.md`): doctor Stage 1b (needs the
+  user's portal-access windows; C7 conversions ride the same windows).

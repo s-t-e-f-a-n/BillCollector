@@ -64,7 +64,16 @@ and C1 now, then C3; then move to plan 2 Stage 1b.**
 - Step 2 C1 (F04): done — code, Settings hints, README section, opt-in test;
   gate green (ruff + pytest 451 passed); committed and pushed per the
   dev-commits cycle.
-- Step 3 C3 (F08 contract): next.
+- Step 3 C3 (F08 contract): done 2026-10-24 — the draft
+  `doc/RECIPE_METHODS.md` was verified line-by-line against runner/login/
+  collection/recipes/schema sources and the 15 shipped recipes; four
+  accuracy fixes applied (Frame/FrameLocator chain types, the
+  login-chain locator set, exact-match variable substitution, the
+  existing-gates vs. F08-additions split); gate green (ruff + pytest
+  451 passed); published as commit `5745e59` and posted to issue #27
+  (comment 6388757576) so flowcool can start F08.
+- Next: Step 4 Stage 1b — start when the user is available for the live
+  portal sessions; C7 conversions ride the same windows.
 
 ## Explicitly not doing
 

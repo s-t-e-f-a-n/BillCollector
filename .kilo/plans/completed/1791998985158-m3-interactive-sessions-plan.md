@@ -1,6 +1,6 @@
 # BillCollector — M3: Interactive sessions (execution plan)
 
-Master plan: `.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md`
+Master plan: `.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md`
 (v3, M3 section — items 1–5 and the Wave 1 exit). M2 execution plan:
 `.kilo/plans/completed/1791705823133-m2-ui-core-plan.md` (chunks D1–D6). M2 exit
 pass guide: `.kilo/plans/completed/1791829791901-m2-d64-exit-pass-guide.md`.

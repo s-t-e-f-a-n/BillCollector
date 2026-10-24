@@ -6,7 +6,7 @@ Changes vs v2:
 1. **English UI labels** throughout (mock portal, recipes, download filenames) — consistent
    with the daemon plan's "UI language: English" decision.
 2. **Alignment with the nicegui-daemon plan**
-   (`.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md`): that plan already
+   (`.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md`): that plan already
    foresees a mock portal — `tests/mock_portal/` (repo root), "small FastAPI app: cookie
    banner, login, fake CAPTCHA (displayed 6-digit code), drag-and-drop CAPTCHA, document
    download" (its "Validation" section) — needed from its M1–M3. **This plan implements

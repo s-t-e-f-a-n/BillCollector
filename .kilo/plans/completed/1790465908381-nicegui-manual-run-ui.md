@@ -3,7 +3,7 @@
 > Status: DELIVERED in v0.3 — retained for the record.
 
 Fast-track carve-out from the bidirectional plan
-`.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md` (M0 done, M1/M2 not
+`.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md` (M0 done, M1/M2 not
 started). Goal: **see a working NiceGUI page as quickly as possible** where the operator
 manually **starts** and **stops** one service's scraping run and watches it live —
 without the full M1 daemon (no scheduler, no new DB, no Copilot, no noVNC).

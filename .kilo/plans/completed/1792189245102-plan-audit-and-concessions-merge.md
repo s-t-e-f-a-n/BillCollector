@@ -262,7 +262,7 @@ re-enable only).
 - `grep -rn "1792189620000\|1792185181020" .kilo/plans/` — **zero** occurrences
   (concessions file deleted; the dangling reply-plan reference is replaced by the Gitea
   comment).
-- `grep -n "Post-Wave 1" .kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md`
+- `grep -n "Post-Wave 1" .kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md`
   — the section is present with A/B/C + ordered task list + validation.
 - `git status --short` — only `.kilo/plans/` paths changed; no source files.
 

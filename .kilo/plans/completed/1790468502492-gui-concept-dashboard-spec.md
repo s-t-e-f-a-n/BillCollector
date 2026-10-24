@@ -4,7 +4,7 @@
 implemented (M2 D2, done 2026-10-14) and the session view is built (M3 S1, done
 2026-10-15) — design reference only.
 **Baseline docs:** this file (GUI concept + dashboard spec, below) and
-`.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md` (v3 daemon plan — master
+`.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md` (v3 daemon plan — master
 for daemon/scheduler/runner; its M1 section defines what Session 1 starts).
 
 ---

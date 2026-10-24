@@ -14,7 +14,7 @@ warm E2E cycle on the mock portal.
 ## Context
 
 - Blocker recorded in
-  `.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md` (M1 item 3a
+  `.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md` (M1 item 3a
   Status, "Known blocker"): SIGTRAP CHECK then SIGSEGV NULL deref @0x1 in the
   browser process, `GpuControl.CreateCommandBuffer` transient failure preceding
   the crash under xvfb, `--disable-gpu` did not mitigate.
@@ -182,7 +182,7 @@ clearing, no Preferences rewrite beyond the existing
 ### Phase 6 — Record findings
 
 1. Update the "Known blocker" paragraph in
-   `.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md` with:
+   `.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md` with:
    trigger state, crash stack excerpt (Phase 1), applied fix, re-validation
    result. `/tmp` is wiped by WSL restarts — the plan file must carry the
    key log/stack excerpts and the exact reproduction recipe (probe
@@ -385,7 +385,7 @@ untouched.
 ### Phase 6 — record findings (2026-10-10, session 2)
 
 - "Known blocker" paragraph in
-  `.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md` rewritten
+  `.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md` rewritten
   as "RESOLVED" with trigger, stack excerpt, fix, re-validation result, and
   the full repro recipe (venv + mock-portal + probe commands).
 - Docker/NAS note added (C6 Xvfb path uses the same persistent-profile code).
@@ -474,7 +474,7 @@ checked against our evidence and upstream sources.
    ```
 
 2. In the daemon plan's RESOLVED note
-   (`.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md`):
+   (`.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md`):
    add the upstream bug link (issues.chromium.org/issues/556160935) next to
    the fix description. Optional: comment our Linux/Playwright datapoint
    (chromium-1243, WSLg, deterministic) on the issue.

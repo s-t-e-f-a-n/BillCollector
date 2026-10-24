@@ -7,7 +7,7 @@
 > Python 3.12.3, fresh venv with pins, CheckRecipe green on all 7 PW recipes.
 > This plan is the follow-up: make F5 / the batch path run again under
 > Playwright 1.63, per the daemon plan
-> (`.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md`).
+> (`.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md`).
 
 ## Context
 

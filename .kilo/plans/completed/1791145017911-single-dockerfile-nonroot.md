@@ -151,7 +151,7 @@ run) is a separate user-gated step via the deploy skill, Stage 5 (see Follow-ups
      no longer takes an engine argument (legacy `playwright` value still tolerated) and
      sets ownership of the Downloads/db mount targets for the non-root user.
    - `### Removed`: legacy Selenium `Dockerfile`; `Dockerfile_pw` renamed to `Dockerfile`.
-8. **Daemon plan** (`.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md`,
+8. **Daemon plan** (`.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md`,
    live master):
    - "Current state" image bullet (~line 64): `Dockerfile_pw` → `Dockerfile`; note
      non-root user (UID/GID 1000) is now in the Dockerfile.

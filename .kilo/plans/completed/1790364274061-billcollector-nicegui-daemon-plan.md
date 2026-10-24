@@ -122,8 +122,10 @@ and M3 are done (status below); the Wave 1 exit is complete — the live exit pa
 2026-10-22, `.kilo/plans/completed/1792384312843-wave1-nas-deploy.md`);
 M4 (adoption for other users) is done (exit pass passed 2026-10-21).
 Post-Wave 1 concessions: B (login-failure lock) delivered via the #20
-contract / PR #22 (DELIVERED 2026-10-23); A (date variables) is the only
-remaining item, gated on flowcool's contract issue (nudged 2026-10-23).
+contract / PR #22 (DELIVERED 2026-10-23); A (date variables) is followed up
+separately in GitHub issue #26 (contract confirmed 2026-10-24; flowcool
+implements as a PR against main) and is no longer tracked in this plan.
+All plan items are done or transferred — the plan is complete (2026-10-24).
 Wave 1's focus is the three current complicating circumstances, each made operable by a
 human from the web UI:
 
@@ -1239,7 +1241,9 @@ mock portal — without shell access to the daemon.
 
 ### Post-Wave 1 — flowcool concessions (Discussion #8)
 
-> **Status: B DELIVERED, C closed, A gated on Flo's issue (nudged 2026-10-23).**
+> **Status: B DELIVERED, C closed, A transferred to the separate follow-up
+> in GitHub issue #26 (contract confirmed 2026-10-24; flowcool implements
+> as a PR against main). No open items remain in this plan (2026-10-24).**
 > The 2026-10-16 reply to flowcool (Gitea Discussion #8, Roadmap, comment 18930306)
 > committed to the two **daemon** features below (unpublished work, not the public
 > batch variant) plus the deployment timeline (item C). Per the process confirmed with
@@ -1248,8 +1252,11 @@ mock portal — without shell access to the daemon.
 > CONTRIBUTING). This section locks the confirmed architecture. B landed as the #20
 > contract delivered in PR #22 (safe login with a durable per-task failure budget +
 > explicit unlock — a superset of the B1–B3 sketch; issue #20 closed as met
-> 2026-10-23, `.kilo/plans/completed/1792708132014-pr22-safe-login-review.md`); A
-> awaits its issue (Roadmap discussion nudge 2026-10-23).
+> 2026-10-23, `.kilo/plans/completed/1792708132014-pr22-safe-login-review.md`); A's
+> contract issue is GitHub issue #26 (flowcool, 2026-10-23, after the Roadmap
+> discussion nudge); the contract was confirmed 2026-10-24 and A is followed
+> up there separately (flowcool implements as a PR against main), no longer
+> tracked in this plan.
 
 **A — Date variables in recipes.** Fixed set: `{{TODAY}}`, `{{DATE_FROM}}`,
 `{{DATE_TO}}`, day offsets (`{{DATE-7d}}`); usable in `goto` URLs and `fill` arguments;
@@ -1299,10 +1306,17 @@ Change:
 3. Scope: string arguments generally (covers `goto` URLs and `fill` values, as promised).
    No recipe-schema change (arguments already accept arbitrary strings).
 
-Open contract details (finalize in Flo's issue): output date format (recommend ISO
-`YYYY-MM-DD`); precise `{{DATE_FROM}}`/`{{DATE_TO}}` semantics (recommend: named
-day-offsets, or drop them in favor of the `{{DATE±Nd}}` set); timezone source (recommend:
-a daemon setting, else local system time).
+Contract record (no open details remain): GitHub issue #26 (flowcool, 2026-10-23) —
+names `{{TODAY}}`, `{{DATE_FROM}}`, `{{DATE_TO}}`, `{{TODAY±Nd}}`; a
+strftime-restricted format suffix (`{{DATE_FROM|%d/%m/%Y}}`; only `%Y %m %d %%` +
+the separators `-`, `/`, `.`, `_`, space); per-task `date_window_days` (default 90,
+inclusive; `DATE_TO=TODAY`, `DATE_FROM=TODAY-(window-1)`); one clock capture at run
+start; container `TZ` (UTC fallback, invalid rejected); one-run `DATE_FROM` override
+via "Run now" (in memory, never persisted); unknown `{{...}}` rejected before browser
+launch (UI save + run start, one shared validator). The contract was confirmed
+2026-10-24; A is followed up separately (flowcool implements as a PR against
+main) and is no longer tracked in this plan; issue #26 is the contract record
+and the follow-up home.
 
 **B — login-failure lock**
 
@@ -1338,17 +1352,17 @@ B3 — UI "clear" action.
   `apps/billcollector/ui/task_detail.py` next to the existing "Reset profile" action
   (`ui/task_detail.py:193`).
 
-Open contract details (finalize in Flo's issue): N default + global vs per-task
-(recommend global setting, default 2); the exact terminal-state → increment mapping
-(recommend: increment on `failure`/`needs_attention` with `login_failed`, reset on
-`success`, ignore `cancelled`); whether "clear" also resets the profile (recommend: no —
-re-enable only).
+The B sketch's open details (N default + global vs per-task; the
+terminal-state → increment mapping; whether "clear" resets the profile) were
+resolved by the delivered #20 contract (PR #22) and are superseded by it.
 
-**Ordered task list (realization, once Flo's issues land)**
+**Ordered task list (realization — B1–B3 delivered in PR #22; C closed; A
+transferred to the separate follow-up in GitHub issue #26)**
 
-1. **(A)** Extend `process_argument` to embedded `{{...}}` resolution; add the date
-   tokens + a timezone source. Tests: unit tests for exact, embedded, offset, and
-   timezone substitution.
+1. **(A)** — Transferred: followed up separately in GitHub issue #26 (contract
+   confirmed 2026-10-24; flowcool implements as a PR against main; the owner
+   reviews and integrates it). Not tracked in this plan; the contract record
+   above stays as the reference for that PR.
 2. **(B1)** Add `login` to the recipe schema; implement single-attempt-with-pause for
    login steps; set `Run.login_failed`. Tests: a login step failing once → pause (not 3
    attempts); non-login steps unchanged.
@@ -1370,13 +1384,15 @@ re-enable only).
   runs auto-disables, pushes ntfy, refuses further runs, and re-enables on the UI clear
   action.
 - Manual A: a recipe with `goto("...?from={{DATE-7d}}&to={{TODAY}}")` substitutes the
-  correct run-date values.
+  correct run-date values (follows A to the separate follow-up).
 
-**Open questions (finalize in Flo's issues; recommendations above)**
+**Contract records (no open questions remain)**
 
-- A: date output format; `DATE_FROM`/`DATE_TO` semantics; timezone source.
-- B: N default + scope; terminal-state → increment mapping; whether "clear" resets the
-  profile.
+- A: recorded in GitHub issue #26 (flowcool, 2026-10-23); contract confirmed
+  2026-10-24; followed up separately (flowcool's PR against main) — no longer
+  tracked in this plan.
+- B: resolved by the #20 contract delivered in PR #22 (2026-10-23; issue #20 closed
+  as met — the sketch's open questions are superseded by the delivered contract).
 
 ## Validation
 

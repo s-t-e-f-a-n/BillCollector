@@ -2,7 +2,7 @@
 
 > Status: CONSUMED — one-time input for the v2 daemon plan; no further action.
 
-Input for `.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md` (daemon/webui v2).
+Input for `.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md` (daemon/webui v2).
 Goal: catalog every extension in `github.com/flowcool/BillCollector` that is useful for the
 daemon/webui plan, with a verdict per item and concrete amendments to the v2 plan.
 
@@ -180,7 +180,7 @@ runs before any scheduling, keep previous release for rollback, never track reci
 
 ## 4. Proposed amendments to the v2 daemon plan
 
-Apply when updating `.kilo/plans/1790364274061-billcollector-nicegui-daemon-plan.md`:
+Apply when updating `.kilo/plans/completed/1790364274061-billcollector-nicegui-daemon-plan.md`:
 
 1. **Decision #14 (downloads)** — replace "folder drop stays + per-task sha256 dedup"
    with: per-run **staging dir** (`<data>/runs/<run_id>/staging/`); after download,

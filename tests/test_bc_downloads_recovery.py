@@ -2,6 +2,7 @@
 
 import json
 import os
+import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 
@@ -296,3 +297,75 @@ def test_daemon_startup_reconciles_even_without_a_scheduled_task(tracking):
             patch.object(ui_app.ui, "run"):
         ui_app.start("127.0.0.1", 8000)
     assert db.list_downloads()[0]["state"] == "consumed"
+
+
+def test_daemon_recovery_timeout_reaps_blocked_child_and_allows_retry(tracking):
+    db, task, run = tracking
+    db.set_setting("download_recovery_timeout_seconds", "1")
+    output = Path(downloads.download_dir(db)).resolve()
+    children = []
+    spawn = downloads.subprocess.Popen
+
+    def capture_child(*args, **kwargs):
+        child = spawn(*args, **kwargs)
+        children.append(child)
+        return child
+
+    # Hold the real publication lock so the actual recovery child blocks.
+    # run() must kill and reap it before returning the startup failure.
+    with patch.object(downloads.subprocess, "Popen", capture_child), \
+            downloads._publication_lock(output), pytest.raises(
+            RuntimeError, match="timed out after 1s; daemon not started"):
+        downloads.recover_downloads_in_subprocess(db)
+    child, = children
+    assert child.returncode is not None and child.returncode < 0
+    with pytest.raises(ChildProcessError):
+        os.waitpid(child.pid, os.WNOHANG)
+    db.set_setting("download_recovery_timeout_seconds", "10")
+    downloads.recover_downloads_in_subprocess(db)
+    assert db.list_downloads() == []
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "invalid", "1.5"])
+def test_invalid_recovery_timeout_prevents_child_start(tracking, value):
+    db, task, run = tracking
+    db.set_setting("download_recovery_timeout_seconds", value)
+    with patch.object(downloads.subprocess, "run") as child, pytest.raises(
+            RuntimeError, match="positive integer; daemon not started"):
+        downloads.recover_downloads_in_subprocess(db)
+    child.assert_not_called()
+
+
+@pytest.mark.parametrize("returncode", [1, 73, -9])
+def test_recovery_child_exit_reports_code_without_child_output(tracking, returncode):
+    db, task, run = tracking
+    result = downloads.subprocess.CompletedProcess(
+        ["synthetic-secret"], returncode, "synthetic-secret", "synthetic-secret")
+    with patch.object(downloads.subprocess, "run", return_value=result) as child, \
+            pytest.raises(RuntimeError) as error:
+        downloads.recover_downloads_in_subprocess(db)
+    assert str(error.value) == (
+        f"Download startup recovery failed (exit code {returncode}); daemon not started")
+    assert child.call_args.kwargs["timeout"] == 300
+
+
+@pytest.mark.parametrize("error_type", [sqlite3.OperationalError, sqlite3.IntegrityError])
+def test_runner_sqlite_recovery_failure_stops_before_portal_and_closes_db(
+        tracking, caplog, error_type):
+    from billcollector import runner
+    db, task, run = tracking
+    connection = Database(db.path)
+    raw_connection = connection.conn
+    with patch.object(runner, "Database", return_value=connection), \
+            patch.object(downloads, "recover_downloads", side_effect=error_type("synthetic-secret")), \
+            patch.object(runner, "CheckRecipe") as recipe, \
+            patch.object(runner.display, "allocate_display") as display, \
+            patch.object(runner, "_vault_preflight") as vault:
+        assert runner.run_task(task["id"]) == 1
+    recipe.assert_not_called()
+    display.assert_not_called()
+    vault.assert_not_called()
+    assert "Download recovery failed" in caplog.text
+    assert "synthetic-secret" not in caplog.text
+    with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+        raw_connection.execute("SELECT 1")

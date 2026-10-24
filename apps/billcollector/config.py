@@ -53,6 +53,7 @@ DEFAULT_SETTINGS = {
     "ui_base_url": "http://127.0.0.1:8000",
     "ntfy_topic": "billcollector",       # ntfy push topic for pause deep links
     "download_dir": str(DOWNLOAD_DIR),
+    "download_recovery_timeout_seconds": "300",
     "vnc_password": "",                  # empty: noVNC is localhost-only, no auth
 }
 

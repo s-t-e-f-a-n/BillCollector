@@ -36,6 +36,14 @@ Python subprocess with its own SQLite connection. It also runs at runner
 startup, before recipe validation, display allocation, vault access or browser
 startup, and before each tracked download. Consumers never run in the UI process.
 A failed startup recovery prevents the daemon from starting.
+The Settings key `download_recovery_timeout_seconds` limits this subprocess
+to 300 seconds by default. Set a positive integer number of seconds to change
+the limit. Invalid values prevent startup. On timeout, the parent kills and
+waits for the child, then reports that the daemon did not start. A nonzero child
+exit reports its exit code. Neither diagnostic exposes document data or paths.
+Recovery can resume from committed state on the next start. A timeout can
+interrupt a consumer after its external effect, so the same stable key can be
+delivered again.
 
 - A committed staged row finishes publication and then delivers consumers.
 - A published row retries delivery with the same key.

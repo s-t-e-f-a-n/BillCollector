@@ -252,13 +252,27 @@ def recover_downloads_in_subprocess(db):
     Keep consumers out of the UI process, as in normal runner execution.
     The child opens its own SQLite connection and uses the publication lock.
     """
+    try:
+        timeout = int(db.get_setting("download_recovery_timeout_seconds"))
+        if timeout <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        raise RuntimeError(
+            "Download recovery timeout must be a positive integer; daemon not started") from None
     # Only the database path varies; it is a positional module argument.
-    result = subprocess.run(  # nosec B603
-        [sys.executable, "-m", "billcollector.downloads", str(Path(db.path).resolve())],
-        cwd=config.APP_DIR, check=False, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL)
+    try:
+        result = subprocess.run(  # nosec B603
+            [sys.executable, "-m", "billcollector.downloads", str(Path(db.path).resolve())],
+            cwd=config.APP_DIR, check=False, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # run() kills and waits for the child before raising. Do not include
+        # its command, output or database path in the startup diagnostic.
+        raise RuntimeError(
+            f"Download startup recovery timed out after {timeout}s; daemon not started") from None
     if result.returncode:
-        raise RuntimeError("Download startup recovery failed; daemon not started")
+        raise RuntimeError(
+            f"Download startup recovery failed (exit code {result.returncode}); daemon not started")
 
 
 if __name__ == "__main__":

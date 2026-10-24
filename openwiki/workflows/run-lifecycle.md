@@ -195,7 +195,7 @@ All runtime-overridable via the `Settings` table (defaults in `billcollector/con
 - `max_concurrency` (default `1`) - size of the orchestrator's global runner semaphore.
 - `pause_deadline_seconds` (default `1800`) - how long a pause holds before it times out to `needs_attention`.
 - `display_start` (default `99`) and `display_count` (default `16`) - the Xvfb range scanned at allocation.
-- `ntfy_topic` (default `billcollector`) - the ntfy push topic for pause deep links; an empty topic skips the push.
+- `ntfy_topic` (default empty - opt-in) - the ntfy push topic for pause deep links; a fresh installation sends no pushes until the operator sets a topic in Settings, and an empty topic skips the push.
 - `vnc_password` (default empty) - non-empty enables x11vnc password auth; empty is localhost-only, no auth.
 
 Paths are redirectable with `BC_*` environment variables (`BC_DATA_DIR`, `BC_DB_FILE`, `BC_LOG_DIR`, `BC_BROWSER_DIR`, `BC_PROFILE_ROOT`, `BC_DOWNLOAD_DIR`), which keeps the test suite off the production `apps/` data. `BW_API_URL` (and optional `BW_API_HOST`) drive the vault preflight in both modes.

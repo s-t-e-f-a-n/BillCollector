@@ -1,9 +1,9 @@
 # PR #19 review — bounded Playwright collection actions
 
-> Status: AWAITING-DECISION (2026-10-24) — S3 done: integration proposal
-> confirmed by the user **as-is incl. N1**. Next session runs S4 (stash the
-> recipe-doctor WIP, apply the 7 files from `49bbda5` + the N1 one-liner,
-> leave the tree dirty for S5) and moves the status to INTEGRATING.
+> Status: VALIDATED (2026-10-24) — S5 done: all checks green on the exact
+> tree (unit 25 OK, loopback Chromium smoke OK, regression 7 scenarios /
+> 8 PDFs PASS, ruff/bandit nothing new; N3 resolved). Deployment skip as
+> recorded. Next session: S6 documentation, then S7 commit + push.
 
 ## PR metadata
 
@@ -322,10 +322,12 @@ Nits:
   wording for collection steps. Existing retry/timeout/graceful/download
   behavior is otherwise preserved; the `processed_args` fix restores the
   reviewed semantics for the terminal branch.
-- **R4** — The loopback browser smoke is opt-in; if the S5 environment lacks
-  the venv Chromium, the offline unit suite + full regression must carry the
-  validation (record which ran). The PR body's evidence numbers are from the
-  old head — S5 re-establishes them on the new tree.
+- **R4** — ~~The loopback browser smoke is opt-in; if the S5 environment
+  lacks the venv Chromium, the offline unit suite + full regression must
+  carry the validation (record which ran).~~ Resolved (S5, 2026-10-24):
+  venv Chromium 1243 was present; the loopback smoke ran and passed. The PR
+  body's evidence numbers are re-established on the new tree (see S5
+  section).
 
 ## Integration plan
 
@@ -525,6 +527,48 @@ only). Recorded skip; no S5 deployment-process block.
 - S4 preflight plan (next session): `git stash -u` the recipe-doctor WIP
   (zero file overlap → pop is conflict-free), then hash check
   (`refs/pr/19` = `49bbda5`), `github/main` check (`42d4337`), re-run the
-  pre-image checks, apply the 7 files from `refs/pr/19`, add the N1
-  one-liner, leave the tree dirty (uncommitted) for S5. After S5/S7,
-  `git stash pop` the WIP.
+   pre-image checks, apply the 7 files from `refs/pr/19`, add the N1
+   one-liner, leave the tree dirty (uncommitted) for S5. After S5/S7,
+   `git stash pop` the WIP.
+
+## S5 (2026-10-24) — validation on the exact tree
+
+- Tree verified at S5 entry: on `dev` (`9e85c13`), the 6 candidate files
+  are byte-identical to the `refs/pr/19` head `49bbda5` (re-verified per
+  file); `runner.py` = PR head + exactly the N1 one-liner; WIP still
+  stashed (`stash@{0}`); `git ls-remote` head unchanged. `apps/data/` is
+  untracked local runtime state — left out of the tree and out of scope.
+- Unit suite: `PYTHONPATH=apps apps/.venv/bin/python -m unittest
+  tests.test_bc_collection -v` → **25 tests, OK** (1 skip = the opt-in
+  browser smoke).
+- Loopback Chromium smoke: with `BILLCOLLECTOR_BROWSER_TESTS=1` →
+  `BrowserCollectionTests.test_paginate_then_download_from_loopback_portal`
+  **OK** (6.9s; venv Chromium 1243) — R4 resolved.
+- Full regression: `PYTHONPATH=apps apps/.venv/bin/python
+  tests/run_regression.py --ini tests/bc_regression.ini` → **exit 0,
+  7 scenarios / 8 PDFs, VERDICT: PASS** (testhappy user1/2/3 +
+  testgraceful success; testbadlogin/testempty/testdlfail failure as
+  expected; "exactly the 8 expected file(s)").
+- ruff (`apps/.venv/bin/ruff check --select F821,E4,E7,E9`) on
+  `collection.py`, `runner.py`, `BillCollectorServices_pw.py`,
+  `recipes.py`, `test_bc_collection.py`: 3 findings — E402 (:161), E711
+  (:182), E701 (:182), all in `BillCollectorServices_pw.py` — all
+  pre-existing (identical findings on the pre-PR baseline versions,
+  line-shifted only). **Nothing new from the PR.**
+- bandit 1.9.4 on the same files: B608 (`BillCollectorServices_pw.py:124`,
+  dynamic SQL table name) + B110 (`runner.py:987`, try/except/pass in the
+  browser-close cleanup) — both pre-existing (identical statements at
+  baseline lines 122/861). **Nothing new from the PR.**
+- **N3 resolved**: the actual bandit set on the changed files is
+  B608/B110 — the PR body's note was accurate; the previously recorded
+  "B104 UI bind" baseline no longer exists (full `apps/` scan finds no
+  B104 anywhere; the UI binds via PySimpleGUI `ui.run`, not a flaggable
+  socket bind).
+- Deployment-process validation: recorded skip stands (not
+  deployment-relevant — Python app code + YAML schema + tests + README
+  only).
+- **Gate passed (2026-10-24): user confirmed VALIDATED.** Next session:
+  S6 documentation (CHANGELOG `## [Unreleased]` entry with the S3-confirmed
+  wording; README already carries the PR's bullets), then S7 (three
+  commits per the S3 structure + push, promote, mirror, PR close) — and
+  `git stash pop` the recipe-doctor WIP after S7.

@@ -285,14 +285,14 @@ The BillCollector configuration for each web service from which you want to retr
    - Under the `[Playwright]` section, enter line by line the name of the web service matching the `Name` of the service's entry in Vaultwarden (1).
    - For web services where you have more than one login data for (e.g., family members having different accounts at the same mobile phone provider) you can enter the line in the following format: `<Name of web service>=<your name>, <additional name>`.
 
-     *Example ini script:*
+      *Example ini script (synthetic names - replace with your own services
+      and accounts):*
 
-     ```ini
-     [Playwright]
-     winSIM=Stefan, Auto, Brigitte, Eva, Anna
-     KabelDeutschland=
-     Freenet Mobilfunk=
-     ```
+      ```ini
+      [Playwright]
+      ExampleMobile=John, Jane
+      ExampleUtility=
+      ```
 
    In daemon mode this INI list is the starting point for the task list: it is imported into the Task table on the first daemon start (or via **Import from INI** in the wizard), and from then on the per-task cron and enabled state live in the UI, not in the INI.
 

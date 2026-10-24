@@ -1,11 +1,9 @@
 # PR #19 review — bounded Playwright collection actions
 
-> Status: AWAITING-DECISION (2026-10-24) — S1 re-run complete on the new
-> head `49bbda5` (author rebased onto `42d4337` and un-drafted,
-> 2026-10-23T21:48:17Z). Clean rebase; all 7 files apply to `dev` with zero
-> conflicts (Path A, as predicted). Verdict unchanged: approve with
-> maintainer changes. Awaiting the user's S2 gate on the updated findings,
-> then the S3 proposal (clean apply, no manual resolutions).
+> Status: AWAITING-DECISION (2026-10-24) — S3 done: integration proposal
+> confirmed by the user **as-is incl. N1**. Next session runs S4 (stash the
+> recipe-doctor WIP, apply the 7 files from `49bbda5` + the N1 one-liner,
+> leave the tree dirty for S5) and moves the status to INTEGRATING.
 
 ## PR metadata
 
@@ -407,10 +405,9 @@ only). Recorded skip; no S5 deployment-process block.
 1. ~~**Path A or B?**~~ -> **Resolved**: Path A executed by the author
    (2026-10-23) and verified clean by the S1 re-run (2026-10-24). The
    path-B manual resolutions above are the documented fallback only.
-2. **N1:** generalize the nested-guard message for login phases (small
-   maintainer-side change), or accept the current message? -> Live for the
-   S3 proposal: the rebased head is reviewed, so the maintainer-side changes
-   list is final (CHANGELOG entry + N1 decision).
+2. ~~**N1:** generalize the nested-guard message for login phases?~~ ->
+   **Accepted** (S3 gate, 2026-10-24): the one-line message generalization
+   in `runner.py` is part of the confirmed proposal.
 3. ~~If path B: confirm the per-file resolutions above as the S3
    proposal.~~ Moot under Path A.
 
@@ -480,3 +477,54 @@ only). Recorded skip; no S5 deployment-process block.
   clean-apply integration (no manual resolutions) plus the N1 decision.
 - Awaiting the user's review of the updated findings; on confirmation the
   doc-only commit + push happen (dev-commits gate), then S3.
+- **Passed** (2026-10-24): user confirmed "Commit + push"; doc-only commit
+  `33c172e` on `dev`. The "continue" that followed routed to S3.
+
+## S3 (2026-10-24) — integration proposal confirmed
+
+- State re-verified at S3 entry: `refs/pr/19` head still `49bbda5`
+  (`git ls-remote`), `dev` = `origin/dev` = `33c172e`; working tree carries
+  the unrelated recipe-doctor WIP (7 files, **no overlap** with the 7
+  candidates).
+- Proposal presented: apply all 7 files from the PR head (clean apply, no
+  skips, no manual resolutions), maintainer-side changes = N1 one-liner +
+  the authored CHANGELOG entry (S6), three-commit structure (feat / test /
+  doc) as listed below.
+- **Gate passed (2026-10-24): user confirmed the proposal as-is, incl. N1.**
+  - N1: `runner.py` nested-guard message → "bounded collection actions
+    cannot be nested under expect_download or in login phases" (one line;
+    verified call sites `runner.py:836,846` pass `parent_step` for login
+    preparation/submit; the legacy runner's message stays — its
+    `nested=True` only ever comes from `expect_download`).
+  - CHANGELOG entry (authored, S6) — appended to `## [Unreleased] →
+    ### Added`:
+    > Bounded Playwright collection actions (issue #18): two new terminal
+    > recipe methods that take one page locator plus one options object -
+    > `click_until_absent` drives a cumulative "load more" control until it
+    > is absent or hidden (every click must increase the visible progress
+    > count; `max_clicks` 1-100, `timeout_ms` 1-120000; page-replacement
+    > pagination and virtualized lists fail closed), and `download_all`
+    > downloads every item of a stable ordered list (non-empty unique
+    > `key_attribute` per item, exactly one download per click observed over
+    > a full per-item `event_window_ms` window, `max_items` 1-200,
+    > `timeout_ms` 1-600000, with the per-item event budget re-validated
+    > against the deadline before every click). Collection steps are
+    > single-attempt (no automatic retry after partial side effects), cannot
+    > be nested under `expect_download` or marked `graceful: true`, and an
+    > operator resume of `download_all` skips the item keys already
+    > persisted for the step; a suggested filename already saved earlier in
+    > the run fails instead of being overwritten.
+  - Commit structure (S7, dev-commits):
+    1. `feat: recipes: add bounded Playwright collection actions` —
+       `collection.py`, `runner.py`, `BillCollectorServices_pw.py`,
+       `recipes.py`, `recipe-pw-schema.yaml` (+ N1 line)
+    2. `test: collection: add contract suite and loopback browser smoke` —
+       `tests/test_bc_collection.py`
+    3. `doc: collection: document bounded collection actions (changelog,
+       readme)` — `README.md`, `CHANGELOG.md`
+- S4 preflight plan (next session): `git stash -u` the recipe-doctor WIP
+  (zero file overlap → pop is conflict-free), then hash check
+  (`refs/pr/19` = `49bbda5`), `github/main` check (`42d4337`), re-run the
+  pre-image checks, apply the 7 files from `refs/pr/19`, add the N1
+  one-liner, leave the tree dirty (uncommitted) for S5. After S5/S7,
+  `git stash pop` the WIP.

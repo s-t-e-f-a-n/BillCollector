@@ -129,6 +129,8 @@ def test_same_filename_across_tasks_keeps_separate_consumer_deliveries(tracking)
         second = downloads.track_download(Document(), db.create_run(other["id"]), other, db)
     assert len(calls) == 2
     assert first["saved_path"] != second["saved_path"]
+    assert [r["filename"] for r in db.list_downloads()] == ["invoice.pdf", "invoice.pdf"]
+    assert [r["filename"] for r in calls] == ["invoice.pdf", "invoice.pdf"]
     assert calls[0]["idempotency_key"] != calls[1]["idempotency_key"]
 
 

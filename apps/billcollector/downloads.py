@@ -139,7 +139,7 @@ def _recover_locked(db, target):
                 try:
                     metadata = json.loads((entry / "manifest.json").read_text())
                     saved = Path(metadata["saved_path"])
-                    valid = (saved.parent == target and saved.name == metadata["filename"]
+                    valid = (saved.parent == target and Path(metadata["filename"]).name == metadata["filename"]
                              and db.get_task(metadata["task_id"]) is not None)
                     if not valid:
                         raise ValueError("Invalid publication manifest")
@@ -226,8 +226,7 @@ def track_download(download, run_id, task, db):
         if saved.exists() and not orphan:
             saved = target / f"{Path(filename).stem}-{uuid4().hex}{Path(filename).suffix}"
         record["saved_path"] = str(saved)
-        # A collision changes the actual filename, as exposed by the UI/hook.
-        record["filename"] = saved.name
+        # Keep the portal filename as metadata; saved_path identifies storage.
         with (entry / "manifest.json").open("x") as stream:
             json.dump(record, stream)
             stream.flush()

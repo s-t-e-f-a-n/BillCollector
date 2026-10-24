@@ -19,8 +19,8 @@ tracker, recipe contract, control protocol or exit codes.
 
 The output-directory lock serializes publication and recovery across runner
 processes. A new file cannot overwrite a previous managed publication. A name
-collision gets a UUID suffix. A same-task/hash repeat retains an audit row and
-the original path; it does not publish another copy or trigger another delivery.
+collision gets a UUID suffix in `saved_path`; `filename` retains the original
+portal name. A same-task/hash repeat retains an audit row and the original path; it does not publish another copy or trigger another delivery.
 
 Consumers must accept repeated delivery with the same key. A crash after an
 external effect but before its state commit can repeat every consumer, including
@@ -86,6 +86,8 @@ From a disposable checkout, with runtime and test dependencies installed:
 ```sh
 apps/.venv/bin/python -m pytest tests/test_bc_downloads.py tests/test_bc_downloads_recovery.py tests/test_bc_db.py -q
 LC_ALL=C apps/.venv/bin/python -m pytest tests/ -q
+# The legacy harness expects its Service table in a fresh checkout.
+PYTHONPATH=apps apps/.venv/bin/python -c 'from BillCollectorServices_pw import DatabaseManager; DatabaseManager("apps/db/bc.db").close_connection()'
 apps/.venv/bin/python tests/run_regression.py --ini tests/bc_regression.ini
 ```
 

@@ -13,7 +13,7 @@
     - [Vault of Secrets](#vault-of-secrets)
     - [Enabling DNS and HTTPS with Let's Encrypt certs](#enabling-dns-and-https-with-lets-encrypt-certs)
   - [Installing the Daemon](#installing-the-daemon)
-  - [Optional: Self-Hosted ntfy](#optional-self-hosted-ntfy)
+  - [Pause notifications (ntfy)](#pause-notifications-ntfy)
 - [Daemon Mode](#daemon-mode)
   - [Environment Variables](#environment-variables)
   - [Container Semantics](#container-semantics)
@@ -196,9 +196,11 @@ Now that we have done a good job installing all the prerequisites, we are focusi
 
 8. Collect your first document: on the **Dashboard** press **Run now** for an enabled task - watch the run live (session page, noVNC tab) until it reaches `success`; the document appears on the Downloads page and in the consumer folder. Every step is driven from the browser, no shell access to the daemon needed.
 
-### Optional: Self-Hosted ntfy
+### Pause notifications (ntfy)
 
-Pause notifications go to the public [ntfy.sh](https://ntfy.sh) by default. To run your own push server in the same stack:
+A fresh installation sends no notifications: the `ntfy topic` setting starts empty, and a paused run (or a blocked login) only pushes when you set a topic. To opt in, open **Settings** and set an **ntfy topic** - choose your own topic name, it is the install-specific destination the pushes are sent to.
+
+The push server defaults to the public [ntfy.sh](https://ntfy.sh). To run your own push server in the same stack instead:
 
 1. Add `NTFY_HOST=http://ntfy` to the root `.env` (optional: `NTFY_BASE_URL=http://<your-host>:2086` for LAN-absolute deep links).
 2. Start the stack with `docker compose --profile ntfy up -d` - the `ntfy` service (image `binwiederhier/ntfy`, port `2086`) comes up together with BillCollector.

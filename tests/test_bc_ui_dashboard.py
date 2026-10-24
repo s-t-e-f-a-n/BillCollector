@@ -412,6 +412,7 @@ async def test_add_task_dialog_creates_a_task(user, testdb, tmp_path, monkeypatc
     user_input = _latest(user, "task-user")
     service.value = "svc-c"
     user_input.value = "user9"
+    _latest(user, "task-date-window").value = 30
     # The recipe file is derived from the service and shown read-only;
     # the missing file is made explicit (a warning, not a block).
     await user.should_see("Recipe (shared): recipe-pw__svc-c.yaml (missing)")
@@ -424,6 +425,7 @@ async def test_add_task_dialog_creates_a_task(user, testdb, tmp_path, monkeypatc
     assert task["enabled"] == 0
     assert task["cron"] == "0 0 1 * *"
     assert task["status"] == "idle"
+    assert task["date_window_days"] == 30
     assert task["recipe_file"].endswith("recipe-pw__svc-c.yaml")
     assert task["profile_dir"].endswith("svc-c_user9")
     # Every create goes through the scheduler hook (C7.1).

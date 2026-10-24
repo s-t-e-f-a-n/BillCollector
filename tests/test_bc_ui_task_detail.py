@@ -352,3 +352,27 @@ async def test_login_pending_is_distinct_from_blocked(user, testdb):
     (clear_btn,) = user.find(marker="detail-login-clear").elements
     assert not run_btn.enabled
     assert not clear_btn.enabled
+
+
+async def test_detail_recovery_is_one_run_only(user, testdb, monkeypatch):
+    """Manual recovery dispatches once and clears the form after acceptance."""
+    task = testdb.create_task('synthetic-recovery', 'test')
+    started = []
+
+    async def start(self, task_id, *, date_from=None):
+        started.append((task_id, date_from))
+        return True
+
+    monkeypatch.setattr(Orchestrator, 'start_run', start)
+    await _login(user, testdb)
+    await user.open(f'/tasks/{task}')
+    (date_input,) = user.find(marker='detail-date-from').elements
+    date_input.value = '2026-01-01'
+    user.find(marker='detail-run').click()
+    await _wait(lambda: len(started) == 1, 'recovery did not dispatch')
+    assert started == [(task, '2026-01-01')]
+    assert date_input.value == ''
+    user.find(marker='detail-run').click()
+    await _wait(lambda: len(started) == 2, 'normal run did not dispatch')
+    assert started[-1] == (task, None)
+    assert testdb.get_task(task)['date_window_days'] == 90

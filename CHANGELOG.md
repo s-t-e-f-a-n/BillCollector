@@ -11,6 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Daemon runtime date variables and inline, recursive single-pass argument
+  substitution (issue #26). Recipe save and run start share syntax validation.
+  Tasks have an additive `date_window_days` setting (90 inclusive days by
+  default); dates and cron scheduling use `TZ` with UTC fallback. Task-detail
+  Run now supports a memory-only start-date override with no restart replay.
+  The legacy batch substitution is unchanged.
+
 - Self-hosted daemon with a NiceGUI web UI: `python3 -m billcollector serve`
   (binds `127.0.0.1:8000` by default; `--host`/`--port` or `BC_UI_HOST`
   override). On the first start it imports the `[Playwright]` sections of

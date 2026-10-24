@@ -308,6 +308,28 @@ The BillCollector configuration for each web service from which you want to retr
      - Bounded collections: use one page locator followed by `download_all`. Its single options object requires `key_attribute`, `max_items`, `timeout_ms`, and `event_window_ms`. `timeout_ms` bounds the browser actions and observations for the whole collection. Persistence (`save_as`, hashing, consumers, and SQLite) remains synchronous and cannot be preempted by that browser deadline. `event_window_ms` is the full attribution window observed after each click, so `timeout_ms` must exceed the actual item count multiplied by `event_window_ms`, with additional time for browser actions. The engine reports the required and remaining budgets before its first click when the minimum attribution-window budget cannot fit. The key must be non-empty and unique for every item. The ordered key set must remain stable while each control produces exactly one download. `download_all` also rejects a suggested filename already saved earlier in the run instead of overwriting it.
      - Collection actions are terminal steps. They cannot be nested below `expect_download` or use `graceful: true`. Their explicit bounds prevent silent truncation and automatic retry after partial side effects. An operator-requested resume of `download_all` skips the stable item keys already persisted by that step and processes only the remaining items.
      - Variables: `{{USERNAME}}`, `{{PASSWORD}}` and `{{OTP}}` (all three from Vaultwarden, linked to the web service) are substituted at run time.
+     - **Daemon date variables** (issue #26): `{{TODAY}}`, `{{DATE_TO}}`,
+       `{{DATE_FROM}}`, and `{{TODAY-Nd}}` / `{{TODAY+Nd}}` expand inside
+       any method argument string, including nested lists and dictionaries.
+       Dictionary keys stay unchanged. Credential placeholders also work inline;
+       replacement values are never parsed a second time.
+       Each task has a **Date window (inclusive days)**, default 90:
+       `DATE_TO = TODAY`, `DATE_FROM = TODAY - (window - 1)` calendar days.
+       `TZ` selects the daemon date and scheduling timezone; absent `TZ` means
+       UTC, and an invalid zone is rejected. One instant is captured before
+       browser launch and remains fixed through retries and interactive resume.
+       Output defaults to `YYYY-MM-DD`; a suffix such as
+       `{{DATE_FROM|%d/%m/%Y}}` allows only `%Y`, `%m`, `%d`, `%%` and literal
+       separators `-`, `/`, `.`, `_`, or ASCII space. A format must contain a
+       date directive. Dates must stay within `0001-01-01` to `9999-12-31`.
+       Unknown variables, malformed delimiters, invalid formats and date overflow
+       fail before browser or vault access. Errors identify the argument location
+       without its value. The daemon recipe editor shares the syntax validator.
+       On the task detail page, **Start date for this run** accepts a strict
+       `YYYY-MM-DD` no later than `DATE_TO`. It replaces only `DATE_FROM`,
+       stays in memory through resume and is never saved or replayed on restart.
+       The next run uses the normal window. The legacy batch checker and its
+       exact-key credential substitution remain unchanged.
      - `graceful: true` on a step: a failure of that step is recorded (log + DB) and the run continues with the next step; without it, a failure aborts the service's run (after three attempts, in daemon mode the run pauses for your help instead - see [Using the Web UI](#using-the-web-ui)).
      - A `wait_user` step: an explicit pause point for operator input (e.g., a CAPTCHA you have to solve by hand). It can carry an optional `prompt` and an optional `until` locator (the pause completes when that element appears, or on resume); the step is consumed, not re-executed.
      - There is a YAML schema named `recipe-pw-schema.yaml` which includes the rules to be followed by the YAML recipes.

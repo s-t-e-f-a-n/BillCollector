@@ -175,10 +175,22 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
             clear_login_btn = ui.button("Clear login block").mark("detail-login-clear")
             ui.link("Recipe", f"/recipes/{task['service']}").mark("detail-recipe")
 
+        recovery_input = ui.input(
+            "Start date for this run (optional, YYYY-MM-DD)"
+        ).mark("detail-date-from")
+
         async def on_run_now(_e) -> None:
             """Row Run now: a manual one-off (works for disabled tasks,
             the schedule is untouched), disabled while the task is active."""
-            started = await orchestrator.start_run(task_id)
+            override = recovery_input.value
+            try:
+                started = (await orchestrator.start_run(task_id, date_from=override)
+                           if override else await orchestrator.start_run(task_id))
+            except ValueError as e:
+                ui.notify(str(e), type="warning")
+                return
+            if started:
+                recovery_input.value = ""
             if not started:
                 ui.notify("Not started (already running/waiting?)",
                           type="warning")

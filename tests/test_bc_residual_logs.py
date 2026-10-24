@@ -64,6 +64,7 @@ elif source == "task":
     task_db.get_task.return_value = {
         "recipe_file": "synthetic", "service": "synthetic",
         "login_locked": 0, "login_pending_run_id": None,
+        "date_window_days": 90,
     }
     with patch.object(runner, "Database", return_value=task_db), \\
             patch.object(runner, "CheckRecipe", return_value={"services": []}), \\

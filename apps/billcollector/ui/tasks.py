@@ -17,6 +17,8 @@ single task-change hook, C7.1). There is no task deletion in M2:
 disabling is the off switch.
 """
 
+import math
+
 from apscheduler.triggers.cron import CronTrigger
 from nicegui import ui
 
@@ -92,6 +94,12 @@ def open_task_dialog(db: Database, scheduler: TaskScheduler, refresh,
             ui.label(f"Recipe (shared, read-only): {recipe.name}{state}"
                      ).classes("text-grey-6").mark("task-recipe")
 
+        window_input = ui.number(
+            "Date window (inclusive days)",
+            value=task["date_window_days"] if task is not None else 90,
+            min=1, step=1,
+        ).mark("task-date-window")
+
         with ui.row().classes("w-full justify-end items-center gap-2"):
             ui.button("Cancel", on_click=dialog.close).props("flat")
             save_btn = ui.button("Save").mark("task-save").props("color=primary")
@@ -99,6 +107,13 @@ def open_task_dialog(db: Database, scheduler: TaskScheduler, refresh,
         def on_save() -> None:
             cron = (cron_input.value or "").strip() or None
             enabled = bool(enabled_switch.value)
+            window = window_input.value
+            if (isinstance(window, bool) or not isinstance(window, (int, float))
+                    or not math.isfinite(window) or window < 1
+                    or window != int(window)):
+                ui.notify("Date window must be a positive integer", type="negative")
+                return
+            window = int(window)
             if cron is not None and not _valid_cron(cron):
                 ui.notify(f"Invalid cron expression: {cron!r}", type="negative")
                 return
@@ -116,7 +131,7 @@ def open_task_dialog(db: Database, scheduler: TaskScheduler, refresh,
                 new_id = db.create_task(
                     service, user,
                     recipe_file=str(recipe),
-                    enabled=enabled, cron=cron,
+                    enabled=enabled, cron=cron, date_window_days=window,
                     profile_dir=str(config.profile_dir_for(service, user)))
                 scheduler.sync_task(new_id)
                 ui.notify(f"Task {service} / {user or '—'} created")
@@ -124,7 +139,8 @@ def open_task_dialog(db: Database, scheduler: TaskScheduler, refresh,
                     ui.notify(f"Recipe file {recipe.name} is missing: the run "
                               "will fail until a recipe exists", type="warning")
             else:
-                db.update_task(task_id, cron=cron, enabled=int(enabled))
+                db.update_task(task_id, cron=cron, enabled=int(enabled),
+                               date_window_days=window)
                 scheduler.sync_task(task_id)
                 ui.notify(f"Task {task['service']} / {task['user'] or '—'} "
                           "updated")

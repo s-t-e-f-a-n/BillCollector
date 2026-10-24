@@ -15,6 +15,7 @@ import sqlite3
 from datetime import datetime
 
 from . import config
+from .variables import validate_window
 
 
 def now() -> str:
@@ -34,6 +35,7 @@ CREATE TABLE IF NOT EXISTS Task (
     status TEXT NOT NULL DEFAULT 'idle',
     profile_dir TEXT,
     profile_reset_at TEXT,
+    date_window_days INTEGER NOT NULL DEFAULT 90,
     login_failures INTEGER NOT NULL DEFAULT 0,
     login_failure_limit INTEGER NOT NULL DEFAULT 2,
     login_locked INTEGER NOT NULL DEFAULT 0,
@@ -119,6 +121,7 @@ class Database:
             self.conn.execute(
                 "ALTER TABLE Task ADD COLUMN profile_reset_at TEXT")
         for name, definition in {
+            "date_window_days": "INTEGER NOT NULL DEFAULT 90",
             "login_failures": "INTEGER NOT NULL DEFAULT 0",
             "login_failure_limit": "INTEGER NOT NULL DEFAULT 2",
             "login_locked": "INTEGER NOT NULL DEFAULT 0",
@@ -138,13 +141,14 @@ class Database:
 
     # ---- Task -------------------------------------------------------------
     def create_task(self, service, user, recipe_file=None, enabled=False,
-                    cron=None, profile_dir=None):
+                    cron=None, profile_dir=None, date_window_days=90):
+        validate_window(date_window_days)
         cur = self.conn.execute(
             """INSERT INTO Task (service, user, recipe_file, enabled, cron, status,
-                                 profile_dir, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, 'idle', ?, ?, ?)""",
+                                 profile_dir, date_window_days, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, 'idle', ?, ?, ?, ?)""",
             (service, user, recipe_file, int(bool(enabled)), cron,
-             profile_dir, now(), now()),
+             profile_dir, date_window_days, now(), now()),
         )
         self.conn.commit()
         return cur.lastrowid
@@ -162,6 +166,8 @@ class Database:
     def update_task(self, task_id, **fields):
         if not fields:
             return
+        if "date_window_days" in fields:
+            validate_window(fields["date_window_days"])
         fields["updated_at"] = now()
         cols = ", ".join(f"{k}=?" for k in fields)
         vals = list(fields.values()) + [task_id]

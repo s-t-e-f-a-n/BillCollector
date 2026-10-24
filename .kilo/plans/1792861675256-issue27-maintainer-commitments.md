@@ -71,7 +71,11 @@ on dev.
   existing users preserved; clear first-account action and missing-
   configuration visibility before offering scheduled execution (the
   first-account wizard itself is U01, stage 2).
-- Status: not started.
+- Status: done 2026-10-24 — the shipped `bc_default.ini`/`bc_test.ini` carry
+  no personal accounts (a fresh import now creates 0 tasks, verified); the
+  `import_ini` migration path is unchanged and existing users' tasks are
+  untouched; the README INI example uses synthetic names. First-account
+  wizard / missing-configuration visibility remains U01 (stage 2).
 
 ### C3 — F08: method contract (P1, unblocks flowcool)
 
@@ -197,4 +201,6 @@ when picked up). O01 stays deferred per #21.
 ## Status
 
 - Plan created 2026-10-24; triage decision posted on issue #27
-  (comment 6387035799); nothing implemented yet.
+  (comment 6387035799). C2 (F09) done 2026-10-24; C1 (F04) and
+  C3 (F08 contract) next, per the sequencing plan
+  (`1792862814701-next-up-sequencing.md`).

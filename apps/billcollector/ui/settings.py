@@ -23,16 +23,21 @@ from .layout import build_layout
 
 # (key, label, kind, hint): one row per daemon setting. ``kind`` drives
 # the input element and the validation: ``text`` (non-empty),
-# ``optional_text`` (empty allowed - env fallback), ``int`` (positive
-# integer), ``password`` (any value, empty allowed).
+# ``optional_text`` (empty allowed), ``int`` (positive integer),
+# ``password`` (any value, empty allowed).
 FIELDS = (
-    ("ntfy_topic", "ntfy topic", "text", ""),
+    ("ntfy_topic", "ntfy topic", "optional_text",
+     "Empty: no push notifications. Set a topic to opt in (public ntfy.sh "
+     "or the bundled self-hosted profile)."),
     ("pause_deadline_seconds", "Pause deadline (seconds)", "int", ""),
     ("max_concurrency", "Max concurrency", "int",
      "Takes effect on the next daemon start."),
     ("display_start", "Display start", "int", ""),
     ("download_dir", "Download directory", "text", ""),
-    ("ui_base_url", "UI base URL", "text", ""),
+    ("ui_base_url", "UI base URL", "text",
+     "Base for the pause deep links; keep the loopback default or set a "
+     "LAN-absolute URL (e.g. http://<nas-lan-ip>:8766) so links open on a "
+     "phone on your network."),
     ("vnc_password", "VNC password", "password", ""),
     ("vault_api_url", "Vault API URL", "optional_text",
      "Empty: use the BW_API_URL environment value."),

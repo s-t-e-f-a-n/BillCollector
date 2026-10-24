@@ -51,7 +51,8 @@ DEFAULT_SETTINGS = {
     "display_count": "16",               # how many displays to scan when allocating
     "git_commit_enabled": "false",       # auto-commit recipe edits made in the UI
     "ui_base_url": "http://127.0.0.1:8000",
-    "ntfy_topic": "billcollector",       # ntfy push topic for pause deep links
+    # Empty: no push notifications until the operator sets a topic (opt-in).
+    "ntfy_topic": "",
     "download_dir": str(DOWNLOAD_DIR),
     "vnc_password": "",                  # empty: noVNC is localhost-only, no auth
 }

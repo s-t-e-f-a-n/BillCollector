@@ -1,8 +1,9 @@
 # PR #33 review: recover download publication and consumer delivery after crashes
 
-> Status: AWAITING-DECISION (2026-10-25) — S1 review + S2 plan done; verdict
-> approve, 3 diverged files need manual (non-conflicting) merges, two nits are
-> S3 decision points.
+> Status: VALIDATED (2026-10-25) — S3 decided (M1 + M2(a) applied, manual
+> merges confirmed), S4 integrated (all 12 files on dev tree), S5 code checks
+> green, deployment skip user-confirmed 2026-10-25T22:44Z. Next: S6/S7
+> (docs final pass, commit + push, PR close).
 
 ## PR metadata
 
@@ -206,13 +207,47 @@ Optional maintainer-side changes (S3 decision):
 
 - M1 (nit): CHANGELOG entry "Filename collisions preserve earlier files."
   → "…preserve both documents (original portal name retained in metadata)."
-  to match the behaviour and the PR body.
+  to match the behaviour and the PR body. **Applied 2026-10-25 (S3 gate,
+  user confirmed).**
 - M2 (nit): `download_recovery_timeout_seconds` is not surfaced on the
   Settings page nor in the README Settings bullet; the doc says "set a
   positive integer" without saying where. Options: (a) no UI change, clarify
   in `doc/DOWNLOAD_RECOVERY.md` that it is a Settings-table (advanced/DB
   level) key; (b) add a Settings UI field (larger, beyond PR scope).
-  Default proposal: (a).
+  Default proposal: (a). **Resolved (a) 2026-10-25 (S3 gate, user
+  confirmed); the Recovery section of `doc/DOWNLOAD_RECOVERY.md` now names
+  it a Settings-table key not shown on the Settings page.**
+
+## S3/S4/S5 execution record (2026-10-25)
+
+- S3 gate: user confirmed the integration proposal as-is (9 PR-head files +
+  the 3 manual merges), M1, and M2(a).
+- S4 preflight: on `dev` `02b09d3`, `git ls-remote github
+  refs/pull/33/head` = `b675ebe8` (unchanged since S1); all 9 already-applied
+  working-tree files verified byte-identical to `refs/pr/33` (7 via `git
+  diff`, 2 untracked via `git show` + `diff`).
+- S4 completed: 3 manual merges applied exactly as planned —
+  `config.py` (timeout row after `download_dir`, dev C1 `ntfy_topic`
+  opt-in block kept), `README.md:251` (Downloads bullet), `CHANGELOG.md`
+  (Added entry, M1 wording). Tree left dirty for S5.
+- S5 code checks (repo root, `apps/.venv/bin/python`, exact integrated tree):
+  - PR unit suites `pytest tests/test_bc_downloads.py
+    tests/test_bc_downloads_recovery.py -q` → **36 passed** (PR count).
+  - Full `pytest tests/ -q` → **487 passed, 2 skipped (environment), 0
+    failed**.
+  - Regression `tests/run_regression.py --ini tests/bc_regression.ini` →
+    **exit 0, 7 scenarios / 8 PDFs, VERDICT: PASS**.
+  - `ruff check apps tests` → **All checks passed**.
+  - bandit on the changed files vs the dev HEAD baseline (line numbers
+    stripped): **identical finding sets** (B105 `vnc_password` empty string,
+    B608 x2 fixed-dict SQL in `db.py`, B110 try/except/pass in `runner.py`).
+    Documented exception: the new `tests/test_bc_downloads_recovery.py`
+    carries 43 B101 `assert_used` — pytest-idiom asserts in test code only
+    (no production impact; the reviewed PR head is kept as-is, so the tree
+    stays byte-faithful to the reviewed content).
+- S5 gate: deployment-skip judgment **user-confirmed 2026-10-25T22:44Z**
+  (no Dockerfile/script/INI/.env changes; the new key is a Settings-table
+  default with no env/INI surface). Status: VALIDATED.
 
 ## Validation plan (S5, fully local)
 
@@ -241,9 +276,9 @@ integrated dev tree:
   file, INI file, or `.env` handling. The new runtime key is a
   `DEFAULT_SETTINGS` row with a default (no env/INI surface).
 - Decision: **not deployment-relevant — skip the Docker build/canary/smoke
-  block** (judgment recorded here per the continuation-order plan; user
-  confirmation of the recorded skip is still the S5 gate before S7 may
-  promote to `main`).
+  block** (judgment recorded here per the continuation-order plan).
+- **User confirmation of the recorded skip: 2026-10-25T22:44Z** (S5 gate) —
+  S7 may proceed to promotion on the exact tree validated above.
 
 ## Out of scope
 
@@ -257,8 +292,8 @@ integrated dev tree:
 
 ## Open questions
 
-- S3: include M1 (CHANGELOG wording) and/or M2(a) (doc clarification) as
-  maintainer-side changes?
-- S5: confirm the recorded deployment-skip judgment.
+- ~~S3: M1 / M2 decisions~~ — resolved 2026-10-25: M1 applied, M2(a) applied.
+- ~~S5: confirm the recorded deployment-skip judgment~~ — confirmed
+  2026-10-25T22:44Z.
 - S7: close comment for PR #33 and the related-issue closure comment for #24
   (acceptance criteria met → close); #27 stays as-is (already closed).

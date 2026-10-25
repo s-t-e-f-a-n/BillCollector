@@ -1,9 +1,11 @@
 # PR #31 review — fix: keep onboarding task switches independent
 
-> Status: INTEGRATING (2026-10-25) — S3/S4 applied (tree staged); S5
-> validation green (unit 29 / full 454 / regression PASS / ruff + bandit
-> baseline); awaiting user confirmation of the recorded deployment skip
-> (S5 gate) before S6/S7.
+> Status: DELIVERED (2026-10-25) — S7 done: close comment 6399102074
+> posted, PR closed without merge 14:49:55Z. Gitea `dev` = `main` =
+> `5cd1f31`, GitHub `main` = `d9362b3b68d7f9aa54b070c5f8a86708102e1cff`.
+> The Discussion summary (S7.6) is pending user creation in the web UI —
+> the Discussion write API is not usable from this environment (REST 404 /
+> GraphQL field missing); exact title + body recorded below.
 
 ## PR metadata
 
@@ -188,9 +190,53 @@ skipped on this basis; the user confirms the recorded skip at the S5 gate.
   - Deployment validation: recorded skip — not deployment-relevant (no
     `Dockerfile`, `.dockerignore`, compose, `BillCollector.sh`,
     `install_docker-image.sh`, `deploy_remote.sh`, INI keys, or `.env`
-    changes). User confirmation of the recorded skip pending at the S5
-    gate.
-  - Status: INTEGRATING; S6/S7 blocked on the S5 gate.
+    changes). User-confirmed in the S5 gate (2026-10-25).
+  - Plan doc committed + pushed (`fd15cd9`).
+- S6 (2026-10-25): the S3-confirmed CHANGELOG wording (applied in S4) is
+  the only doc change; no README/CONTRIBUTING changes needed; docs
+  confirmed in the S7 chain confirmation.
+- S7 (2026-10-25, user-confirmed chain):
+  - Commits on dev: `7a0ad6b` (fix: onboarding.py), `36a8d31` (test:
+    acceptance test), `5cd1f31` (doc: CHANGELOG entry); pushed to
+    `origin/dev`.
+  - Promotion: Gitea `main` ff-only `84a9d8b` → `5cd1f31`, pushed.
+  - Mirror: `sync_github.sh` → GitHub `main` =
+    `d9362b3b68d7f9aa54b070c5f8a86708102e1cff` (forced update from
+    `41294731df`). Public gate passed: root listing has no `.kilo`/
+    `.vscode`/`.private`/`openwiki`/`AGENTS.md`/`.openwikiignore`;
+    `.github` holds only `ISSUE_TEMPLATE`; the `toggle=toggle` line is
+    present on GitHub `main`.
+  - Note: the PR's GitHub base ref moved to `41294731df` after the PR #30
+    mirror; the head stayed `9d1ec9d` (re-verified) and the integration is
+    file-level on dev, so no re-review was needed.
+  - Close comment `6399102074` posted (user-confirmed text, public commit
+    link added); PR closed without merge at 14:49:55Z
+    (https://github.com/s-t-e-f-a-n/BillCollector/pull/31#issuecomment-6399102074).
+  - Related issues: none — #27 is already closed (`completed`, 2026-10-24,
+    by the maintainer); recorded, no closure action.
+  - S7.6 Discussion summary: BLOCKED on environment — the Discussion write
+    API is not usable here (REST `POST .../discussions` → 404 despite a
+    `repo`-scoped token; GraphQL `newDiscussion`/`addDiscussion` →
+    undefinedField). Per the deploy skill's failure mode, the user creates
+    it in the web UI. Exact title + body:
+    - Title: `Public update 2026-10-25: onboarding task switches fixed
+      (PR #31, F07)`
+    - Category: `Announcements`
+    - Body: "Community contribution from flowcool, reviewed and published
+      as a maintainer commit on `main` (PR #31, closed without merge per
+      the contribution flow):
+      - **Fix:** onboarding task switches are now independent — each
+        switch updates only its own task's enabled state and scheduler
+        registration (previously every switch read the last-created
+        switch's value, so in a multi-task setup enabling one task could
+        leave it disabled).
+      - **Test:** multi-control acceptance test (two-task independence,
+        scheduler sync order, reloaded controls, fresh-process restart
+        check).
+      - **Docs:** CHANGELOG `[Unreleased]` entry.
+      Verified on the exact promoted tree: full suite 454 passed (2
+      skipped, 53 subtests), full regression PASS, ruff clean.
+      Public commit: [d9362b3](https://github.com/s-t-e-f-a-n/BillCollector/commit/d9362b3b68d7f9aa54b070c5f8a86708102e1cff)."
 
 ## Out of scope
 

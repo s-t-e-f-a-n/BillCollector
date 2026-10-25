@@ -157,7 +157,16 @@ interleaved with the remaining Stage 1b portal sessions.**
   CHANGELOG entry, Gitea `main` `84a9d8b`, GitHub `main` `41294731df`,
   PR closed without merge; the #25 publication routine ran end-to-end
   (Discussion summary skipped by user — small fix).
-- Next session: "review PR #31" (S1) — or the 1und1 portal iteration if
+- PR #31 DELIVERED 2026-10-25: S1+S2 verdict approve (byte-identical
+  pre-images), S4 both files applied + CHANGELOG entry, S5 green (unit 29
+  / full 454 / regression PASS / ruff + bandit baseline; deployment skip
+  recorded + user-confirmed), S7 — commits `7a0ad6b` + `36a8d31` +
+  `5cd1f31`, Gitea `main` = `5cd1f31`, GitHub `main` = `d9362b3`, PR
+  closed without merge (comment 6399102074, 14:49:55Z). The Discussion
+  summary is pending user creation in the web UI (Discussion write API not
+  usable from this environment; exact text recorded in the review doc,
+  now in `completed/`).
+- Next session: "review PR #33" (S1) — or the 1und1 portal iteration if
   the user is at a live session; the two are independent.
 
 ## Explicitly not doing

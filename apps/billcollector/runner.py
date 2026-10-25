@@ -41,7 +41,7 @@ import sqlite3
 import sys
 from datetime import datetime
 
-from helpers import CheckRecipe, ServiceObj, VARIABLE_MAP
+from helpers import ServiceObj, VARIABLE_MAP
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -52,6 +52,7 @@ from .login import is_login, login_options, settle_attempt, validate_login_recip
 from .pagestate import PageState
 from .pause import pause_loop
 from .redaction import failure_category, failure_record
+from .recipes import load_recipe
 from .variables import DateContext, expand_argument, validate_variable_recipe
 from .vault import (
     VAULT_MAX_ATTEMPTS,
@@ -1036,9 +1037,9 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
             return 1
 
         recipe_file = task["recipe_file"] or str(config.recipe_path_for(task["service"]))
-        recipe = CheckRecipe(recipe_file, str(config.RECIPE_SCHEMA))
-        if recipe is None:
-            print(f"runner: recipe {recipe_file} not found or invalid", file=sys.stderr)
+        ok, error, _text, recipe = load_recipe(recipe_file)
+        if not ok:
+            print(f"runner: {error}", file=sys.stderr)
             return 1
         try:
             validate_login_recipe(recipe)

@@ -23,7 +23,32 @@ import yaml
 
 from . import config
 from .login import validate_login_recipe
+from .methods import validate_method_recipe
 from .variables import validate_variable_recipe
+
+
+def _error_location(data, path):
+    """Show structural coordinates and recipe identifiers, never argument data."""
+    parts = list(path)
+    labels = []
+    node = data
+    for part in parts:
+        if isinstance(node, dict):
+            if 'serviceName' in node:
+                labels.append(f'service {node["serviceName"]}')
+            if 'step' in node:
+                labels.append(f'step {node["step"]}')
+            if 'method' in node:
+                labels.append(f'method {node["method"]}')
+        try:
+            node = node[part]
+        except (TypeError, KeyError, IndexError):
+            break
+    if isinstance(node, dict):
+        for key, label in (('serviceName', 'service'), ('step', 'step'), ('method', 'method')):
+            if key in node:
+                labels.append(f'{label} {node[key]}')
+    return ', '.join(labels + ['/'.join(map(str, parts)) or '<root>'])
 
 
 def validate_recipe(text: str, schema_path=None) -> tuple:
@@ -35,7 +60,9 @@ def validate_recipe(text: str, schema_path=None) -> tuple:
     try:
         data = yaml.safe_load(text)
     except yaml.YAMLError as e:
-        return False, f"invalid YAML: {str(e).strip()}", None
+        mark = getattr(e, "problem_mark", None)
+        location = f" at line {mark.line + 1}, column {mark.column + 1}" if mark else ""
+        return False, f"invalid YAML{location}", None
     try:
         with open(schema_path or config.RECIPE_SCHEMA, encoding="utf-8") as f:
             schema = yaml.safe_load(f)
@@ -46,7 +73,9 @@ def validate_recipe(text: str, schema_path=None) -> tuple:
         return False, f"cannot load schema: {e}", None
     if errors:
         return False, "; ".join(
-            f"{'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}"
+            f"{_error_location(data, e.absolute_path)}: "
+            f"must satisfy {e.validator}"
+            + (f" {e.validator_value}" if e.validator == "type" else "")
             for e in errors), None
     try:
         validate_login_recipe(data)
@@ -56,6 +85,10 @@ def validate_recipe(text: str, schema_path=None) -> tuple:
         validate_variable_recipe(data)
     except ValueError as e:
         return False, f"invalid variable contract: {e}", None
+    try:
+        validate_method_recipe(data)
+    except ValueError as e:
+        return False, f"invalid method contract: {e}", None
     return True, None, data
 
 

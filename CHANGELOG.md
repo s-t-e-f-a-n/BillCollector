@@ -11,6 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Daemon recipe validation checks the installed Playwright method chains,
+  argument names and types, properties, and reserved `wait_user` options (C3,
+  issue #27). UI save and run start use the same gate before vault or browser
+  access. Errors identify the service and step without argument values. The
+  agreed date-variable grammar and login `press("Enter")` form remain supported.
+
 - Daemon runtime date variables and inline, recursive single-pass argument
   substitution (issue #26). Recipe save and run start share syntax validation.
   Tasks have an additive `date_window_days` setting (90 inclusive days by

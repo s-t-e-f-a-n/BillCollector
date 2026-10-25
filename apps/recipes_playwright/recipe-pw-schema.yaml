@@ -156,11 +156,28 @@ definitions:
         not:
           enum: [ "click_until_absent", "download_all" ]
       arguments:
-        type: array
-        items:
-          type: object
-          additionalProperties:
-            type: [ "string", "boolean", "number", "object", "null" ]
+        oneOf:
+          - type: array
+            items:
+              type: object
+              additionalProperties:
+                type: [ "string", "boolean", "number", "object", "null" ]
+          - type: array
+            minItems: 1
+            maxItems: 1
+            items:
+              const: "Enter"
+    allOf:
+      - if:
+          required: [ arguments ]
+          properties:
+            arguments:
+              contains:
+                const: "Enter"
+        then:
+          properties:
+            method:
+              const: "press"
   clickUntilAbsentMethod:
     type: object
     required: [ method, arguments ]

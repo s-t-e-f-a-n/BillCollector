@@ -171,7 +171,7 @@ def test_blocked_direct_runner_stops_before_recipe_vault_or_display(db, monkeypa
     db.update_task(task, login_locked=1)
     monkeypatch.setattr(config, "DB_FILE", db.path)
     with mock.patch.object(runner, "_install_signal_handlers"), \
-            mock.patch.object(runner, "CheckRecipe") as recipe, \
+            mock.patch.object(runner, "load_recipe") as recipe, \
             mock.patch.object(runner, "_vault_preflight") as vault, \
             mock.patch.object(runner.display, "allocate_display") as display:
         assert runner.run_task(task) == 1
@@ -644,7 +644,7 @@ def test_unsupported_test_id_option_rejected_before_runtime(db, monkeypatch):
     task, _ = task_run(db)
     monkeypatch.setattr(config, "DB_FILE", db.path)
     with mock.patch.object(runner, "_install_signal_handlers"), \
-            mock.patch.object(runner, "CheckRecipe", return_value=recipe), \
+            mock.patch.object(runner, "load_recipe", return_value=(True, None, None, recipe)), \
             mock.patch.object(runner, "_vault_preflight") as vault, \
             mock.patch.object(runner.display, "allocate_display") as display:
         assert runner.run_task(task) == 1

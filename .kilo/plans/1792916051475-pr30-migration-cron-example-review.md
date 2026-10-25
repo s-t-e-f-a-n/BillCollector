@@ -116,6 +116,17 @@ skip at the S5 gate — confirmed in the S3 chain confirmation (2026-10-25
 - S6 (2026-10-25): the S3-confirmed CHANGELOG wording is applied in S4;
   no README/CONTRIBUTING changes beyond the integration hunk; docs
   confirmed in the same chain confirmation.
+- S7 (2026-10-25): commits `5126962` (this doc, VALIDATED) + `84a9d8b`
+  (integration: README + CHANGELOG); pushed to `origin/dev`; Gitea `main`
+  promoted ff-only `4b336d2` → `84a9d8b` (user-gated); mirror synced —
+  GitHub `main` = `41294731df1f9f7adf56ac729a3f89cfa7b1afc4` (tip
+  sanitized-by-amend; the integration commit's message is preserved
+  there). Public gate passed: root listing has no `.kilo`/`.vscode`/
+  `.private`/`openwiki`/`AGENTS.md`/`.openwikiignore`; `.github` holds only
+  `ISSUE_TEMPLATE` (no `workflows/`); the corrected cron line is present at
+  `README.md:380` on GitHub `main`. Next: S7 close comment + Announcements
+  Discussion (public texts, user-confirmed), then the final DELIVERED doc
+  commit.
 
 ## Out of scope
 

@@ -2,8 +2,8 @@
 
 > Status: VALIDATED (2026-10-25) — S3 decided (M1 + M2(a) applied, manual
 > merges confirmed), S4 integrated (all 12 files on dev tree), S5 code checks
-> green, deployment skip user-confirmed 2026-10-25T22:44Z. Next: S6/S7
-> (docs final pass, commit + push, PR close).
+> green, deployment skip user-confirmed 2026-10-25T22:44Z, S6 docs confirmed
+> (user gate 2026-10-25T22:52Z). Next: S7 (commit + push, PR close).
 
 ## PR metadata
 
@@ -249,6 +249,29 @@ Optional maintainer-side changes (S3 decision):
   (no Dockerfile/script/INI/.env changes; the new key is a Settings-table
   default with no env/INI surface). Status: VALIDATED.
 
+## S6 documentation record (2026-10-25)
+
+- Preflight: dev `d715ad0` (doc-only commit over the S5-validated tree —
+  `git show --stat d715ad0` touches only this plan doc, so the integrated
+  12-file tree is byte-unchanged since the S5 validation); PR head still
+  `b675ebe8` per `git ls-remote github refs/pull/33/head`.
+- CHANGELOG.md: the `## [Unreleased]` / `### Added` entry is at the top of
+  the section, sanitized wording, M1 phrasing ("preserve both documents
+  (original portal name retained in metadata)"). No other CHANGELOG changes.
+- README.md: only the one-line Downloads-bullet change (README.md:251) —
+  appends the `doc/DOWNLOAD_RECOVERY.md` link for staged publication,
+  recovery and the at-least-once consumer contract. CONTRIBUTING.md
+  unchanged (no contributor-rule change).
+- doc/DOWNLOAD_RECOVERY.md: new public doc, 100 lines; sanitized (no Gitea
+  host, NAS details, or private paths); M2(a) wording present (the
+  `download_recovery_timeout_seconds` key named as an advanced Settings-table
+  key, not shown on the Settings page); content consistent with the code
+  (checked line-by-line in S1).
+- Private-marker sweep over the full pending diff (12 files, incl. the 2
+  untracked): no Gitea/NAS/`.kilo`/`.private`/openwiki/local-path hits.
+- S6 gate: **docs user-confirmed 2026-10-25T22:52Z**. Next: S7 (commit +
+  push on dev, promotion + mirror, PR/issue close, Discussion summary).
+
 ## Validation plan (S5, fully local)
 
 From the repo root with `apps/.venv/bin/python` (Python 3.12.3) on the exact
@@ -295,5 +318,6 @@ integrated dev tree:
 - ~~S3: M1 / M2 decisions~~ — resolved 2026-10-25: M1 applied, M2(a) applied.
 - ~~S5: confirm the recorded deployment-skip judgment~~ — confirmed
   2026-10-25T22:44Z.
+- ~~S6: confirm the docs~~ — confirmed 2026-10-25T22:52Z.
 - S7: close comment for PR #33 and the related-issue closure comment for #24
   (acceptance criteria met → close); #27 stays as-is (already closed).

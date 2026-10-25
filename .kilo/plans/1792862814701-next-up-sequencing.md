@@ -166,8 +166,14 @@ interleaved with the remaining Stage 1b portal sessions.**
   summary is pending user creation in the web UI (Discussion write API not
   usable from this environment; exact text recorded in the review doc,
   now in `completed/`).
-- Next session: "review PR #33" (S1) — or the 1und1 portal iteration if
-  the user is at a live session; the two are independent.
+- PR #33 S1+S2 done 2026-10-25 ("proceed with pr #33" session):
+  review plan doc `1792965931629-pr33-download-crash-recovery-review.md`
+  written, verdict approve (head `b675ebe` unchanged), 3 diverged files with
+  non-overlapping hunks, two nits as S3 decision points, deployment
+  validation recorded as not deployment-relevant — Status:
+  AWAITING-DECISION. Next: S3 (propose/refuse gate), then S4–S7.
+- The 1und1 portal iteration remains independent and can run in a live
+  session at any time.
 
 ## Explicitly not doing
 

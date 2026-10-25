@@ -187,15 +187,23 @@ on dev.
 
 ## Related lanes
 
-- #24 crash recovery (flowcool implementation PR pending) — F01 + F10 ride
-  on it.
-- #26 date variables / collection window (flowcool PR pending) — overlaps
-  C4.
+- #24 crash recovery (flowcool implementation PR #33, next up in the
+  continuation order) — F01 + F10 ride on it; once it lands, C8 becomes
+  schedulable.
+- #26 date variables / collection window (flowcool PR #34, last in the
+  continuation order) — overlaps C4; once it lands with #33, C4 becomes
+  draftable.
 - #28 Chromium sandbox (flowcool, contract accepted 2026-10-24, upstream PR
   pending).
-- #25 publication routine (tracking; decision 2026-10-24: stays open until
-  the next public delivery runs the S7 routine end-to-end, then close with a
-  comment pointing at the demonstrated delivery and its Discussion).
+- #25 publication routine — CLOSED 2026-10-25 (state_reason completed):
+  the S7 routine was demonstrated across the PR #30 + #31 deliveries, so the
+  "stays open until a delivery runs the S7 routine" condition is met. Closed
+  with a comment (issuecomment-6403353716) pointing at the demonstrated
+  deliveries (#30: Gitea `main` `84a9d8b` / GitHub `41294731df`; #31: Gitea
+  `main` `5cd1f31` / GitHub `d9362b3`). The GitHub Discussion channel for
+  per-delivery summaries is still being stood up (the Discussion write API is
+  not reachable from this tooling) — that refinement is tracked here, not on
+  #25.
 
 ## Proposed order
 

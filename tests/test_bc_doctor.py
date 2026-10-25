@@ -126,6 +126,34 @@ def test_replace_step_graceful_roundtrip():
     assert ok, error
 
 
+def test_replace_step_force_argument_roundtrip():
+    step = {
+        "step": 2,
+        "description": "",
+        "graceful": True,
+        "methods": [
+            {"method": "get_by_label",
+             "arguments": [{"text": "Nur technisch notwendige"}]},
+            {"method": "click", "arguments": [{"force": True}]},
+        ],
+    }
+    new_text = doctor.replace_step_in_text(BUHL_TEXT, 2, step)
+    assert new_text is not None
+    old = BUHL_TEXT.splitlines()
+    new = new_text.splitlines()
+    idx = new.index("  - step: 2")
+    assert new[idx + 7] == "    - method: click"
+    assert new[idx + 8] == "      arguments:"
+    assert new[idx + 9] == "      - force: true"
+    assert new[idx + 10] == "  - step: 3"
+    # minimal diff: exactly the two argument lines inserted, nothing else
+    assert new[:idx + 8] == old[:idx + 8]
+    assert new[idx + 10:] == old[idx + 8:]
+    assert len(new) == len(old) + 2
+    ok, error, _data = recipes.validate_recipe(new_text)
+    assert ok, error
+
+
 # --- LLM reply parsing --------------------------------------------------
 
 def test_parse_llm_response_variants():
@@ -171,6 +199,23 @@ def test_build_prompt_text_only():
     assert "base64" not in system + user
     assert "fix_type" in system
     assert len(user) < 30000  # page text truncated
+
+
+def test_build_prompt_force_guidance():
+    pause = {
+        "step_number": 3,
+        "error": {},
+        "url": "https://example.com",
+        "page_title": "t",
+        "step": {"locators": [], "actions": []},
+        "elements": [],
+        "page_text": "",
+    }
+    system, _user = doctor.build_prompt("svc", pause, BUHL_TEXT)
+    assert "force: true" in system
+    assert "actionability" in system
+    assert "dismiss" in system  # prefer a graceful banner dismiss
+    assert "hit testing" in system  # force does not click through overlays
 
 
 # --- pause context loading ----------------------------------------------

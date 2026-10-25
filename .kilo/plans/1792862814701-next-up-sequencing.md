@@ -153,7 +153,11 @@ interleaved with the remaining Stage 1b portal sessions.**
 ### Status (2026-10-25)
 
 - PRs #30–#34 open since 2026-10-24; order decided above.
-- Next session: "review PR #30" (S1) — or the 1und1 portal iteration if
+- PR #30 DELIVERED 2026-10-25 (S1–S7 in one chain): hunk applied +
+  CHANGELOG entry, Gitea `main` `84a9d8b`, GitHub `main` `41294731df`,
+  PR closed without merge; the #25 publication routine ran end-to-end
+  (Discussion summary skipped by user — small fix).
+- Next session: "review PR #31" (S1) — or the 1und1 portal iteration if
   the user is at a live session; the two are independent.
 
 ## Explicitly not doing

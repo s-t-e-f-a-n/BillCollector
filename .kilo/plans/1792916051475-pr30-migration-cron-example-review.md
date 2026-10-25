@@ -1,9 +1,9 @@
 # PR #30 review — docs: correct the five-field migration cron example
 
-> Status: VALIDATED (2026-10-25) — S3 proposal confirmed as-is (08:23Z,
-> incl. commit + push + main promotion + GitHub mirror); S4 applied; S5
-> gate green; S6 docs confirmed; awaiting S7 close comment + Discussion
-> summary text confirmation.
+> Status: DELIVERED (2026-10-25) — S7 done: close comment 6395477475
+> posted, PR closed without merge 08:36:39Z. dev = `2dbd19c` (+ this doc
+> commit), Gitea main = `84a9d8b`, GitHub main = `41294731df`. Announcements
+> Discussion skipped by user decision (small fix).
 
 ## PR metadata
 
@@ -124,9 +124,12 @@ skip at the S5 gate — confirmed in the S3 chain confirmation (2026-10-25
   there). Public gate passed: root listing has no `.kilo`/`.vscode`/
   `.private`/`openwiki`/`AGENTS.md`/`.openwikiignore`; `.github` holds only
   `ISSUE_TEMPLATE` (no `workflows/`); the corrected cron line is present at
-  `README.md:380` on GitHub `main`. Next: S7 close comment + Announcements
-  Discussion (public texts, user-confirmed), then the final DELIVERED doc
-  commit.
+  `README.md:380` on GitHub `main`.
+- S7 close (2026-10-25): user confirmed the close comment (Discussion
+  summary skipped by user decision — small fix); comment `6395477475`
+  posted (https://github.com/s-t-e-f-a-n/BillCollector/pull/30#issuecomment-6395477475);
+  PR closed without merge at 08:36:39Z. Issue #27 was already closed — no
+  related-issue closure needed.
 
 ## Out of scope
 

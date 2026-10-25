@@ -229,6 +229,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   five-field parser used by the scheduler and the UI; corrected to
   `0 6 1,15 * *` (issue #27, D08).
 
+- Onboarding task switches are independent: toggling a switch now updates
+  only its own task's enabled state and scheduler registration (previously
+  every switch read the last-created switch's value, so in a multi-task
+  setup enabling one task could leave it disabled) (issue #27, F07).
+
 ## [v0.4] - 2026-10-02
 
 ### Added

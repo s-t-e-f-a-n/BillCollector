@@ -217,6 +217,63 @@ Test: extend `tests/test_bc_doctor.py` — the prompt contains the
 force guidance; a canned reply adding `{force: true}` to a click's
 arguments passes `validate_recipe` and yields a minimal diff.
 Validate with `ruff check apps tests` + the full pytest suite.
+— DONE (2026-10-24): `test_build_prompt_force_guidance` +
+`test_replace_step_force_argument_roundtrip` added; ruff clean, full
+suite green (453 passed, 2 skipped).
+
+### Stage 1b results
+
+- **nuernberger** — DONE (2026-10-24, run 21 success): re-targeted
+  step 7 to `get_by_role(link, "Postfach", exact)` (the glyph tile is
+  gone) and the two invoice rows to the "… PDF" links
+  (`Leistungsabrechnung PDF` / `Vertragsinformation PDF`); both PDFs
+  landed in Downloads (`Leistungsabrechnung_1079485_01-10-2026.pdf`,
+  `Vertragsinformation_1079485_05-10-2026.pdf`).
+- **winsim** — DONE (2026-10-25, run 30 success): three doctor
+  iterations (all canned replies derived from live page probes; the
+  real endpoint is still user-provided at runtime):
+  1. Re-run 26 (original recipe) paused at step 7: the "Bestätigen"
+     dialog was visible this time (run 14 had surfaced step 8). Fix 1
+     (`/tmp/kilo/winsim_fix1.json`): steps 7 + 8 → `graceful: true`
+     (both dialogs are transient), stale step 9 "Meine Rechnung" (gone
+     from the start page) → `get_by_role(link, "Rechnungen", exact)`
+     + `.first`.
+  2. Run 27 paused at step 9 (still on /start): the nav "Rechnungen"
+     link is covered by the userDataSwitch header widget (click lands
+     on the overlay). Fix 2 (`winsim_fix2.json`): step 9 →
+     `locator a[title='Rechnungen']` (the quick-entry tile; probe
+     `winsim_inspect3.py` verified it navigates to
+     /mytariff/invoice/showAll).
+  3. Runs 28/29 paused at the step 11 `expect_download`
+     (download_failed): the first "Rechnung vom" anchor is itself the
+     PDF link (`/mytariff/invoice/showPDF/...`) — the plain step 10
+     click already fires the download outside the window, and the
+     inner "Rechnung" link no longer exists (probe
+     `winsim_inspect4.py` confirmed the click downloads
+     `B954329320_rech.pdf`). Fix 3 (`winsim_fix3.json`): the
+     `expect_download` window now wraps the "Rechnung vom" + `first`
+     click; the stale inner step is dropped.
+  Run 30: **success** — `B954329320_rech.pdf` in apps/Downloads.
+
+### Status (2026-10-25)
+
+4 of 7 services are done (buhl, datev, nuernberger, winsim); the
+Stage 1b work so far is committed on dev. The remaining three services
+deliberately stay open for a follow-up session:
+
+- **1und1** — in progress: the expected fixes (drop the stale
+  "Click to reveal" step, graceful consent) are applied and committed,
+  but runs 22–25 still pause `step_failed`; next: re-capture a fresh
+  pause, then the next doctor iteration.
+- **freenet_mobilfunk** — not started: the overlay/consent case
+  (checklist item 4), including the `force: true` decision point.
+- **kabeldeutschland** — not started: flow break → Option D
+  re-authoring against the new vodafone portal (checklist item 5).
+
+The per-iteration loop (fresh pause → doctor → `--apply` → re-run),
+the definition of done, and the wrap-up steps below are unchanged; the
+wrap-up (batch commit, plan archival) happens after all seven are
+green.
 
 ### Per-service checklist (order: cheap wins first)
 
@@ -225,11 +282,12 @@ Validate with `ruff check apps tests` + the full pytest suite.
    `get_by_role(link, "Postfach \uf054")`; the pause snapshot shows
    the plain nav link `"Postfach"` visible at (460,72) linking to
    `/kunde/pages/postfach/postfach.html` — the intended target.
-   Expected fix: rename step 7 to `get_by_role(link, "Postfach",
-   exact: true)`; add `.first` if strict mode complains (multiple
-   visible matches). Next stale step likely in the Postfach table
-   (steps 8/11: cells "Leistungsabrechnung" / "Vertragsinformation")
-   — iterate.
+    Expected fix: rename step 7 to `get_by_role(link, "Postfach",
+    exact: true)`; add `.first` if strict mode complains (multiple
+    visible matches). Next stale step likely in the Postfach table
+    (steps 8/11: cells "Leistungsabrechnung" / "Vertragsinformation")
+    — iterate. — DONE (2026-10-24, run 21 success; see Stage 1b
+    results).
 2. **1und1** — drop a stale step.
    Forensics: the failing step 4 clicks the Keycloak password-
    visibility toggle `get_by_role(button, "Click to reveal", exact)` —
@@ -240,17 +298,22 @@ Validate with `ruff check apps tests` + the full pytest suite.
    Expected fix: drop the "Click to reveal" step (clean up the
    numbering). Hardening (operator judgment): make step 2 "Ablehnen"
    (cookie consent) `graceful: true` so the run survives when the
-   banner is absent (buhl precedent). Next stale step unknown (e.g.
-   step 10 `test_id "invoice-link"` in the Control-Center) — iterate.
+    banner is absent (buhl precedent). Next stale step unknown (e.g.
+    step 10 `test_id "invoice-link"` in the Control-Center) — iterate.
+    — IN PROGRESS (2026-10-25): the two expected fixes are applied
+    in the working tree, but runs 22–25 still pause
+    `step_failed`; the next doctor iteration is pending (re-capture a
+    fresh pause first).
 3. **winsim** — drop a hidden-dialog step, then re-target.
    Forensics: step 8's link "Dialog Schließen" has rect 0×0 in the
    pause snapshot (the dialog is no longer shown) → the click times
    out waiting for visibility. Step 9's "Meine Rechnung" no longer
    exists on the start page; "Rechnungen" is visible in two places
    (nav at y≈240, tile at y≈635).
-   Expected fixes, two iterations: drop step 8 (or make it graceful);
-   re-target step 9 to `get_by_role(link, "Rechnungen")` + `.first`
-   (strict mode: two visible matches).
+    Expected fixes, two iterations: drop step 8 (or make it graceful);
+    re-target step 9 to `get_by_role(link, "Rechnungen")` + `.first`
+    (strict mode: two visible matches). — DONE (2026-10-25, run 30
+    success; three iterations, see Stage 1b results).
 4. **freenet_mobilfunk** — overlay case (the force decision point).
    Forensics: step 3 "Jetzt einloggen" is visible on the pre-login
    page; the snapshot has no top-frame consent element — the

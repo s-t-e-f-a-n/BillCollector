@@ -212,3 +212,52 @@ def test_login_positional_enter_submit_is_preserved():
                           {'method': 'press', 'arguments': ['Enter']}]})
     ok, error, _ = validate_recipe(yaml.safe_dump(recipe))
     assert ok, error
+
+
+def test_malformed_method_identifier_is_not_dumped_in_schema_errors():
+    recipe = document([{'method': {'value': 'synthetic-secret'}}])
+    ok, error, _ = validate_recipe(yaml.safe_dump(recipe))
+    assert not ok
+    assert 'synthetic-secret' not in error
+
+
+def test_until_label_and_placeholder_use_real_playwright_arguments():
+    from playwright.sync_api import sync_playwright
+
+    from billcollector.runner import _locator_for
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            page.set_content('<label>Name<input placeholder="Account"></label>')
+            assert _locator_for(page, {'label': 'Name'}).count() == 1
+            assert _locator_for(page, {'placeholder': 'Account'}).count() == 1
+        finally:
+            browser.close()
+
+
+@pytest.mark.parametrize('methods,options', [
+    ([{'method': 'expect_download', 'arguments': [{'timeout': 5}]}], {}),
+    ([{'method': 'login', 'arguments': [{'success': {'selector': '#account'}}]}],
+     {'graceful': True}),
+    ([{'method': 'locator', 'arguments': [{'selector': '#more'}]},
+      {'method': 'click_until_absent', 'arguments': [
+          {'progress_selector': '.row', 'max_clicks': 0, 'timeout_ms': 100}]}], {}),
+])
+def test_reserved_action_errors_are_safe_and_located(methods, options):
+    ok, error, _ = validate_recipe(yaml.safe_dump(document(methods, **options)))
+    assert not ok
+    assert 'synthetic' in error and '17' in error
+
+
+def test_invalid_recipe_is_not_written_and_cannot_start(tmp_path):
+    from billcollector.recipes import save_recipe
+
+    path = tmp_path / 'recipe.yaml'
+    original = yaml.safe_dump(document([{'method': 'goto', 'arguments': [{'url': 'about:blank'}]}]))
+    path.write_text(original)
+    invalid = yaml.safe_dump(document([{'method': 'unknown_method'}]))
+    ok, error = save_recipe(path, invalid)
+    assert not ok and '17' in error
+    assert path.read_text() == original

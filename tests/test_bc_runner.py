@@ -793,7 +793,11 @@ class WaitUserTests(unittest.TestCase):
                 ({"selector": "#done"}, "locator")):
             page = _UntilPage(_UntilLocator([]))
             runner._locator_for(page, until)
-            self.assertEqual(page.calls, [(expected, until)])
+            kwargs = dict(until)
+            for key in ("label", "placeholder"):
+                if key in kwargs:
+                    kwargs["text"] = kwargs.pop(key)
+            self.assertEqual(page.calls, [(expected, kwargs)])
 
     def test_locator_for_rejects_unrecognized_dicts(self):
         page = _UntilPage(_UntilLocator([]))

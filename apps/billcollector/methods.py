@@ -120,16 +120,24 @@ def _wait_user(arguments):
     until = options['until']
     if not isinstance(until, dict):
         raise ValueError('wait_user until must be a locator object')
+    name, kwargs = locator_arguments(until)
+    attribute, hints = _attribute(Page, name)
+    _check_arguments(attribute, hints, [kwargs])
+
+
+def locator_arguments(until):
+    """Resolve C3 locator keys to the installed Playwright keyword names."""
+    if not isinstance(until, dict):
+        raise ValueError('until must be a locator object')
     for key, name in _UNTIL:
         if key in until:
-            attribute, hints = _attribute(Page, name)
-            # Keep the C3 locator keys; Playwright calls these two values text.
             kwargs = dict(until)
             if key in {'placeholder', 'label'}:
+                if 'text' in kwargs:
+                    raise ValueError('until has conflicting locator keys')
                 kwargs['text'] = kwargs.pop(key)
-            _check_arguments(attribute, hints, [kwargs])
-            return
-    raise ValueError('wait_user until requires a recognized locator key')
+            return name, kwargs
+    raise ValueError('until requires a recognized locator key')
 
 
 def validate_method_recipe(recipe):

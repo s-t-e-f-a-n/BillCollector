@@ -116,7 +116,7 @@ def test_replace_step_graceful_roundtrip():
             {"method": "click"},
         ],
     }
-    new_text = doctor.replace_step_in_text(BUHL_TEXT, 2, step)
+    new_text = doctor.replace_step_in_text(BUHL.read_text(encoding="utf-8"), 2, step)
     assert new_text is not None
     lines = new_text.splitlines()
     idx = lines.index("  - step: 2")
@@ -137,9 +137,9 @@ def test_replace_step_force_argument_roundtrip():
             {"method": "click", "arguments": [{"force": True}]},
         ],
     }
-    new_text = doctor.replace_step_in_text(BUHL_TEXT, 2, step)
+    new_text = doctor.replace_step_in_text(BUHL.read_text(encoding="utf-8"), 2, step)
     assert new_text is not None
-    old = BUHL_TEXT.splitlines()
+    old = BUHL.read_text(encoding="utf-8").splitlines()
     new = new_text.splitlines()
     idx = new.index("  - step: 2")
     assert new[idx + 7] == "    - method: click"

@@ -1,8 +1,9 @@
 # PR #30 review — docs: correct the five-field migration cron example
 
-> Status: AWAITING-DECISION (2026-10-25) — S1 review complete, verdict
-> approve; awaiting user decision on the S3 integration proposal
-> (hunk-level apply + CHANGELOG entry).
+> Status: VALIDATED (2026-10-25) — S3 proposal confirmed as-is (08:23Z,
+> incl. commit + push + main promotion + GitHub mirror); S4 applied; S5
+> gate green; S6 docs confirmed; awaiting S7 close comment + Discussion
+> summary text confirmation.
 
 ## PR metadata
 
@@ -97,7 +98,24 @@ Not deployment-relevant (recorded 2026-10-25): no changes to `Dockerfile`,
 `.dockerignore`, `BillCollector.sh`, `install_docker-image.sh`,
 `deploy_remote.sh`, INI keys, or `.env` handling. The S5 deployment
 validation block is skipped on this basis; the user confirms the recorded
-skip at the S5 gate.
+skip at the S5 gate — confirmed in the S3 chain confirmation (2026-10-25
+08:23Z).
+
+## Stage log
+
+- S4 (2026-10-25 08:2xZ): applied the confirmed one-line hunk to dev
+  `README.md:380` and appended the S3-confirmed CHANGELOG bullet to
+  `## [Unreleased]` → `### Fixed`; tree left dirty for S5.
+- S5 (2026-10-25): on the exact dev tree from the repo root:
+  - `apps/.venv/bin/python -m ruff check apps tests` → All checks passed.
+  - `PYTHONPATH=apps apps/.venv/bin/python -m pytest -q` → **453 passed,
+    2 skipped, 53 subtests passed** (0 failures; the PR touches no tests.
+    The count is 2 above the 451 baseline recorded at C1: the doctor test
+    suite committed on dev in between adds them).
+  - Deployment validation: recorded skip (above), user-confirmed.
+- S6 (2026-10-25): the S3-confirmed CHANGELOG wording is applied in S4;
+  no README/CONTRIBUTING changes beyond the integration hunk; docs
+  confirmed in the same chain confirmation.
 
 ## Out of scope
 

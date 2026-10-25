@@ -1,8 +1,9 @@
 # PR #31 review — fix: keep onboarding task switches independent
 
-> Status: AWAITING-DECISION (2026-10-25) — S1 review + S2 plan complete;
-> verdict **approve**; awaiting user review of verdict + integration plan
-> (S2 gate) and the plan-doc commit.
+> Status: INTEGRATING (2026-10-25) — S3/S4 applied (tree staged); S5
+> validation green (unit 29 / full 454 / regression PASS / ruff + bandit
+> baseline); awaiting user confirmation of the recorded deployment skip
+> (S5 gate) before S6/S7.
 
 ## PR metadata
 
@@ -158,6 +159,38 @@ skipped on this basis; the user confirms the recorded skip at the S5 gate.
   shared regions).
 - S2 (2026-10-25): this doc written; verdict approve; Status
   AWAITING-DECISION; user gate on verdict + plan.
+- S3/S4 (2026-10-25, prior session): proposal confirmed (both candidate
+  files from the PR head; CHANGELOG bullet per the S3 wording above); both
+  files applied to the dev working tree (staged), CHANGELOG entry added
+  under `## [Unreleased]` → `### Fixed`; tree left uncommitted per S4.
+- S5 (2026-10-25, this session): preflight — `refs/pr/31` head re-checked
+  against `git ls-remote github refs/pull/31/head` → `9d1ec9d` unchanged;
+  dev == origin/dev `eaf28a3`; staged files byte-identical to the PR head
+  (`git diff refs/pr/31` on both files → empty). Validation on the exact
+  dev tree (venv, repo root):
+  - PR unit tests `pytest -q tests/test_bc_ui_onboarding.py
+    tests/test_bc_scheduler.py` → **29 passed** (17.5 s) — matches the PR's
+    claim.
+  - Full suite `PYTHONPATH=apps pytest -q` → **454 passed, 2 skipped, 53
+    subtests passed** (4:32) — the 453 baseline + the one new test, as
+    planned.
+  - Full regression `tests/run_regression.py --ini
+    tests/bc_regression.ini` → **VERDICT: PASS**, 7/7 pairs matched
+    expectations, exactly the 8 expected downloads, exit 0.
+  - ruff (F821, E4/E7/E9) on the two changed files → all checks passed.
+  - bandit on the two changed files → nothing new beyond the baseline:
+    B101 asserts 60→68 (the new test follows the file's existing style),
+    B105 synthetic fixture password (pre-existing, line 33→34), plus the
+    intended subprocess findings B404 (import) / B603 (`subprocess.run` —
+    same local interpreter, no `shell`, temp DB from the test fixture,
+    `PYTHONPATH=apps` per the environment convention). No security-relevant
+    finding.
+  - Deployment validation: recorded skip — not deployment-relevant (no
+    `Dockerfile`, `.dockerignore`, compose, `BillCollector.sh`,
+    `install_docker-image.sh`, `deploy_remote.sh`, INI keys, or `.env`
+    changes). User confirmation of the recorded skip pending at the S5
+    gate.
+  - Status: INTEGRATING; S6/S7 blocked on the S5 gate.
 
 ## Out of scope
 
@@ -168,4 +201,5 @@ skipped on this basis; the user confirms the recorded skip at the S5 gate.
 
 ## Open questions
 
-- None blocking. The CHANGELOG bullet wording is the S3 decision item.
+- None blocking. The CHANGELOG bullet wording (S3 decision item) was
+  resolved: the candidate wording above was applied verbatim.

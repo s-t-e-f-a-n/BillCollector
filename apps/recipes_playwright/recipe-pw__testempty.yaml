@@ -1,4 +1,4 @@
-$schema: "/home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml"
+$schema: "recipe-pw-schema.yaml"
 services:
 - serviceName: "testempty"
   description: "Login succeeds; the invoice table is empty and the run aborts at the invoice row."

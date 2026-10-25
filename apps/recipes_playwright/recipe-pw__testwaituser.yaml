@@ -1,4 +1,4 @@
-$schema: "/home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml"
+$schema: "recipe-pw-schema.yaml"
 services:
 - serviceName: "testwaituser"
   description: "Layer B: displayed 6-digit CAPTCHA code; an operator must type it (wait_user)."

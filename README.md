@@ -82,6 +82,10 @@ External contributions are welcome and credited:
 
 ## Quick Start
 
+For a local first check, follow [Start the daemon](doc/QUICKSTART.md).
+Use [Troubleshooting](doc/TROUBLESHOOTING.md) for a failed run and
+[Recipe authoring](doc/RECIPE_AUTHORING.md) for synthetic recipe proof.
+
 BillCollector requires the following services:
 
 - Docker environment

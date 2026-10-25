@@ -1,0 +1,150 @@
+$schema: ../../apps/recipes_playwright/recipe-pw-schema.yaml
+services:
+- serviceName: synthetic
+  description: Loopback mock only; no real portal or account.
+  steps:
+  - step: 1
+    description: Open the mock site landing page.
+    methods:
+    - method: goto
+      arguments:
+      - url: http://127.0.0.1:8787/happy/
+  - step: 2
+    description: Dismiss consent; an absent banner is optional on a reused session.
+    graceful: true
+    methods:
+    - method: get_by_role
+      arguments:
+      - role: button
+      - name: Reject
+    - method: click
+      arguments:
+      - timeout: 1000
+  - step: 3
+    methods:
+    - method: login
+      arguments:
+      - success:
+          role: link
+          name: My account
+          exact: true
+      - timeout_ms: 5000
+      - session_timeout_ms: 500
+    phases:
+    - success:
+        selector: '#otp'
+      steps:
+      - step: 31
+        description: Fill the e-mail address field (labelled textbox inside main).
+        methods:
+        - method: get_by_role
+          arguments:
+          - role: main
+        - method: get_by_role
+          arguments:
+          - role: textbox
+          - name: E-mail address
+        - method: fill
+          arguments:
+          - value: '{{USERNAME}}'
+      - step: 32
+        description: Fill the user-id field (CSS locator).
+        methods:
+        - method: locator
+          arguments:
+          - selector: '#user-id'
+        - method: fill
+          arguments:
+          - value: '{{USERNAME}}'
+      - step: 33
+        description: Fill the alias field (placeholder locator).
+        methods:
+        - method: get_by_placeholder
+          arguments:
+          - text: e.g. myusername
+        - method: fill
+          arguments:
+          - value: '{{USERNAME}}'
+      - step: 34
+        description: Fill the password field (title locator).
+        methods:
+        - method: get_by_title
+          arguments:
+          - text: Password
+        - method: fill
+          arguments:
+          - value: '{{PASSWORD}}'
+      - step: 35
+        description: Fill the password field (test-id locator).
+        methods:
+        - method: get_by_test_id
+          arguments:
+          - test_id: password-input
+        - method: fill
+          arguments:
+          - value: '{{PASSWORD}}'
+      submit:
+        step: 36
+        description: Submit the login form.
+        methods:
+        - method: get_by_role
+          arguments:
+          - role: button
+          - name: Log in
+        - method: click
+    - success:
+        role: link
+        name: My account
+        exact: true
+      steps:
+      - step: 37
+        description: Enter the 6-digit code.
+        methods:
+        - method: get_by_label
+          arguments:
+          - text: 6-digit code
+        - method: fill
+          arguments:
+          - value: '{{OTP}}'
+      submit:
+        step: 38
+        description: Submit the one-time code form.
+        methods:
+        - method: get_by_role
+          arguments:
+          - role: button
+          - name: Check and log in
+        - method: click
+  - step: 4
+    methods:
+    - method: goto
+      arguments:
+      - url: http://127.0.0.1:8787/happy/invoices
+  - step: 5
+    description: Download the invoice PDF of the first row.
+    methods:
+    - method: expect_download
+    steps:
+    - step: 51
+      description: ''
+      methods:
+      - method: get_by_role
+        arguments:
+        - role: link
+        - name: Invoice
+        - exact: true
+      - method: first
+      - method: click
+  - step: 6
+    description: Download the contract information PDF.
+    methods:
+    - method: expect_download
+    steps:
+    - step: 61
+      description: ''
+      methods:
+      - method: get_by_text
+        arguments:
+        - text: Contract info_
+      - method: first
+      - method: click

@@ -6,6 +6,10 @@ from one of the open GitHub issues?
 **Decision: do not wait for a PR. Start plan 3 (issue #27 commitments) with C2
 and C1 now, then C3; then move to plan 2 Stage 1b.**
 
+Superseded in part (2026-10-25): the PRs arrived — flowcool's #30–#34 are
+open. The "PR continuation order" section below is the current primary
+next-up, interleaved with the remaining Stage 1b work.
+
 ## Grounds (verified on dev, 2026-10-24)
 
 - GitHub has **no open PRs** (`s-t-e-f-a-n/BillCollector`, state=open →
@@ -75,11 +79,88 @@ and C1 now, then C3; then move to plan 2 Stage 1b.**
 - Next: Step 4 Stage 1b — start when the user is available for the live
   portal sessions; C7 conversions ride the same windows.
 
+## PR continuation order (2026-10-25)
+
+Question: in which sequence do we continue the five open community PRs?
+(All flowcool, all based on public `main` `b4cf023`, all
+`mergeable_state: clean`; none depends on another's code.)
+
+**Decision: #30 → #31 → #33 → #32 → #34, one pr-review chain at a time,
+interleaved with the remaining Stage 1b portal sessions.**
+
+### Grounds
+
+- No code dependency between the PRs (same base, disjoint contracts:
+  #30 docs D08/#27, #31 onboarding F07/#27, #32 sandbox #28, #33 download
+  recovery #24 + F01/#27, #34 date variables #26). Shared-file overlap is
+  regional, not hunk-level: `runner.py` (#32 launch flags / #33 startup
+  recovery / #34 date expansion), `db.py` (#33 `Download` migration / #34
+  `Task.date_window_days`), `config.py` (#32, #33), `README.md` +
+  `CHANGELOG.md` (#30–#34), `tests/test_bc_residual_logs.py` (#33, #34).
+  Dev has already diverged from `b4cf023`, so every S1 re-runs the
+  pre-image check against current dev; the skill's divergence handling
+  covers it.
+- **#30 + #31 first** — the cheapest full S1–S7 run. The #25 publication
+  routine (S7 close comment + related-issue closure + Discussion summary)
+  has not yet been exercised in a delivery; running it on a one-line docs
+  PR and a one-line fix PR validates the pipeline end-to-end at minimal
+  risk before the heavy reviews start.
+- **#33 before #32** — the only true downstream unblocks in the batch:
+  #33 lands #24 → **C8 (F10)** can be scheduled; #33 + #34 land #24/#26 →
+  **C4 (F06)** can be drafted. And #33's S5 is fully local (unit +
+  regression + ruff; no Dockerfile/compose/install-script/INI/.env
+  changes — the new `download_recovery_timeout_seconds` is a Settings row
+  with a default, so record "not deployment-relevant" with that judgment
+  in the plan doc) — it cannot stall on an external host.
+- **#32 fourth** — the only PR with a hard external gate: S5 fires the
+  full deployment-validation block (docker build + canary check + smoke
+  run) on a Docker-capable host (the NAS). Schedule its S5 to the NAS
+  window. **Swap rule:** if the NAS is free and the user prefers the
+  deployment-qualified PR before the large #33 review, swap #32 and #33 —
+  no code dependency makes the swap safe.
+- **#34 last** — it extends the shared recipe-contract interface (agreed
+  in #26, cited in the PR body, so the S1 process check passes) and
+  changes cron-TZ semantics (no `TZ` → agreed UTC fallback instead of the
+  host timezone). After it lands, `doc/RECIPE_METHODS.md` (C3), the
+  doctor-prompt variable vocabulary, and the README each need one
+  contract-doc update — bundle them into #34's S6 against the final dev
+  tree so the contract docs are revised once, not per earlier PR. The
+  kabeldeutschland Option D re-author (the last Stage 1b item) can
+  optionally use the date variables once #34 is on dev.
+
+### Per-PR notes (input to each S1)
+
+| PR | Scope | Weight / gate | Watch in S1 |
+|---|---|---|---|
+| #30 | README cron example (D08) | trivial; docs-only validation | README migration-section pre-image |
+| #31 | onboarding.py closure fix + test (F07) | small | `onboarding.py` pre-image (dev's C1/C2 touched other files) |
+| #33 | downloads.py rewrite, db/config, recovery in runner + ui/app, `doc/DOWNLOAD_RECOVERY.md`, 373-line crash tests (#24, F01) | large; S5 fully local | unblocks C8; `runner.py`/`db.py`/`config.py` regions; CHANGELOG + README merges |
+| #32 | sandbox flags in daemon + batch launchers, `docker/`, `.gitattributes`, 15 files (#28) | large; S5 needs the NAS Docker host | S5 trigger fires (docker/ + runtime config); `BillCollectorServices_pw.py` legacy path; record host + validated tree hash |
+| #34 | date variables, `Task.date_window_days`, Run-now pipe, scheduler TZ (#26) | large; contract + TZ behavior change | interface agreed in #26; `test_bc_residual_logs.py` hunks adapt on top of #33 |
+
+### Interleave with Stage 1b
+
+- PR sessions need no portal; Stage 1b iterations need live TOTP/OTP.
+  Advance the PR stages in the non-portal sessions.
+- Stage 1b stands at 4/7 (buhl, datev, nuernberger, winsim green and
+  committed). Next portal session: **1und1** (fixes committed; runs 22–25
+  still pause → fresh pause + doctor iteration per plan 2's loop), then
+  freenet_mobilfunk, then kabeldeutschland (Option D re-authoring). C7
+  conversions ride the same portal windows.
+- After #33 lands: C8 can be scheduled. After #33 + #34: C4 can be
+  drafted. Neither blocks this PR order.
+
+### Status (2026-10-25)
+
+- PRs #30–#34 open since 2026-10-24; order decided above.
+- Next session: "review PR #30" (S1) — or the 1und1 portal iteration if
+  the user is at a live session; the two are independent.
+
 ## Explicitly not doing
 
-- No blocking wait for flowcool's PRs; when they arrive, they are handled
-  through the pr-review skill on their own schedule (independent of this
-  order).
+- No idling on the PRs: since 2026-10-25 they are handled through the
+  pr-review skill in the order above, interleaved with Stage 1b rather
+  than waiting for either to finish.
 - No Option C (in-daemon LLM copilot) — Stage 2, separate plan, per plan 2.
 
 ## Validation

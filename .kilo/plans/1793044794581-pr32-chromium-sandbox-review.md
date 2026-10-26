@@ -1,10 +1,11 @@
 # PR #32 review: require and qualify Chromium sandbox isolation
 
-> Status: INTEGRATING (2026-10-26) — S4 complete
-> (2026-10-26T21:26Z): all 15 files applied on dev (11 byte-faithful +
-> 4 manual merges, M1/M2 in the doc), re-verified; tree left dirty for S5
-> validation before any commit. Next: S5 (code checks here, then the full
-> deployment-validation block on the NAS).
+> Status: INTEGRATING (2026-10-26) — S5 code checks complete, all green
+> (2026-10-26T21:46Z): 41 new tests, full pytest 528, regression VERDICT:
+> PASS, ruff clean, bandit zero new. Deployment block pending on the NAS
+> (needs the 5 confirmed dev commits pushed + a NAS run decision; SSH from
+> this session to the NAS is currently refused). Next: S5 gate — commit +
+> push dev, then the NAS block, then user confirmation -> VALIDATED.
 
 ## PR metadata
 
@@ -335,6 +336,46 @@ PR head text is kept as-is (byte-faithful to the reviewed content).
   edits + the M1/M2-modified doc): S5 validates the exact content before any
   commit; the S3-confirmed 5 commits are created at S7.
 
+## S5 execution record — code checks (2026-10-26T21:46Z)
+
+On the exact integrated dev tree (dev tip `c18e288` doc-only + the 15 dirty
+files from S4), from the repo root with `apps/.venv/bin/python`:
+
+- PR's new suites: `pytest tests/test_bc_browser_sandbox.py
+  tests/test_sandbox_container_receipt.py -q` -> **41 passed** (21 + 20), as
+  expected.
+- Full pytest: `pytest tests/ -q` -> **528 passed, 2 skipped, 53 subtests
+  passed** (dev baseline 487 + 41 new; environment skips as usual).
+- Regression: `tests/run_regression.py --ini tests/bc_regression.ini` ->
+  exit 0, **7 scenarios / 8 PDFs, VERDICT: PASS — all expectations matched**
+  (badlogin / empty / dlfail fail as expected; downloads exactly the 8
+  expected files).
+- `ruff check apps tests` -> **All checks passed** (matches the #30/#31
+  baseline).
+- bandit on the 8 changed Python files: the 4 pre-existing files
+  (`config.py`, `runner.py`, `BillCollectorServices_pw.py`,
+  `check_image_runtime.py`) show **findings identical to the dev-HEAD
+  baseline — zero new, zero gone** (the 1 Medium is the known pre-existing
+  B608 dynamic table name in `BillCollectorServices_pw.py`). The 4 new files
+  add only test-code `B101` assert idioms (24 Low, as in the #33 delivery)
+  and 8 justified `# nosec` skips; 0 High.
+- Code checks: **all green**.
+
+Deployment-process validation — blocked on access, not on code:
+
+- Trigger fires (compose `security_opt` + `docker/` host-side policy +
+  browser launch behaviour); the full block is required on the NAS.
+- The NAS fetches from Gitea (`deploy_remote.sh`: fetch + reset in
+  `REMOTE_PATH`, `GIT_BRANCH`), so the exact tree must first be committed +
+  pushed to `origin/dev` — the S3-confirmed 5 commits (tree currently dirty
+  per S4).
+- Access finding (2026-10-26T21:46Z): `ssh root@192.168.1.99` from this
+  session is refused (`Permission denied (publickey,password)`), including
+  with the dedicated `~/.ssh/id_ed25519_billcollector_nas`. The NAS block
+  therefore needs either (a) the user running it on the NAS console, or
+  (b) restored key authorization on the NAS before the agent runs it.
+- Gate pending: user decides the run mode + window (see Open questions).
+
 ## Validation plan (S5)
 
 Code checks — from the repo root with `apps/.venv/bin/python` on the exact
@@ -383,6 +424,9 @@ deploy host), scheduled to the NAS window:
 
 - Pending S5 on the NAS (see Validation plan). Not to be skipped: the
   `docker-compose.yml` + `docker/` changes are the deploy surface.
+- Code checks all green 2026-10-26T21:46Z (record above). Block execution
+  pending the S5 gate: dev commits pushed + NAS run mode/window (SSH from
+  this session currently refused — see S5 execution record).
 
 ## Out of scope
 
@@ -410,8 +454,12 @@ deploy host), scheduled to the NAS window:
 - ~~S4: selective integration on dev.~~ — **Complete 2026-10-26T21:26Z**
   (recorded in the S4 execution record above). Tree left dirty for S5.
   Next: S5 code checks, then the NAS deployment-validation block.
-- S5 gate: the NAS window for the full deployment-validation block; if the
-  NAS smoke run fails on namespace policy, the decision path (per the PR doc:
-  record the exact failure first) is a user call.
+- S5 gate (pending): code checks are green (2026-10-26T21:46Z). The full
+  deployment-validation block needs: (1) the S3-confirmed 5 commits created
+  on dev + pushed to `origin/dev` (prerequisite for the NAS to fetch the
+  exact tree), and (2) a run mode — user runs the block on the NAS console,
+  or NAS key authorization is restored so the agent runs it — plus the
+  window. If the NAS smoke run fails on namespace policy, the decision path
+  (per the PR doc: record the exact failure first) is a user call.
 - S7 gate: PR close comment text; issue #28 close-or-leave decision + comment
   text; Discussion summary text.

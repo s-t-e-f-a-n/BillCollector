@@ -193,6 +193,20 @@ interleaved with the remaining Stage 1b portal sessions.**
   S5 trigger fires (docker-compose + docker/ + launch behaviour) → full
   deployment-validation block on the NAS, scheduled to the NAS window —
   Status: AWAITING-DECISION.
+- PR #32 DELIVERED 2026-10-26 (S3–S7 across four "continue PR #32"
+  sessions): S3 gate confirmed as-is (11 byte-faithful + 4 manual
+  non-overlapping merges, M1/M2 applied, 5 commits), S4 all 15 files
+  integrated, S5 green (41 new unit tests / full 528 / regression PASS /
+  ruff clean / bandit baseline; NAS deployment-validation block green on
+  tree `2bc849d` — sandbox proof active on both launch paths, runtime
+  regression PASS, compose smoke healthy), S6 docs confirmed, S7 —
+  commits `b01be29` / `61c69d8` / `62c5bb6` / `12a3281` / `2bc849d`,
+  Gitea `main` `bde713c` (ff-only from `181a9cc`), GitHub `main`
+  `93bfcc8`, PR closed without merge (comment 6429513980,
+  2026-10-26T23:10Z). Issue #28 closed as delivered (comment
+  6429514585); the Discussion summary is deferred (draft recorded in
+  the review doc, now in `completed/`). The NAS still runs the dev tree
+  from S5; a deploy to `main` is a separate user request.
 - New PRs #35/#39/#40/#41 arrived after the sequencing decision; they do not
   change #32's position (no known overlap with its 15 files) — a sequencing
   addendum is a separate decision.

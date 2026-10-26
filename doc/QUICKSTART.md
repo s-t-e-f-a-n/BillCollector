@@ -61,7 +61,8 @@ the task schedules.
 ## Build, start and check
 
 For a first check on the Docker host, use this override. It replaces the
-reference Compose port list with one loopback UI port. It does not publish
+reference container name and image tag, and replaces the port list with one
+loopback UI port. It does not publish
 noVNC ports. [`!override`](https://docs.docker.com/reference/compose-file/merge/#replace-value)
 requires Docker Compose 2.24.4 or later.
 
@@ -69,6 +70,8 @@ requires Docker Compose 2.24.4 or later.
 cat > compose.local.yaml <<'YAML'
 services:
   billcollector:
+    container_name: !reset null
+    image: billcollector-local:quickstart
     environment:
       TZ: ${TZ:-UTC}
     ports: !override

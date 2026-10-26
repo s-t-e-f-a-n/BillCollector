@@ -1,9 +1,10 @@
 # PR #33 review: recover download publication and consumer delivery after crashes
 
-> Status: VALIDATED (2026-10-25) — S3 decided (M1 + M2(a) applied, manual
-> merges confirmed), S4 integrated (all 12 files on dev tree), S5 code checks
-> green, deployment skip user-confirmed 2026-10-25T22:44Z, S6 docs confirmed
-> (user gate 2026-10-25T22:52Z). Next: S7 (commit + push, PR close).
+> Status: DELIVERED (2026-10-26) — S7 complete: commits `78ed5f9` / `20d99e3`
+> / `181a9cc` on dev, promoted to Gitea `main` `181a9cc` (ff-only), GitHub
+> mirror `main` `5116627`, PR #33 closed without merge (comment 6425517713,
+> 2026-10-26T19:36:31Z). Issue #24 left OPEN per maintainer decision
+> (no comment posted); Discussion summary deferred (draft recorded below).
 
 ## PR metadata
 
@@ -272,6 +273,50 @@ Optional maintainer-side changes (S3 decision):
 - S6 gate: **docs user-confirmed 2026-10-25T22:52Z**. Next: S7 (commit +
   push on dev, promotion + mirror, PR/issue close, Discussion summary).
 
+## S7 execution record (2026-10-26)
+
+- S7.0 prereq: dev `eefa886` = origin/dev; the 12-file integrated tree
+  byte-unchanged since the S5 validation (only the doc-only commits
+  `d715ad0`/`eefa886` since the 22:44Z confirmation); PR head still
+  `b675ebe8`.
+- S7.1 dev-commits gate (per-item user confirmation): 3 commits, one concern
+  each — `78ed5f9` feat (downloads.py, db.py, consumers/__init__.py,
+  runner.py, ui/app.py, config.py), `20d99e3` test (test_bc_downloads.py,
+  test_bc_downloads_recovery.py, test_bc_residual_logs.py), `181a9cc` doc
+  (doc/DOWNLOAD_RECOVERY.md, README.md, CHANGELOG.md). Pushed to
+  origin/dev; tree clean.
+- S7.2 promotion gate (user-confirmed): `main` ff-only from `5cd1f31` to
+  `181a9cc` (7 commits: 3 integration + 4 plan-doc); pushed origin/main;
+  `git diff main dev` empty.
+- S7.3 mirror: `bash .private/sync_github.sh` → GitHub `main`
+  `d9362b3...5116627` (forced, by design). Public gate passed: `ls-remote`
+  shows `5116627`; root listing has no `.kilo`/`.vscode`/`.private`/
+  `openwiki`/`AGENTS.md`/`.openwikiignore`; `.github` holds only
+  `ISSUE_TEMPLATE`; `doc/DOWNLOAD_RECOVERY.md` present; `downloads.py`
+  content and the CHANGELOG `Added` entry verified on GitHub `main`
+  (API read-back).
+- S7.4 PR close gate (user-confirmed text; the "Issue #24 is closed."
+  sentence dropped per the S7.5 decision): comment 6425517713 posted
+  (2026-10-26T19:36Z), PR #33 closed without merge at 2026-10-26T19:36:31Z.
+- S7.5 issue #24: **left OPEN per user decision** (no comment posted, no
+  state change). The implementation lane of #24 (crash recovery + F01) is
+  delivered; the issue itself stays open — C8 (F10 delivery states) remains
+  its open follow-up.
+- S7.6 Discussion summary: **deferred** (Discussion write API not reachable
+  from this environment; tracked in the issue-#27 plan). Draft for manual
+  posting: "Public update — PR #33 (download crash recovery, issue #24) is on
+  main in 5116627: staged publication with a durable Download row before any
+  consumer effect, at-least-once delivery with a stable task/hash key,
+  startup reconciliation at runner and daemon start, collision-safe filenames
+  (both documents kept), and crash-boundary acceptance tests. New doc:
+  doc/DOWNLOAD_RECOVERY.md. Thanks to flowcool for the implementation;
+  maintainer-side changes: CHANGELOG wording, the timeout key documented as
+  an advanced Settings-table key, and manual merges in config.py/README/
+  CHANGELOG."
+- S7.7: this doc Status → DELIVERED; moved to `completed/`; the plans
+  README Active table and the issue-#27 / next-up-sequencing plan docs
+  updated. Doc-only commit + push to dev.
+
 ## Validation plan (S5, fully local)
 
 From the repo root with `apps/.venv/bin/python` (Python 3.12.3) on the exact
@@ -319,5 +364,8 @@ integrated dev tree:
 - ~~S5: confirm the recorded deployment-skip judgment~~ — confirmed
   2026-10-25T22:44Z.
 - ~~S6: confirm the docs~~ — confirmed 2026-10-25T22:52Z.
-- S7: close comment for PR #33 and the related-issue closure comment for #24
-  (acceptance criteria met → close); #27 stays as-is (already closed).
+- ~~S7: PR close comment~~ — posted as 6425517713, 2026-10-26T19:36Z.
+- ~~S7: related issue #24~~ — left OPEN per user decision (2026-10-26); no
+  comment posted. Follow-up lane: C8 (F10) in the issue-#27 plan.
+- ~~S7: per-public-update Discussion summary~~ — deferred (API unreachable);
+  draft recorded in the S7 execution record above; user posts manually.

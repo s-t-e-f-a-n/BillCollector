@@ -172,7 +172,9 @@ on dev.
   / delivered / failed delivery states, using the agreed stable idempotency
   key and safe retries; a plain consume-folder integration states what it can
   prove when no ingestion callback exists. No competing implementation.
-- Status: waiting on #24.
+- Status: crash-recovery prerequisite delivered via PR #33 (2026-10-26);
+  schedulable now. Issue #24 stays open per maintainer decision — the
+  delivery-state exposure (C8) is its remaining lane.
 
 ## Handed over to flowcool (tracked in their PRs, not here)
 
@@ -187,9 +189,11 @@ on dev.
 
 ## Related lanes
 
-- #24 crash recovery (flowcool implementation PR #33, next up in the
-  continuation order) — F01 + F10 ride on it; once it lands, C8 becomes
-  schedulable.
+- #24 crash recovery (flowcool implementation PR #33) — **DELIVERED
+  2026-10-26** (Gitea `main` `181a9cc` / GitHub `main` `5116627`, PR closed
+  without merge, comment 6425517713). F01 (collision-safe storage) is in; the
+  consumer-delivery half (F10/C8) remains. Issue #24 left OPEN per maintainer
+  decision 2026-10-26 (no closure comment); C8 is now schedulable.
 - #26 date variables / collection window (flowcool PR #34, last in the
   continuation order) — overlaps C4; once it lands with #33, C4 becomes
   draftable.
@@ -227,6 +231,9 @@ when picked up). O01 stays deferred per #21.
   (comment 6387035799). C2 (F09) done 2026-10-24; C1 (F04) done 2026-10-24
   (gate green: ruff + pytest 451 passed); C3 (F08 contract) done
   2026-10-24 (`doc/RECIPE_METHODS.md` commit `5745e59`, issue #27 comment
-  6388757576). Next per the sequencing plan
-  (`1792862814701-next-up-sequencing.md`): doctor Stage 1b (needs the
-  user's portal-access windows; C7 conversions ride the same windows).
+  6388757576). PR #33 (the #24 implementation lane) DELIVERED 2026-10-26
+  (Gitea `main` `181a9cc` / GitHub `5116627`): crash recovery + F01 on main,
+  C8 (F10) now schedulable, C4 still needs #34 (#26). Next per the
+  sequencing plan (`1792862814701-next-up-sequencing.md`): PR chain #32,
+  then doctor Stage 1b (needs the user's portal-access windows; C7
+  conversions ride the same windows).

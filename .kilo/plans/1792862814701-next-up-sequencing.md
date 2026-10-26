@@ -171,7 +171,19 @@ interleaved with the remaining Stage 1b portal sessions.**
   written, verdict approve (head `b675ebe` unchanged), 3 diverged files with
   non-overlapping hunks, two nits as S3 decision points, deployment
   validation recorded as not deployment-relevant — Status:
-  AWAITING-DECISION. Next: S3 (propose/refuse gate), then S4–S7.
+  AWAITING-DECISION.
+- PR #33 DELIVERED 2026-10-26 (S3–S7 across three "continue PR #33"
+  sessions): S3 M1 + M2(a) applied, S4 all 12 files integrated (3 manual
+  non-overlapping merges), S5 green (unit 36 / full 487 / regression PASS /
+  ruff clean / bandit baseline; deployment skip user-confirmed
+  2026-10-25T22:44Z), S6 docs confirmed, S7 — commits `78ed5f9` / `20d99e3`
+  / `181a9cc`, Gitea `main` `181a9cc` (ff-only from `5cd1f31`), GitHub
+  `main` `5116627`, PR closed without merge (comment 6425517713,
+  2026-10-26T19:36:31Z). Issue #24 left OPEN per user decision (no
+  comment); the Discussion summary is deferred (draft recorded in the
+  review doc, now in `completed/`). C8 (F10) is now schedulable.
+- Next PR chain: **#32** (sandbox, #28) — its S5 needs the NAS Docker host
+  (full deployment-validation block); schedule to the NAS window.
 - The 1und1 portal iteration remains independent and can run in a live
   session at any time.
 

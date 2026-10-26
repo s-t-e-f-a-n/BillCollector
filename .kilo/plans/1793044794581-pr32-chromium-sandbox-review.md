@@ -1,9 +1,9 @@
 # PR #32 review: require and qualify Chromium sandbox isolation
 
-> Status: AWAITING-DECISION (2026-10-26) — S1+S2 done in the "proceed with
-> PR #32 per the sequencing" session: review complete, verdict approve, two
-> doc-only nits as S3 decision points (M1, M2). Awaiting the user's review of
-> the verdict + plan (and the doc-only plan commit).
+> Status: INTEGRATING (2026-10-26) — S3 gate confirmed
+> (2026-10-26T21:14Z): integrate as-is — 11 PR-head byte-faithful files +
+> 4 manual merges, M1/M2 applied, 5 commits. Tree still clean; next: S4
+> selective integration on dev.
 
 ## PR metadata
 
@@ -257,6 +257,50 @@ Optional maintainer-side changes (S3 decision):
 Both are doc-only; no behavioural change. If the user declines either, the
 PR head text is kept as-is (byte-faithful to the reviewed content).
 
+## S3 execution record (2026-10-26)
+
+- Preflight at proposal time: `dev` = `origin/dev` = `729e7e3`, clean tree;
+  `git ls-remote github refs/pull/32/head` = `52bc1c9` (unchanged since S1);
+  Gitea `main` `181a9cc`, `github/main` `5116627` unchanged.
+- S3 gate: user confirmed the integration proposal **as-is**
+  (2026-10-26T21:14Z). Confirmed proposal:
+  - Byte-faithful from `refs/pr/32` (11 files): `.gitattributes` (new),
+    `docker-compose.yml`, `docker/PLAYWRIGHT-LICENSE` (new, CRLF re-verified
+    after copy), `docker/chromium-seccomp.json` (new, SHA256
+    `cc3e61ca…1cc7849` re-verified after copy),
+    `apps/BillCollectorServices_pw.py`, `tests/check_chromium_sandbox.py`
+    (new), `tests/check_image_runtime.py`, `tests/run_sandbox_container.py`
+    (new), `tests/test_bc_browser_sandbox.py` (new),
+    `tests/test_sandbox_container_receipt.py` (new),
+    `doc/CHROMIUM_SANDBOX.md` (new, + M1/M2).
+  - Manual (4 files, hunks verified non-overlapping with dev):
+    `apps/billcollector/config.py` `chromium_args()` guard (dev function body
+    base-identical; dev's `DEFAULT_SETTINGS` change untouched),
+    `apps/billcollector/runner.py` `chromium_sandbox=True` in
+    `_launch_browser` (~L311; dev's #33 `recover_downloads` block untouched),
+    `README.md` header paragraph above `## Table of Contents` (dev header
+    base-identical), `CHANGELOG.md` Unreleased/Added: PR entry first, above
+    the #33 crash-recovery bullet (all existing bullets kept).
+  - No files skipped (all 15 PR files are candidates; the merge-base `D`
+    private-path entries are comparison artifacts, never applied).
+  - Commits (one concern each, dev-commits style):
+    1. `feat: browser — require Chromium sandbox in both launch paths,
+       reject sandbox-disabling args` — `config.py`, `runner.py`,
+       `BillCollectorServices_pw.py`
+    2. `docker: pin Playwright seccomp profile in the Compose service` —
+       `docker-compose.yml`, `docker/chromium-seccomp.json`,
+       `docker/PLAYWRIGHT-LICENSE`, `.gitattributes`
+    3. `test: sandbox — launch kwargs, arg denylist, container receipt
+       coverage` — `test_bc_browser_sandbox.py`,
+       `test_sandbox_container_receipt.py`, `check_image_runtime.py`
+    4. `test: sandbox — isolated container/host qualification tools` —
+       `run_sandbox_container.py`, `check_chromium_sandbox.py`
+    5. `doc: sandbox — policy doc (M1/M2 applied), README paragraph,
+       CHANGELOG entry (PR #32, issue #28)` — `doc/CHROMIUM_SANDBOX.md`,
+       `README.md`, `CHANGELOG.md`
+- M1/M2 applied as-is at S4 (confirmed at the S2 gate; replacement text in
+  the Integration plan above).
+
 ## Validation plan (S5)
 
 Code checks — from the repo root with `apps/.venv/bin/python` on the exact
@@ -325,8 +369,10 @@ deploy host), scheduled to the NAS window:
 - ~~S3 gate: user review of the verdict + integration plan; M1 / M2 decisions
   (default: apply both — doc-only).~~ — **Confirmed at the S2 gate,
   2026-10-26T20:37Z**: verdict approve, M1 and M2 both applied, plan doc
-  committed as `fcaafe6` and pushed to origin/dev. Next: S3 (present the
-  exact integration proposal), then S4.
+  committed as `fcaafe6` and pushed to origin/dev.
+- ~~S3 gate: confirm the exact integration proposal.~~ — **Confirmed
+  as-is 2026-10-26T21:14Z** (recorded in the S3 execution record above).
+  Next: S4 selective integration on dev.
 - S5 gate: the NAS window for the full deployment-validation block; if the
   NAS smoke run fails on namespace policy, the decision path (per the PR doc:
   record the exact failure first) is a user call.

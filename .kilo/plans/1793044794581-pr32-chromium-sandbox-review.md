@@ -1,13 +1,12 @@
 # PR #32 review: require and qualify Chromium sandbox isolation
 
-> Status: VALIDATED (2026-10-26) — S5 complete, user-confirmed
-> (2026-10-26T23:45Z): code checks all green (2026-10-26T21:46Z); NAS
-> deployment-validation block green on tree 2bc849d (proof sandbox active
-> on both launch paths, runtime regression PASS, compose smoke healthy;
-> service left running on the dev tree per user run-mode choice). S6
-> documentation confirmed as-is by the user 2026-10-26T22:45Z. Next: S7
-> commit + push (Gitea dev already carries the 5 S3-confirmed commits),
-> promote, mirror, close PR #32 + issue #28, Discussion summary.
+> Status: DELIVERED (2026-10-26) — S7 complete 2026-10-26T23:12Z: Gitea
+> `main` `bde713c` (ff-only from `181a9cc`), GitHub `main` `93bfcc8`
+> (mirror, sanitize-by-amend); PR #32 closed without merge (comment
+> 6429513980); issue #28 closed as delivered (comment 6429514585);
+> Discussion summary deferred (write API unreachable — draft recorded,
+> user posts manually). NAS still runs the dev tree from S5; a deploy to
+> `main` is a separate user request.
 
 ## PR metadata
 
@@ -457,6 +456,55 @@ Deployment-process validation — blocked on access, not on code:
   S5 VALIDATED commit `6a99a5c` was committed at 22:39:21 UTC, the last two
   are local CET (UTC+1) times mislabeled with Z (≈ 22:40/22:45 UTC).
 
+## S7 execution record (2026-10-26, 22:57-23:12Z)
+
+- S7.0 prereq: dev = origin/dev = `bde713c`, clean tree; the 15-file
+  integrated tree byte-unchanged since the S5 validation on `2bc849d`
+  (only the doc-only plan commits `6a99a5c`/`bde713c` since the
+  confirmation — PR #33 precedent, no re-validation required); PR head
+  still `52bc1c9` (unchanged since S1).
+- S7.1 dev-commits: nothing new — the 5 S3-confirmed commits (`b01be29`,
+  `61c69d8`, `62c5bb6`, `12a3281`, `2bc849d`) were already on origin/dev
+  (created during S5, since the NAS fetch needed the committed tree); the
+  plan-doc commits followed.
+- S7.2 promote (user gate): `main` `181a9cc` → `bde713c` ff-only, pushed
+  to origin/main; `git diff main dev` empty; no tag (not a release).
+- S7.3 mirror (user gate): `sync_github.sh` → GitHub `main` `5116627` →
+  `93bfcc8` (sanitize-by-amend; hashes differ by design). Public gate:
+  new hash via ls-remote; root listing has no `.kilo`/`.vscode`/`.private`/
+  `openwiki`/`AGENTS.md`/`.openwikiignore` and `.github/` holds only
+  `ISSUE_TEMPLATE` (no `workflows/`); all 15 PR #32 files present
+  (`.gitattributes`, `doc/CHROMIUM_SANDBOX.md`, `docker/PLAYWRIGHT-LICENSE`,
+  `docker/chromium-seccomp.json`, the 5 test files, the 4 app/config files,
+  README, CHANGELOG); `docker-compose.yml` `security_opt` seccomp pin
+  verified in place (content check).
+- S7.4 PR #32 close (text user-confirmed as-is): close comment
+  **6429513980**; closed without merge (the change reached GitHub via the
+  mirror).
+- S7.5 issue #28 (user decision: close as delivered): comment
+  **6429514585**; closed.
+- S7.6 Discussion summary: **deferred** (Discussion write API not
+  reachable from this environment — confirmed 2026-10-25; same handling as
+  PR #33). The user-confirmed draft below is for manual posting in the web
+  UI.
+- Plan doc: Status DELIVERED; doc-only commit + push to dev.
+
+Discussion summary draft (manual posting, user-confirmed
+2026-10-26T23:10Z):
+
+> **Public update: Chromium sandbox isolation (PR #32, issue #28)**
+>
+> `main` now requires Chromium sandbox isolation for both browser launch
+> paths (daemon and legacy batch), with no unsandboxed retry; the
+> reference Compose service pins the official Playwright seccomp profile,
+> and `BC_CHROMIUM_ARGS` rejects sandbox-disabling flags. Isolated
+> sandbox/download/profile qualification tools and the policy doc
+> (`doc/CHROMIUM_SANDBOX.md`) ship with it. Integrated from PR #32
+> (flowcool) via the mirror at 93bfcc8; maintainer adaptations were two
+> doc-wording changes (fork-era wording, host name removed). Validated:
+> full test suite + regression green; image build, sandbox proof (active
+> on both launch paths), and compose smoke green on the deploy host.
+
 ## Validation plan (S5)
 
 Code checks — from the repo root with `apps/.venv/bin/python` on the exact
@@ -556,5 +604,8 @@ deploy host), scheduled to the NAS window:
 - ~~S6 gate: user confirmation of the documentation.~~ — **Confirmed as-is
   2026-10-26T22:45Z** (S6 execution record above). Next: S7 commit + push +
   close.
-- S7 gate: PR close comment text; issue #28 close-or-leave decision + comment
-  text; Discussion summary text.
+- ~~S7 gate: PR close comment text; issue #28 close-or-leave decision +
+  comment text; Discussion summary text.~~ — **All confirmed as-is
+  2026-10-26T23:10Z; #28 closed as delivered; Discussion deferred per the
+  API limitation (draft recorded in the S7 execution record, user posts
+  manually).** S7 complete — DELIVERED.

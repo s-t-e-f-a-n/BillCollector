@@ -79,7 +79,9 @@ CREATE TABLE IF NOT EXISTS Download (
     sha256 TEXT,
     saved_path TEXT,
     created_at TEXT,
-    duplicate_of_id INTEGER
+    duplicate_of_id INTEGER,
+    state TEXT NOT NULL DEFAULT 'consumed',
+    staged_path TEXT
 );
 CREATE TABLE IF NOT EXISTS Settings (
     key TEXT PRIMARY KEY,
@@ -135,6 +137,15 @@ class Database:
                 """UPDATE Task SET login_cycle_active=1
                    WHERE login_failures>0 OR login_locked=1
                      OR login_pending_run_id IS NOT NULL OR login_failure_limit=1""")
+
+        download_cols = {r["name"] for r in
+                         self.conn.execute("PRAGMA table_info(Download)")}
+        for name, definition in {
+            "state": "TEXT NOT NULL DEFAULT 'consumed'",
+            "staged_path": "TEXT",
+        }.items():
+            if name not in download_cols:
+                self.conn.execute(f"ALTER TABLE Download ADD COLUMN {name} {definition}")
 
     # ---- Task -------------------------------------------------------------
     def create_task(self, service, user, recipe_file=None, enabled=False,
@@ -389,14 +400,24 @@ class Database:
 
     # ---- Download ---------------------------------------------------------
     def insert_download(self, run_id, task_id, url, filename, size, sha256,
-                        saved_path, duplicate_of_id=None):
+                        saved_path, duplicate_of_id=None, *,
+                        state="consumed", staged_path=None):
         cur = self.conn.execute(
             """INSERT INTO Download (run_id, task_id, url, filename, size, sha256,
-                                     saved_path, created_at, duplicate_of_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (run_id, task_id, url, filename, size, sha256, saved_path, now(), duplicate_of_id))
+                                     saved_path, created_at, duplicate_of_id, state, staged_path)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (run_id, task_id, url, filename, size, sha256, saved_path, now(), duplicate_of_id, state, staged_path))
         self.conn.commit()
         return cur.lastrowid
+
+    def set_download_state(self, download_id, state):
+        self.conn.execute("UPDATE Download SET state=? WHERE id=?",
+                          (state, download_id))
+        self.conn.commit()
+
+    def pending_downloads(self):
+        return self.conn.execute(
+            "SELECT * FROM Download WHERE state!='consumed' ORDER BY id").fetchall()
 
     def find_download_by_sha(self, task_id, sha256):
         """First Download row for this task with the given sha256 (dedup key)."""

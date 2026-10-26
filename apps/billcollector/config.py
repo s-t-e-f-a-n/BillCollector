@@ -54,6 +54,7 @@ DEFAULT_SETTINGS = {
     # Empty: no push notifications until the operator sets a topic (opt-in).
     "ntfy_topic": "",
     "download_dir": str(DOWNLOAD_DIR),
+    "download_recovery_timeout_seconds": "300",
     "vnc_password": "",                  # empty: noVNC is localhost-only, no auth
 }
 

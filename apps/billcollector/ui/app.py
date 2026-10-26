@@ -184,6 +184,9 @@ def start(host: str, port: int) -> None:
     ``show=False`` keeps the daemon from ever popping a browser window.
     """
     db = Database()
+    from ..downloads import recover_downloads_in_subprocess
+
+    recover_downloads_in_subprocess(db)
     orchestrator = Orchestrator(db)
     scheduler = TaskScheduler(db, orchestrator.start_run)
     startup, shutdown = build_lifecycle(db, orchestrator, scheduler)

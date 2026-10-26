@@ -1,10 +1,15 @@
-"""Post-download hook slot (decision 14).
+"""Post-download hook slot with at-least-once delivery (issue #24).
 
-Initially empty. To add a consumer, append a callable to ``CONSUMERS``; it is
-called as ``consume(download: dict)`` for every new (non-duplicate) download,
-inside the runner subprocess so a slow consumer never blocks the UI/scheduler.
-``download`` carries the tracked record: run_id, task_id, url, filename, size,
-sha256, saved_path.
+Append callables to CONSUMERS. Each receives a dict containing run_id,
+task_id, url (sanitized), filename, size, sha256, saved_path and
+idempotency_key ("<task_id>:<sha256>"). The Download row is committed and
+the file is published before any consumer runs.
+
+Consumers run inside the runner subprocess. They MUST tolerate re-delivery
+with the same idempotency_key: a crash after an effect and before the state
+commit replays delivery. If any consumer raises, the document remains pending;
+all consumers can be called again on recovery, including those that succeeded.
+With no configured consumers, publication completes immediately.
 """
 
 CONSUMERS = []

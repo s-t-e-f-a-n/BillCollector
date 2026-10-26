@@ -37,6 +37,7 @@ import json
 import logging
 import os
 import signal
+import sqlite3
 import sys
 from datetime import datetime
 
@@ -1023,6 +1024,14 @@ def _run_task(task_id: int, debug: bool = False) -> int:
         task = db.get_task(task_id)
         if task is None:
             print(f"runner: task {task_id} not found", file=sys.stderr)
+            return 1
+
+        # Recover before display/vault/browser setup. Consumers remain in the
+        # runner subprocess, never on the daemon/UI event loop.
+        try:
+            downloads.recover_downloads(db)
+        except (OSError, ValueError, sqlite3.Error) as e:
+            logger.error("Download recovery failed: %s", failure_record("download_recovery", e))
             return 1
 
         if task["login_locked"] or task["login_pending_run_id"] is not None:

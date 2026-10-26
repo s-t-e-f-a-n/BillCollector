@@ -98,6 +98,8 @@ def test_direct_process_apps_env_timezone(
 
     (tmp_path / '.env').write_text(contents)
     monkeypatch.setattr(config, 'APP_DIR', tmp_path)
+    # Register even an originally absent key before load_env writes it directly.
+    monkeypatch.setenv('TZ', '')
     monkeypatch.delenv('TZ', raising=False)
     if exported_zone is not None:
         monkeypatch.setenv('TZ', exported_zone)

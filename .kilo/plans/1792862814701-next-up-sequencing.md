@@ -182,8 +182,20 @@ interleaved with the remaining Stage 1b portal sessions.**
   2026-10-26T19:36:31Z). Issue #24 left OPEN per user decision (no
   comment); the Discussion summary is deferred (draft recorded in the
   review doc, now in `completed/`). C8 (F10) is now schedulable.
-- Next PR chain: **#32** (sandbox, #28) — its S5 needs the NAS Docker host
-  (full deployment-validation block); schedule to the NAS window.
+- PR #32 S1+S2 done 2026-10-26 ("proceed with PR #32 per the sequencing"
+  session): review plan doc
+  `1793044794581-pr32-chromium-sandbox-review.md` written, verdict approve
+  (head `52bc1c9` unchanged; 15 files — 11 clean pre-images, 4 diverged with
+  non-overlapping hunks; seccomp profile byte-identical to the pinned
+  upstream Playwright source at `54c7115`, SHA256 `cc3e61ca…`; #28
+  five-point contract verified point-by-point), two doc-only nits (M1
+  fork-era policy wording, M2 host name in the doc) as S3 decision points,
+  S5 trigger fires (docker-compose + docker/ + launch behaviour) → full
+  deployment-validation block on the NAS, scheduled to the NAS window —
+  Status: AWAITING-DECISION.
+- New PRs #35/#39/#40/#41 arrived after the sequencing decision; they do not
+  change #32's position (no known overlap with its 15 files) — a sequencing
+  addendum is a separate decision.
 - The 1und1 portal iteration remains independent and can run in a live
   session at any time.
 

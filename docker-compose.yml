@@ -48,6 +48,10 @@ services:
     container_name: billcollector
     restart: unless-stopped
     init: true
+    # Pinned Playwright policy permits Chromium's namespace sandbox setup.
+    # See doc/CHROMIUM_SANDBOX.md before changing host security settings.
+    security_opt:
+      - seccomp=./docker/chromium-seccomp.json
     command: ["python3", "-m", "billcollector", "serve"]
     environment:
       # The daemon binds 127.0.0.1 by default; inside the container the UI

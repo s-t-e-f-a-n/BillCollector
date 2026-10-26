@@ -1,0 +1,3 @@
+# Preserve the vendored upstream license byte-for-byte, including CRLF.
+docker/PLAYWRIGHT-LICENSE -text whitespace=cr-at-eol
+docker/chromium-seccomp.json -text

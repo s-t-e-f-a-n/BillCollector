@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Required Chromium sandbox in daemon and batch browser launches, a pinned
+  Playwright seccomp profile for Compose, and isolated sandbox/download/profile
+  qualification. Unsupported sandbox setup fails without an unsandboxed retry.
 - Crash recovery for daemon downloads (issue #24): stage files, commit the
   Download row before publication, then deliver consumers with a stable
   task/hash idempotency key. Runner startup reconciles pending publications

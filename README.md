@@ -2,6 +2,10 @@
 
 ![BillCollector EyeCatcher](/doc/BillCollector_EyeCatcher.jpg)
 
+Chromium's sandbox is required by the daemon and batch launchers. The reference
+Compose service includes a pinned seccomp profile. See
+[sandbox prerequisites and isolated checks](doc/CHROMIUM_SANDBOX.md).
+
 ## Table of Contents
 
 - [What is BillCollector?](#what-is-billcollector)

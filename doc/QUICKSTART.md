@@ -50,6 +50,14 @@ from the optional root `.env`: the former configures the vault; the latter
 supplies Compose substitutions. Do not copy the remote-deployment placeholders
 from the root `.env.example` for this local setup.
 
+Set `TZ=Europe/Zurich`, for example, in the root `.env` for local task
+schedules. The override below passes it into the container. An exported
+shell `TZ` takes precedence; an unset or empty value uses `UTC`.
+This explicit setting avoids the image's Europe/Berlin default on the
+validation baseline. `TZ` in `apps/.env` cannot override a container
+environment value. After changing the zone, recreate the daemon and check
+the task schedules.
+
 ## Build, start and check
 
 For a first check on the Docker host, use this override. It replaces the
@@ -61,6 +69,8 @@ requires Docker Compose 2.24.4 or later.
 cat > compose.local.yaml <<'YAML'
 services:
   billcollector:
+    environment:
+      TZ: ${TZ:-UTC}
     ports: !override
       - "127.0.0.1:8766:8000"
 YAML

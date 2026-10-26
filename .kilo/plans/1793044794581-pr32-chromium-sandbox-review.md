@@ -245,12 +245,14 @@ Optional maintainer-side changes (S3 decision):
   accepted upstream runtime policy." is fork-era wording; once integrated this
   **is** the accepted upstream runtime policy. Proposed replacement: "Runtime
   policy: required Chromium sandbox isolation for both application launch
-  paths; see the limits section before deploying to another host." (exact diff
-  presented at the S3 gate).
+  paths; see the limits section before deploying to another host."
+  **Confirmed by the user at the S2 gate (2026-10-26T20:37Z); apply as-is at
+  S4.**
 - M2 (nit): `doc/CHROMIUM_SANDBOX.md` "On the qualified agentvm host, the
   paired default-policy control is:" names a specific host in a public doc.
   Proposed replacement: "On the qualified development host, the paired
-  default-policy control is:". (exact diff presented at the S3 gate).
+  default-policy control is:". **Confirmed by the user at the S2 gate
+  (2026-10-26T20:37Z); apply as-is at S4.**
 
 Both are doc-only; no behavioural change. If the user declines either, the
 PR head text is kept as-is (byte-faithful to the reviewed content).
@@ -320,8 +322,11 @@ deploy host), scheduled to the NAS window:
 
 ## Open questions
 
-- S3 gate: user review of the verdict + integration plan; M1 / M2 decisions
-  (default: apply both — doc-only).
+- ~~S3 gate: user review of the verdict + integration plan; M1 / M2 decisions
+  (default: apply both — doc-only).~~ — **Confirmed at the S2 gate,
+  2026-10-26T20:37Z**: verdict approve, M1 and M2 both applied, plan doc
+  committed as `fcaafe6` and pushed to origin/dev. Next: S3 (present the
+  exact integration proposal), then S4.
 - S5 gate: the NAS window for the full deployment-validation block; if the
   NAS smoke run fails on namespace policy, the decision path (per the PR doc:
   record the exact failure first) is a user call.

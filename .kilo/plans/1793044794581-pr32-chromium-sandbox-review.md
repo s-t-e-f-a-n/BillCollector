@@ -4,8 +4,10 @@
 > (2026-10-26T23:45Z): code checks all green (2026-10-26T21:46Z); NAS
 > deployment-validation block green on tree 2bc849d (proof sandbox active
 > on both launch paths, runtime regression PASS, compose smoke healthy;
-> service left running on the dev tree per user run-mode choice). Next:
-> S6 documentation, then S7 commit + push + close.
+> service left running on the dev tree per user run-mode choice). S6
+> documentation confirmed as-is by the user 2026-10-26T22:45Z. Next: S7
+> commit + push (Gitea dev already carries the 5 S3-confirmed commits),
+> promote, mirror, close PR #32 + issue #28, Discussion summary.
 
 ## PR metadata
 
@@ -429,6 +431,32 @@ Deployment-process validation — blocked on access, not on code:
   run-mode choice); the S7 deploy repeats the same path after the
   promotion.
 
+## S6 execution record (2026-10-26T22:45Z)
+
+- Preflight: `dev` = `origin/dev` = `6a99a5c` (S5 VALIDATED plan-doc commit),
+  clean tree; the 5 S3-confirmed commits (`b01be29`, `61c69d8`, `62c5bb6`,
+  `12a3281`, `2bc849d`) are on `origin/dev`; the S5-validated tree `2bc849d`
+  is unchanged (no tree movement after the S5 confirmation).
+- CHANGELOG: Unreleased/`### Added`, first bullet — wording byte-identical to
+  the PR head (verified via `git diff refs/pr/32 -- CHANGELOG.md`: only
+  dev's own bullets differ); Keep a Changelog order, above the #33
+  crash-recovery bullet. Sanitized.
+- README: sandbox paragraph above `## Table of Contents` — byte-identical to
+  the PR head.
+- `doc/CHROMIUM_SANDBOX.md`: `git diff refs/pr/32` shows only the M1/M2
+  changes; sanitized (public issue #28 + public Playwright source links; no
+  host, NAS, or private paths).
+- CONTRIBUTING.md: no change — no contributor-rule change; the launch-behaviour
+  change is user-visible and covered by the README paragraph + doc link; the
+  only other Chromium mention (L67, debugging) is unaffected.
+- Plan doc: validation results + integration details already recorded (S3/S4/
+  S5 execution records + Deployment validation section).
+- Gate: user confirmed the documentation **as-is 2026-10-26T22:45Z**.
+- Note: the S5 NAS-block timestamps (gate 22:20Z, run 22:20-23:40Z,
+  confirmation 23:45Z) are kept verbatim from the prior session; since the
+  S5 VALIDATED commit `6a99a5c` was committed at 22:39:21 UTC, the last two
+  are local CET (UTC+1) times mislabeled with Z (≈ 22:40/22:45 UTC).
+
 ## Validation plan (S5)
 
 Code checks — from the repo root with `apps/.venv/bin/python` on the exact
@@ -525,5 +553,8 @@ deploy host), scheduled to the NAS window:
   record in the S5 execution record + Deployment validation above.
   **Confirmed by the user 2026-10-26T23:45Z** -> Status: VALIDATED; next
   S6 documentation.
+- ~~S6 gate: user confirmation of the documentation.~~ — **Confirmed as-is
+  2026-10-26T22:45Z** (S6 execution record above). Next: S7 commit + push +
+  close.
 - S7 gate: PR close comment text; issue #28 close-or-leave decision + comment
   text; Discussion summary text.

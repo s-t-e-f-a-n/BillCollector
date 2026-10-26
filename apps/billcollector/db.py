@@ -79,7 +79,9 @@ CREATE TABLE IF NOT EXISTS Download (
     sha256 TEXT,
     saved_path TEXT,
     created_at TEXT,
-    duplicate_of_id INTEGER
+    duplicate_of_id INTEGER,
+    source_identity TEXT,
+    revision_sha256 TEXT
 );
 CREATE TABLE IF NOT EXISTS Settings (
     key TEXT PRIMARY KEY,
@@ -135,6 +137,15 @@ class Database:
                 """UPDATE Task SET login_cycle_active=1
                    WHERE login_failures>0 OR login_locked=1
                      OR login_pending_run_id IS NOT NULL OR login_failure_limit=1""")
+
+        download_cols = {r["name"] for r in
+                         self.conn.execute("PRAGMA table_info(Download)")}
+        for name in ("source_identity", "revision_sha256"):
+            if name not in download_cols:
+                self.conn.execute(f"ALTER TABLE Download ADD COLUMN {name} TEXT")
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS download_notice_revision "
+            "ON Download(task_id, source_identity, revision_sha256)")
 
     # ---- Task -------------------------------------------------------------
     def create_task(self, service, user, recipe_file=None, enabled=False,
@@ -389,12 +400,15 @@ class Database:
 
     # ---- Download ---------------------------------------------------------
     def insert_download(self, run_id, task_id, url, filename, size, sha256,
-                        saved_path, duplicate_of_id=None):
+                        saved_path, duplicate_of_id=None, *, source_identity=None,
+                        revision_sha256=None):
         cur = self.conn.execute(
             """INSERT INTO Download (run_id, task_id, url, filename, size, sha256,
-                                     saved_path, created_at, duplicate_of_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (run_id, task_id, url, filename, size, sha256, saved_path, now(), duplicate_of_id))
+                                     saved_path, created_at, duplicate_of_id,
+                                     source_identity, revision_sha256)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (run_id, task_id, url, filename, size, sha256, saved_path, now(), duplicate_of_id,
+             source_identity, revision_sha256))
         self.conn.commit()
         return cur.lastrowid
 
@@ -403,6 +417,12 @@ class Database:
         return self.conn.execute(
             "SELECT * FROM Download WHERE task_id=? AND sha256=? ORDER BY id",
             (task_id, sha256)).fetchone()
+
+    def find_notice_revision(self, task_id, source_identity, revision_sha256):
+        return self.conn.execute(
+            "SELECT * FROM Download WHERE task_id=? AND source_identity=? "
+            "AND revision_sha256=? AND duplicate_of_id IS NULL ORDER BY id",
+            (task_id, source_identity, revision_sha256)).fetchone()
 
     def list_downloads(self, run_id=None, task_id=None):
         if run_id is not None:

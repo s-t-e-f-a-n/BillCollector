@@ -22,6 +22,20 @@ properties:
           items:
             $ref: "#/definitions/step"
 definitions:
+  noticeIdentity:
+    type: object
+    additionalProperties: false
+    required: [query_parameters]
+    properties:
+      query_parameters:
+        type: array
+        minItems: 1
+        maxItems: 16
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+          maxLength: 128
   step:
     type: object
     required:
@@ -31,6 +45,9 @@ definitions:
         type: integer
       description:
         type: string
+      notice_identity:
+        description: Daemon-only notice identity; unsupported by the legacy batch runner.
+        $ref: "#/definitions/noticeIdentity"
       graceful:
         type: boolean
         description: >-
@@ -96,6 +113,9 @@ definitions:
         type: integer
       description:
         type: string
+      notice_identity:
+        description: Daemon-only notice identity; unsupported by the legacy batch runner.
+        $ref: "#/definitions/noticeIdentity"
       graceful:
         type: boolean
       methods:

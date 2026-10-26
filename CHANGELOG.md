@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Opt-in daemon `notice_identity` with source-scoped PDF revision tracking,
+  nullable Download identity columns, and pinned pypdf. Original PDFs are kept.
+
 - Self-hosted daemon with a NiceGUI web UI: `python3 -m billcollector serve`
   (binds `127.0.0.1:8000` by default; `--host`/`--port` or `BC_UI_HOST`
   override). On the first start it imports the `[Playwright]` sections of

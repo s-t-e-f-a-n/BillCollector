@@ -18,6 +18,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Run now supports a memory-only start-date override with no restart replay.
   The legacy batch substitution is unchanged.
 
+- Timezone configuration reaches the daemon through Compose: root `.env`
+  or exported `TZ` selects the zone, with UTC for unset or empty values.
+  The image no longer imposes Europe/Berlin, so direct execution can also
+  use `TZ` from `apps/.env`. Runtime environment values take precedence.
+
 - Self-hosted daemon with a NiceGUI web UI: `python3 -m billcollector serve`
   (binds `127.0.0.1:8000` by default; `--host`/`--port` or `BC_UI_HOST`
   override). On the first start it imports the `[Playwright]` sections of

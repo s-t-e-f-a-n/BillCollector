@@ -50,6 +50,8 @@ services:
     init: true
     command: ["python3", "-m", "billcollector", "serve"]
     environment:
+      # One user-selected zone for calendar dates and cron schedules.
+      TZ: ${TZ:-UTC}
       # The daemon binds 127.0.0.1 by default; inside the container the UI
       # must be reachable from the LAN (this wins over apps/.env).
       BC_UI_HOST: "0.0.0.0"

@@ -12,8 +12,8 @@ LABEL org.opencontainers.image.title="BillCollector" \
     org.opencontainers.image.version="${VERSION}" \
     org.opencontainers.image.licenses="MIT"
 
-# Set timezone and environment
-ENV TZ="Europe/Berlin" HOME="/home/billcollector" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+# Leave TZ to runtime configuration; the daemon defaults to UTC when absent.
+ENV HOME="/home/billcollector" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 
 # Set the directory for the application
 WORKDIR /apps

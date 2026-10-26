@@ -184,7 +184,20 @@ Now that we have done a good job installing all the prerequisites, we are focusi
 
    and set `BW_API_URL` to the HTTP URL of your local `bw serve` API (e.g., `http://<local-ip>:8087`; it must resolve only to loopback/private addresses, HTTPS is refused). See [Vaultwarden and Bitwarden](#vaultwarden-and-bitwarden).
 
-4. Optionally, create a root `.env` with the compose variables - all of them have defaults, the file is optional: `BC_UI_PORT` (published UI port, default `8766`), `NTFY_HOST` (push server for pause notifications, default `https://ntfy.sh`), `NTFY_BASE_URL` (LAN-absolute deep links, with the bundled ntfy), `APP_UID`/`APP_GID` (container user).
+4. Optionally, create a root `.env` with the compose variables - all of them have defaults, the file is optional: `TZ` (daemon calendar dates and cron schedules, default `UTC`), `BC_UI_PORT` (published UI port, default `8766`), `NTFY_HOST` (push server for pause notifications, default `https://ntfy.sh`), `NTFY_BASE_URL` (LAN-absolute deep links, with the bundled ntfy), `APP_UID`/`APP_GID` (container user).
+
+   Set `TZ=Europe/Zurich`, for example, to use local dates and schedules.
+   Compose reads `TZ` from the shell first, then the root `.env`; an unset
+   or empty value uses `UTC`. The image imposes no timezone. Compose passes
+   its resolved value into the container, so `TZ` in `apps/.env` cannot
+   override it. For direct Python execution, an exported `TZ` wins over
+   `apps/.env`. With `docker run`, pass `--env TZ=Europe/Zurich` or mount
+   `apps/.env` read-only at `/apps/.env`. Docker does not automatically
+   forward the host shell's `TZ`. If neither runtime source sets `TZ`,
+   the daemon uses `UTC`.
+   Use an IANA name such as `Europe/Zurich`; an invalid zone stops startup.
+   After changing the Compose setting, recreate the daemon with
+   `docker compose up -d billcollector` and check the task schedules.
 
 5. On your Linux console enter `docker compose up -d --build` which builds the docker image `billcollector:latest` from the root `Dockerfile` and starts the daemon (`python3 -m billcollector serve`). The image runs as a non-root user (UID/GID 1000, overridable at build time with the `APP_UID`/`APP_GID` build args).
 

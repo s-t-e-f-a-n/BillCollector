@@ -1,9 +1,10 @@
 # PR #32 review: require and qualify Chromium sandbox isolation
 
-> Status: INTEGRATING (2026-10-26) — S3 gate confirmed
-> (2026-10-26T21:14Z): integrate as-is — 11 PR-head byte-faithful files +
-> 4 manual merges, M1/M2 applied, 5 commits. Tree still clean; next: S4
-> selective integration on dev.
+> Status: INTEGRATING (2026-10-26) — S4 complete
+> (2026-10-26T21:26Z): all 15 files applied on dev (11 byte-faithful +
+> 4 manual merges, M1/M2 in the doc), re-verified; tree left dirty for S5
+> validation before any commit. Next: S5 (code checks here, then the full
+> deployment-validation block on the NAS).
 
 ## PR metadata
 
@@ -301,6 +302,39 @@ PR head text is kept as-is (byte-faithful to the reviewed content).
 - M1/M2 applied as-is at S4 (confirmed at the S2 gate; replacement text in
   the Integration plan above).
 
+## S4 execution record (2026-10-26T21:26Z)
+
+- Preflight: `dev` = `origin/dev` = `3dc372c`, clean tree;
+  `git ls-remote github refs/pull/32/head` = `52bc1c9` = local
+  `refs/pr/32` (unchanged since S1/S3). Pre-image re-check passed: the 8 new
+  files absent in dev; the 3 modified byte-faithful files
+  (`docker-compose.yml`, `apps/BillCollectorServices_pw.py`,
+  `tests/check_image_runtime.py`) dev-blob == base-blob. The 4 manual files'
+  PR hunks re-verified non-overlapping with dev's base→dev deltas
+  (`config.py` DEFAULT_SETTINGS only; `runner.py` `sqlite3` import +
+  `recover_downloads` block only; `README.md` / `CHANGELOG.md` other
+  Unreleased regions only).
+- Applied the 11 byte-faithful files via
+  `git checkout refs/pr/32 -- …` to the dev working tree. Re-verification:
+  all 10 unmodified-applied files byte-identical to the PR head
+  (`git diff --quiet`); `docker/chromium-seccomp.json` SHA256
+  `cc3e61cabda6bbc1e53e54d27ba4d55a9d3be829b6dd1a596f4a7b31b1cc7849`;
+  `docker/PLAYWRIGHT-LICENSE` 202 CRs, `cmp`-identical to the PR blob.
+- M1/M2 applied to `doc/CHROMIUM_SANDBOX.md` (exact replacement text from the
+  Integration plan; M1 wrapped to the doc's line style, wording unchanged).
+  `git diff refs/pr/32 -- doc/CHROMIUM_SANDBOX.md` shows the M1/M2 lines only.
+- Manual merges (4), each verified two ways: working tree vs dev shows
+  exactly the PR hunk and nothing else; working tree vs PR head shows exactly
+  dev's existing changes and no lost PR content:
+  - `config.py`: `chromium_args()` guard (7-line denylist + `ValueError`).
+  - `runner.py`: `chromium_sandbox=True,` in `_launch_browser` (now L316).
+  - `README.md`: sandbox paragraph above `## Table of Contents`.
+  - `CHANGELOG.md`: PR entry first in Unreleased/`### Added`, above the #33
+    crash-recovery bullet; dev's existing bullet formatting kept.
+- Tree left dirty per S4 (15 files: 11 staged from the checkout + 4 manual
+  edits + the M1/M2-modified doc): S5 validates the exact content before any
+  commit; the S3-confirmed 5 commits are created at S7.
+
 ## Validation plan (S5)
 
 Code checks — from the repo root with `apps/.venv/bin/python` on the exact
@@ -373,6 +407,9 @@ deploy host), scheduled to the NAS window:
 - ~~S3 gate: confirm the exact integration proposal.~~ — **Confirmed
   as-is 2026-10-26T21:14Z** (recorded in the S3 execution record above).
   Next: S4 selective integration on dev.
+- ~~S4: selective integration on dev.~~ — **Complete 2026-10-26T21:26Z**
+  (recorded in the S4 execution record above). Tree left dirty for S5.
+  Next: S5 code checks, then the NAS deployment-validation block.
 - S5 gate: the NAS window for the full deployment-validation block; if the
   NAS smoke run fails on namespace policy, the decision path (per the PR doc:
   record the exact failure first) is a user call.

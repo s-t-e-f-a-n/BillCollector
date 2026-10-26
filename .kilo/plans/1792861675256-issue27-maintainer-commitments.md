@@ -197,8 +197,9 @@ on dev.
 - #26 date variables / collection window (flowcool PR #34, last in the
   continuation order) — overlaps C4; once it lands with #33, C4 becomes
   draftable.
-- #28 Chromium sandbox (flowcool, contract accepted 2026-10-24, upstream PR
-  pending).
+- #28 Chromium sandbox (flowcool, contract accepted 2026-10-24) —
+  **DELIVERED 2026-10-26 via PR #32** (Gitea `main` `bde713c` / GitHub
+  `main` `93bfcc8`); issue #28 closed as delivered (comment 6429514585).
 - #25 publication routine — CLOSED 2026-10-25 (state_reason completed):
   the S7 routine was demonstrated across the PR #30 + #31 deliveries, so the
   "stays open until a delivery runs the S7 routine" condition is met. Closed
@@ -233,7 +234,10 @@ when picked up). O01 stays deferred per #21.
   2026-10-24 (`doc/RECIPE_METHODS.md` commit `5745e59`, issue #27 comment
   6388757576). PR #33 (the #24 implementation lane) DELIVERED 2026-10-26
   (Gitea `main` `181a9cc` / GitHub `5116627`): crash recovery + F01 on main,
-  C8 (F10) now schedulable, C4 still needs #34 (#26). Next per the
-  sequencing plan (`1792862814701-next-up-sequencing.md`): PR chain #32,
-  then doctor Stage 1b (needs the user's portal-access windows; C7
-  conversions ride the same windows).
+  C8 (F10) now schedulable, C4 still needs #34 (#26). PR #32 (Chromium
+  sandbox, #28) DELIVERED 2026-10-26 (Gitea `main` `bde713c` / GitHub
+  `93bfcc8`). Next per the sequencing plan
+  (`1792862814701-next-up-sequencing.md`): PR chain #34, then doctor
+  Stage 1b (needs the user's portal-access windows; C7 conversions ride
+  the same windows). C4–C8 remain open — this plan stays Active until
+  they are delivered.

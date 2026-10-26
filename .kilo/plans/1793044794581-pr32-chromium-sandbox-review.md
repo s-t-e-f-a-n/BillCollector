@@ -1,11 +1,11 @@
 # PR #32 review: require and qualify Chromium sandbox isolation
 
-> Status: INTEGRATING (2026-10-26) — S5 code checks complete, all green
-> (2026-10-26T21:46Z): 41 new tests, full pytest 528, regression VERDICT:
-> PASS, ruff clean, bandit zero new. Deployment block pending on the NAS
-> (needs the 5 confirmed dev commits pushed + a NAS run decision; SSH from
-> this session to the NAS is currently refused). Next: S5 gate — commit +
-> push dev, then the NAS block, then user confirmation -> VALIDATED.
+> Status: VALIDATED (2026-10-26) — S5 complete, user-confirmed
+> (2026-10-26T23:45Z): code checks all green (2026-10-26T21:46Z); NAS
+> deployment-validation block green on tree 2bc849d (proof sandbox active
+> on both launch paths, runtime regression PASS, compose smoke healthy;
+> service left running on the dev tree per user run-mode choice). Next:
+> S6 documentation, then S7 commit + push + close.
 
 ## PR metadata
 
@@ -376,6 +376,59 @@ Deployment-process validation — blocked on access, not on code:
   (b) restored key authorization on the NAS before the agent runs it.
 - Gate pending: user decides the run mode + window (see Open questions).
 
+### S5 NAS deployment-process validation (executed 2026-10-26T22:20-23:40Z)
+
+- Run mode + window: user-gated (2026-10-26T22:20Z) — the agent runs the
+  block via the restored SSH session; the compose smoke **leaves the
+  service running on the dev tree** (no downtime until the S7 deploy).
+- Host: NAS `192.168.1.99` (Docker + BuildKit; the primary deployment
+  target), repo path
+  `/srv/disk-by-label/Docker/docker-recipes/BillCollector`.
+- Tree: `git fetch origin dev && git reset --hard origin/dev` -> HEAD
+  `2bc849d6f6c34a105a21e3f2593e8d1fbbdca3f1` (= `origin/dev`; the 5
+  S3-confirmed commits + plan-doc commit pushed beforehand).
+- `bash -n` on changed shell scripts: **n/a** — the PR changes no shell
+  script (recorded, not skipped silently).
+- `docker build -t billcollector-sandbox:check .` (exact dev tree) ->
+  exit 0, image `sha256:e6af1e29eccd2c5f5cbd5a493c40c6101676e8c35060cb8c0b1f9d5daa7bd07a`.
+- `install_docker-image.sh playwright` (with `CONSUMER_DIR`/`DB_DIR`
+  forwarded from the deploy `.env`, as `deploy_remote.sh` would) ->
+  "Build successful!", `billcollector:latest` tagged with the same image
+  ID (warm BuildKit cache; mount symlinks + chown idempotent).
+- `python3 tests/check_docker_context.py` -> exit 0, "Docker context:
+  **18** private canaries excluded, 5 source files retained".
+  **Correction:** the "19" in the Validation plan above was an S1
+  miscount — the file's `excluded` tuple has 18 entries, and the file is
+  unchanged by the PR and byte-identical between `github/main`
+  (`5116627`) and the integrated tree (`2bc849d`). The NAS output is the
+  correct expected value for this tree.
+- Sandbox proof (`tmp/sandbox-active`): `python3
+  tests/run_sandbox_container.py --image billcollector-sandbox:check
+  --profile docker/chromium-seccomp.json --expect active` -> exit 0;
+  PASS daemon: sandbox=active (renderer kernel evidence), PASS daemon: PDF
+  download, PASS daemon: persistent storage, PASS batch: sandbox=active,
+  PASS batch: PDF download. Receipt: `cleanup_verified: true`,
+  `volumes_removed: true`, `profile_sha256 cc3e61cabda6…1cc7849` (verified
+  before use), user `1000:1000`, apparmor `""`. **The NAS host supports
+  the unprivileged-user-namespace sandbox under the pinned profile — the
+  primary deployment risk (Risks §1-2) is resolved.**
+- Runtime regression (`tmp/sandbox-runtime-regression`): the
+  `--runtime-regression` variant -> exit 0; PASS Chromium headless=True /
+  headless=False, PASS NiceGUI daemon startup, 7-scenario mock-portal
+  regression `VERDICT: PASS - all expectations matched` (8/8 expected
+  downloads). Receipt: `cleanup_verified: true`, `volumes_removed: true`.
+- Compose smoke: `docker compose up -d` from the dev tree -> the
+  production `billcollector` container was **recreated** with the new
+  image (`e6af1e29…`) and `HostConfig.SecurityOpt` = the complete pinned
+  Playwright profile (`defaultAction SCMP_ACT_ERRNO`; `clone`/`setns`/
+  `unshare` allowed, "Allow create user namespaces"). Daemon logs:
+  "serve starting on 0.0.0.0:8000 (… total 11)", "serve started:
+  scheduler running, 0 orphan run(s) interrupted". Healthcheck:
+  **healthy** (~30 s after start).
+- Service state at stage end: **running** on the dev tree (user's
+  run-mode choice); the S7 deploy repeats the same path after the
+  promotion.
+
 ## Validation plan (S5)
 
 Code checks — from the repo root with `apps/.venv/bin/python` on the exact
@@ -404,9 +457,11 @@ deploy host), scheduled to the NAS window:
   record that).
 - From the exact dev tree on the NAS: `bash install_docker-image.sh` → build
   succeeds.
-- `python3 tests/check_docker_context.py` → `Docker context: 19 private
-  canaries excluded, 5 source files retained` (fixed synthetic list — the new
-  `docker/` files are host-side and do not change the expectation).
+- `python3 tests/check_docker_context.py` → `Docker context: 18 private
+  canaries excluded, 5 source files retained` (fixed synthetic tuple, 18
+  entries — the new `docker/` files are host-side and do not change the
+  expectation; the "19" originally recorded here was an S1 miscount,
+  corrected 2026-10-26T23:40Z against the file in the dev tree).
 - PR's own qualification on the NAS (qualifies the NAS host itself):
   `python3 tests/run_sandbox_container.py --image billcollector-sandbox:check
   --profile docker/chromium-seccomp.json --expect active --output
@@ -422,11 +477,21 @@ deploy host), scheduled to the NAS window:
 
 ## Deployment validation
 
-- Pending S5 on the NAS (see Validation plan). Not to be skipped: the
-  `docker-compose.yml` + `docker/` changes are the deploy surface.
-- Code checks all green 2026-10-26T21:46Z (record above). Block execution
-  pending the S5 gate: dev commits pushed + NAS run mode/window (SSH from
-  this session currently refused — see S5 execution record).
+- Host: NAS `192.168.1.99` (Docker + BuildKit; the primary deployment
+  target). Run mode + window: user-gated 2026-10-26T22:20Z (agent via
+  restored SSH; service left running on the dev tree until the S7 deploy).
+- Validated tree: `2bc849d6f6c34a105a21e3f2593e8d1fbbdca3f1`
+  (= `origin/dev` at execution time).
+- Results (2026-10-26T22:20-23:40Z, full record in the S5 execution
+  record above): both image builds OK (same image ID
+  `e6af1e29…7bd07a`); canary check OK (18 excluded / 5 retained — the
+  "19" in the Validation plan was an S1 miscount, see correction there);
+  sandbox proof **active on both launch paths** (exit 0, cleanup
+  verified, profile SHA verified); runtime regression **VERDICT: PASS**
+  (exit 0, cleanup verified); compose smoke **healthy** with the pinned
+  seccomp profile in place.
+- User confirmation (S5 gate): **confirmed 2026-10-26T23:45Z** -> Status:
+  VALIDATED. Code checks were all green 2026-10-26T21:46Z (record above).
 
 ## Out of scope
 
@@ -454,12 +519,11 @@ deploy host), scheduled to the NAS window:
 - ~~S4: selective integration on dev.~~ — **Complete 2026-10-26T21:26Z**
   (recorded in the S4 execution record above). Tree left dirty for S5.
   Next: S5 code checks, then the NAS deployment-validation block.
-- S5 gate (pending): code checks are green (2026-10-26T21:46Z). The full
-  deployment-validation block needs: (1) the S3-confirmed 5 commits created
-  on dev + pushed to `origin/dev` (prerequisite for the NAS to fetch the
-  exact tree), and (2) a run mode — user runs the block on the NAS console,
-  or NAS key authorization is restored so the agent runs it — plus the
-  window. If the NAS smoke run fails on namespace policy, the decision path
-  (per the PR doc: record the exact failure first) is a user call.
+- ~~S5 gate: code checks + NAS deployment-validation block.~~ — **Block
+  executed and green 2026-10-26T23:40Z** (run mode user-gated at 22:20Z:
+  agent via restored SSH; service left running on the dev tree). Full
+  record in the S5 execution record + Deployment validation above.
+  **Confirmed by the user 2026-10-26T23:45Z** -> Status: VALIDATED; next
+  S6 documentation.
 - S7 gate: PR close comment text; issue #28 close-or-leave decision + comment
   text; Discussion summary text.

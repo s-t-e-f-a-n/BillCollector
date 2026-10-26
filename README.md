@@ -13,7 +13,7 @@
     - [Vault of Secrets](#vault-of-secrets)
     - [Enabling DNS and HTTPS with Let's Encrypt certs](#enabling-dns-and-https-with-lets-encrypt-certs)
   - [Installing the Daemon](#installing-the-daemon)
-  - [Optional: Self-Hosted ntfy](#optional-self-hosted-ntfy)
+  - [Pause notifications (ntfy)](#pause-notifications-ntfy)
 - [Daemon Mode](#daemon-mode)
   - [Environment Variables](#environment-variables)
   - [Container Semantics](#container-semantics)
@@ -209,9 +209,11 @@ Now that we have done a good job installing all the prerequisites, we are focusi
 
 8. Collect your first document: on the **Dashboard** press **Run now** for an enabled task - watch the run live (session page, noVNC tab) until it reaches `success`; the document appears on the Downloads page and in the consumer folder. Every step is driven from the browser, no shell access to the daemon needed.
 
-### Optional: Self-Hosted ntfy
+### Pause notifications (ntfy)
 
-Pause notifications go to the public [ntfy.sh](https://ntfy.sh) by default. To run your own push server in the same stack:
+A fresh installation sends no notifications: the `ntfy topic` setting starts empty, and a paused run (or a blocked login) only pushes when you set a topic. To opt in, open **Settings** and set an **ntfy topic** - choose your own topic name, it is the install-specific destination the pushes are sent to.
+
+The push server defaults to the public [ntfy.sh](https://ntfy.sh). To run your own push server in the same stack instead:
 
 1. Add `NTFY_HOST=http://ntfy` to the root `.env` (optional: `NTFY_BASE_URL=http://<your-host>:2086` for LAN-absolute deep links).
 2. Start the stack with `docker compose --profile ntfy up -d` - the `ntfy` service (image `binwiederhier/ntfy`, port `2086`) comes up together with BillCollector.
@@ -298,14 +300,14 @@ The BillCollector configuration for each web service from which you want to retr
    - Under the `[Playwright]` section, enter line by line the name of the web service matching the `Name` of the service's entry in Vaultwarden (1).
    - For web services where you have more than one login data for (e.g., family members having different accounts at the same mobile phone provider) you can enter the line in the following format: `<Name of web service>=<your name>, <additional name>`.
 
-     *Example ini script:*
+      *Example ini script (synthetic names - replace with your own services
+      and accounts):*
 
-     ```ini
-     [Playwright]
-     winSIM=Stefan, Auto, Brigitte, Eva, Anna
-     KabelDeutschland=
-     Freenet Mobilfunk=
-     ```
+      ```ini
+      [Playwright]
+      ExampleMobile=John, Jane
+      ExampleUtility=
+      ```
 
    In daemon mode this INI list is the starting point for the task list: it is imported into the Task table on the first daemon start (or via **Import from INI** in the wizard), and from then on the per-task cron and enabled state live in the UI, not in the INI.
 
@@ -410,7 +412,7 @@ services:
 You are running BillCollector with cron (`BillCollector.sh` in the crontab) and want to move to the daemon:
 
 1. **Import the tasks.** Your INI file is already known to the daemon: on its first start the `[Playwright]` sections of `bc_default.ini`/`bc_test.ini` are imported as tasks (each (service, user) pair, initially disabled with a default monthly cron). If the daemon already started, press **Import from INI** in the onboarding wizard, or add a task from the dashboard **Add task** dialog.
-2. **Set the schedules.** Open each task's **Edit** dialog on the Dashboard, set its cron (a 5-field crontab expression, e.g., `0 6 1 1,15 * *` for the 1st and 15th at 06:00), and enable it.
+2. **Set the schedules.** Open each task's **Edit** dialog on the Dashboard, set its cron (a 5-field crontab expression, e.g., `0 6 1,15 * *` for the 1st and 15th at 06:00), and enable it.
 3. **Verify one run.** Press **Run now** for the task, watch the session page until the run reaches `success`, and check the document on the Downloads page and in the consumer folder.
 4. **Stop the cron entry.** Comment out or delete the crontab line that calls `BillCollector.sh`. **Rollback = re-enable the cron entry**: the legacy path keeps working unchanged.
 

@@ -64,10 +64,9 @@ services:
   - step: 8
     description: ''
     methods:
-    - method: get_by_role
+    - method: locator
       arguments:
-      - role: "button"
-      - name: "Login"
+      - selector: "#login"
     - method: click
   - step: 9
     description: ''
@@ -84,7 +83,7 @@ services:
     - method: get_by_role
       arguments:
       - role: "button"
-      - name: "Check and log in"
+      - name: "Continue"
     - method: click
   - step: 11
     description: ''

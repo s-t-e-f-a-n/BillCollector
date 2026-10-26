@@ -11,6 +11,7 @@ services:
       - url: "https://www.1und1.de/"
   - step: 2
     description: ''
+    graceful: true
     methods:
     - method: get_by_role
       arguments:
@@ -31,15 +32,6 @@ services:
     - method: get_by_title
       arguments:
       - text: "Zum Control-Center-Login"
-    - method: click
-  - step: 4
-    description: ''
-    methods:
-    - method: get_by_role
-      arguments:
-      - role: "button"
-      - name: "Click to reveal"
-      - exact: true
     - method: click
   - step: 5
     description: ''

@@ -236,6 +236,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sanitized inner URL), and step failures record the step, method and a
   fixed failure category (download failures additionally log the exception
   type) instead of raw exception text.
+- README daemon-migration section: the example cron for the 1st and 15th
+  at 06:00 had six fields (`0 6 1 1,15 * *`) and was rejected by the
+  five-field parser used by the scheduler and the UI; corrected to
+  `0 6 1,15 * *` (issue #27, D08).
+
+- Onboarding task switches are independent: toggling a switch now updates
+  only its own task's enabled state and scheduler registration (previously
+  every switch read the last-created switch's value, so in a multi-task
+  setup enabling one task could leave it disabled) (issue #27, F07).
 
 ## [v0.4] - 2026-10-02
 

@@ -11,5 +11,6 @@ __pycache__
 Downloads
 browser/
 db/
+data/
 .bc.lock
 openwiki/.run.json

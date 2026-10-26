@@ -55,55 +55,38 @@ services:
     - method: get_by_role
       arguments:
       - role: "link"
-      - name: "Postfach "
+      - name: "Postfach"
+      - exact: true
     - method: click
   - step: 8
     description: ''
     methods:
-    - method: get_by_role
-      arguments:
-      - role: "cell"
-      - name: "Leistungsabrechnung"
-      - exact: true
-    - method: first
-    - method: click
-  - step: 9
+    - method: expect_download
+    steps:
+    - step: 9
+      description: ''
+      methods:
+      - method: get_by_role
+        arguments:
+        - role: "link"
+        - name: "Leistungsabrechnung PDF"
+      - method: first
+      - method: click
+  - step: 10
     description: ''
     methods:
     - method: expect_download
     steps:
-    - step: 10
+    - step: 11
       description: ''
       methods:
-      - method: get_by_text
+      - method: get_by_role
         arguments:
-        - text: "Leistungsabrechnung_"
+        - role: "link"
+        - name: "Vertragsinformation PDF"
       - method: first
       - method: click
-  - step: 11
-    description: ''
-    methods:
-    - method: get_by_role
-      arguments:
-      - role: "cell"
-      - name: "Vertragsinformation"
-      - exact: true
-    - method: first
-    - method: click
   - step: 12
-    description: ''
-    methods:
-    - method: expect_download
-    steps:
-    - step: 13
-      description: ''
-      methods:
-      - method: get_by_text
-        arguments:
-        - text: "Vertragsinformation_"
-      - method: first
-      - method: click
-  - step: 14
     description: ''
     methods:
     - method: close

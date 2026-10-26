@@ -51,6 +51,7 @@ services:
     - method: click
   - step: 7
     description: ''
+    graceful: true
     methods:
     - method: get_by_role
       arguments:
@@ -59,6 +60,7 @@ services:
     - method: click
   - step: 8
     description: ''
+    graceful: true
     methods:
     - method: get_by_role
       arguments:
@@ -68,32 +70,22 @@ services:
   - step: 9
     description: ''
     methods:
-    - method: get_by_role
+    - method: locator
       arguments:
-      - role: "link"
-      - name: "Meine Rechnung"
+      - selector: "a[title='Rechnungen']"
     - method: click
   - step: 10
     description: ''
     methods:
-    - method: get_by_text
-      arguments:
-      - text: "Rechnung vom"
-    - method: first
-    - method: click
-  - step: 11
-    description: ''
-    methods:
     - method: expect_download
     steps:
-    - step: 12
+    - step: 11
       description: ''
       methods:
-      - method: get_by_role
+      - method: get_by_text
         arguments:
-        - role: "link"
-        - name: "Rechnung"
-        - exact: true
+        - text: "Rechnung vom"
+      - method: first
       - method: click
   - step: 13
     description: ''

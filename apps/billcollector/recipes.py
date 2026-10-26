@@ -73,7 +73,7 @@ def validate_recipe(text: str, schema_path=None, *, check_methods=True) -> tuple
         return False, "; ".join(
             f"{_error_location(data, e.absolute_path)}: "
             f"must satisfy {e.validator}"
-            + (f" {e.validator_value}" if e.validator == "type" else "")
+            + (f" {e.validator_value}" if e.validator in {"type", "required", "enum", "const"} else "")
             for e in errors), None
     try:
         validate_login_recipe(data)

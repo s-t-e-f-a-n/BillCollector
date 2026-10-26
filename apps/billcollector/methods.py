@@ -22,6 +22,10 @@ _UNTIL = (('role', 'get_by_role'), ('test_id', 'get_by_test_id'),
 
 @lru_cache(maxsize=None)
 def _attribute(owner, name):
+    # Primitive and collection results may end a chain, but their Python
+    # methods are outside the public Playwright recipe contract.
+    if not getattr(owner, '__module__', '').startswith('playwright.'):
+        return None
     if name.startswith('_'):
         return None
     attribute = inspect.getattr_static(owner, name, None)

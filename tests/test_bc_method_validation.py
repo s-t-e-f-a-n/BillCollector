@@ -261,3 +261,35 @@ def test_invalid_recipe_is_not_written_and_cannot_start(tmp_path):
     ok, error = save_recipe(path, invalid)
     assert not ok and '17' in error
     assert path.read_text() == original
+
+
+@pytest.mark.parametrize('result, continuation', [
+    ('all', 'pop'), ('inner_text', 'upper'), ('count', 'bit_length'),
+])
+def test_non_playwright_results_cannot_continue_a_method_chain(result, continuation):
+    methods = [
+        {'method': 'locator', 'arguments': [{'selector': '#account'}]},
+        {'method': result},
+    ]
+    ok, error, _ = validate_recipe(yaml.safe_dump(document(methods)))
+    assert ok, error  # A primitive or collection result can end a chain.
+    methods.append({'method': continuation})
+    ok, error, _ = validate_recipe(yaml.safe_dump(document(methods)))
+    assert not ok
+    assert continuation in error
+    assert 'unknown public Playwright attribute' in error
+
+
+@pytest.mark.parametrize('constraint, expected, value', [
+    ('required', ['step'], {'value': 'synthetic-secret'}),
+    ('enum', ['allowed'], 'synthetic-secret'),
+    ('const', 'expected', 'synthetic-secret'),
+])
+def test_schema_diagnostics_include_only_expected_schema_values(
+        tmp_path, constraint, expected, value):
+    schema_path = tmp_path / 'schema.yaml'
+    schema_path.write_text(yaml.safe_dump({constraint: expected}))
+    ok, error, _ = validate_recipe(yaml.safe_dump(value), schema_path)
+    assert not ok
+    assert str(expected) in error
+    assert 'synthetic-secret' not in error

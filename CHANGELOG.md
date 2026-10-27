@@ -138,6 +138,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The Docker image no longer sets a default `TZ` (previously
+  `Europe/Berlin`). Daemon calendar dates and cron schedules now use the
+  zone selected through the shell or the root `.env` (see the timezone
+  entry under `### Added`), defaulting to `UTC` when unset or empty.
+  Existing installations that relied on the image's Berlin default must
+  set `TZ` explicitly to keep their previous local dates and schedules;
+  after changing the setting, recreate the daemon with
+  `docker compose up -d billcollector` and check the task schedules.
 - Deploys now reuse the BuildKit layer cache: the changing `REVISION` build
   arg (its value is part of the cache key of every `RUN` step, so it
   invalidated the whole cache on every deploy) is gone from

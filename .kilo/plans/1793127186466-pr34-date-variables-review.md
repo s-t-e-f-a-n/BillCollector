@@ -336,6 +336,54 @@ Verification (on the dirty tree, before any commit):
 Tree left dirty and uncommitted (22 files: 19 modified + 3 new); S5
 validates this exact content.
 
+## S5 execution record — code checks (2026-10-27T19:40Z)
+
+On the exact integrated dev tree (dev tip `2b90ab8` doc-only + the 22 dirty
+files from S4), from the repo root with `apps/.venv/bin/python`:
+
+- PR's new suites: `pytest tests/test_bc_date_variables.py
+  tests/test_bc_timezone_config.py -q` -> **60 passed, 8 skipped** (the
+  docker-image-dependent timezone cases skip without a docker image, as
+  designed).
+- Full pytest: `pytest tests/ -q` -> **589 passed, 10 skipped, 53 subtests
+  passed**. Delta fully accounted for: 528 (dev baseline recorded at the
+  #32 delivery) + 60 (the two new modules) + 1 (a new test function the PR
+  adds in `tests/test_bc_ui_task_detail.py`) = 589; skips 2 + 8 = 10.
+- Regression: `tests/run_regression.py --ini tests/bc_regression.ini` ->
+  exit 0, **7 scenarios / 8 PDFs, VERDICT: PASS — all expectations matched**
+  (badlogin / empty / dlfail fail as expected; downloads exactly the 8
+  expected files).
+- `ruff check apps tests` -> **All checks passed** (matches the #30/#31/#32
+  baseline).
+- bandit on the 15 changed Python files (12 existing at the dev-HEAD
+  baseline + 3 new): the 2 pre-existing MEDIUM findings are **identical to
+  the dev-HEAD baseline — zero new, zero gone**; every new finding is a LOW
+  test-code idiom in the new/modified test files (B101 assert +67, B105 +3,
+  B106 +1, B404 +1, B603 +2 — synthetic test data, fixed-argument
+  `subprocess.run` calls without shell, 0 High).
+- Code checks: **all green**.
+
+Deployment-process validation — prerequisites (S5 gate):
+
+- Trigger fires (the Dockerfile TZ default is removed, compose `TZ`
+  runtime config, `.env` examples) — the full block is required on the NAS.
+- `bash -n` on changed shell scripts: **n/a** — the PR changes no shell
+  script (recorded, not skipped silently).
+- The NAS fetches from Gitea (`deploy_remote.sh`: fetch + reset in
+  `REMOTE_PATH`, `GIT_BRANCH`), so the exact tree must first be committed +
+  pushed to `origin/dev` — the 4 S3-confirmed commits (the tree is
+  currently dirty per S4).
+- Access finding (2026-10-27T19:40Z): `ssh root@192.168.1.99` from this
+  session is refused (`Permission denied (publickey,password)`) — as at the
+  #32 S5; the block needs either (a) restored key authorization on the NAS
+  before the agent runs it, or (b) the user running it on the NAS console.
+- Smoke-run verification plan (TZ-specific): the scheduler logs no zone of
+  its own, so the block verifies `daemon_timezone()` inside the built image
+  (unset/empty `TZ` -> UTC; selected `TZ` -> the zone; invalid `TZ` ->
+  startup failure) via a `python3 -c` in the container, plus the compose
+  smoke showing the resolved `TZ` in the container environment with the
+  daemon up and the scheduler started.
+
 ## Validation plan (S5)
 
 Code checks — from the repo root with `apps/.venv/bin/python` on the exact
@@ -395,3 +443,8 @@ Deployment-process validation — **trigger fires** (the PR changes `Dockerfile`
 - The cron-TZ behaviour change: confirm the S6/S7 public wording makes the
   "existing installations must set `TZ` explicitly" note plain (no silent
   Berlin → UTC shift for current users).
+- S5 gate (pending): the code checks are all green (record above); the NAS
+  block needs (a) the 4 S3-confirmed commits pushed to `origin/dev` first
+  (the NAS fetches from Gitea) and (b) SSH access (currently refused) or a
+  console run by the user. The user decides the run mode + window and the
+  service state after the smoke (leave running on the dev tree / stop).

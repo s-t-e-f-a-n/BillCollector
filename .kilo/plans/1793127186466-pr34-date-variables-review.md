@@ -5,7 +5,8 @@
 > regression PASS, ruff clean, bandit no new) and the NAS
 > deployment-validation block all green (build from `origin/dev` `dc0ef7f`,
 > canary 18/5, TZ contract 3/3, compose smoke healthy, service left running
-> on the dev tree). Next: S6 documentation.
+> on the dev tree). S6 documentation user-confirmed (2026-10-27). Next:
+> S7 commit + push (Gitea promotion, GitHub mirror, PR close).
 
 ## PR metadata
 
@@ -476,6 +477,33 @@ service-state decision):
   install on Berlin across recreations means keeping `TZ` in the project
   `.env` or environment — flagged for the S7 close comment.)
 
+## S6 execution record — documentation (2026-10-27)
+
+- CHANGELOG: the PR's two `### Added` entries were in place since S4
+  (user-confirmed at the S3 gate, sanitized). S6 resolves the open cron-TZ
+  question: a new `### Changed` entry (top of the section, `8249c67`) states
+  that the image no longer sets a `TZ` default (previously
+  `Europe/Berlin`), that the zone is selected through the shell or root
+  `.env` with a UTC fallback, and that existing installations relying on
+  the Berlin default must set `TZ` explicitly and recreate the daemon. The
+  PR's `### Added` entries are unchanged.
+- README / CONTRIBUTING: no change — README step 4 already documents the TZ
+  precedence, the UTC default, "the image imposes no timezone", and the
+  post-change recreation step; the "Daemon date variables" bullet and the
+  `doc/RECIPE_METHODS.md` section (M1) + `doctor.py` prompt (M2) were
+  committed with the S4 delivery. No contributor-rule change.
+- Gate: the user confirmed the S6 docs as-is (2026-10-27): the CHANGELOG
+  `### Changed` entry, no README/CONTRIBUTING change, 3 doc-only commits.
+- Commits: `b59df45` (plans: S5 gate VALIDATED flip), `8249c67` (CHANGELOG
+  `### Changed` entry), plus the commit carrying this record; all pushed to
+  `origin/dev`.
+- S7 note: the code/test/doc delivery commits (`cfb7875` / `99c0f2e` /
+  `9c00d83` / `dc0ef7f`) are already on `origin/dev` from the S5 deployment
+  prerequisite, so S7's remaining steps are the Gitea `main` promotion
+  (ff-only, user gate), the GitHub mirror, the PR #34 close comment + close,
+  the issue #26 closure comment + close, and the per-public-update
+  Discussion summary — each public text user-confirmed first.
+
 ## Out of scope
 
 - The remaining #24 lane (F10/C8 delivery-state exposure) — maintainer work
@@ -491,9 +519,11 @@ service-state decision):
 
 - ~~M1/M2 (S6 contract-doc bundle)~~ — resolved at the S3 gate (2026-10-27):
   M1a + M1b + M2 all confirmed as-is.
-- The cron-TZ behaviour change: confirm the S6/S7 public wording makes the
-  "existing installations must set `TZ` explicitly" note plain (no silent
-  Berlin → UTC shift for current users).
+- ~~The cron-TZ behaviour change~~ — resolved at the S6 gate (2026-10-27):
+  the CHANGELOG `### Changed` entry (`8249c67`) states the Berlin default
+  removal and the "set `TZ` explicitly" requirement for existing
+  installations; README step 4 carries the precedence + recreation note.
+  The S7 PR-close comment must repeat the note for the PR's audience.
 - ~~S5 gate~~ — confirmed by the user 2026-10-27 (code checks + the NAS
   deployment-validation block all green, record in the Deployment
   validation section; agent via SSH on `origin/dev` `dc0ef7f`, service left

@@ -1,10 +1,9 @@
 # PR #34 review: daemon runtime date variables (issue #26)
 
-> Status: AWAITING-DECISION (2026-10-27) — S1 review + S2 plan complete;
-> verdict **approve**. Integration is a keep-both merge (6 diverged files,
-> hunks verified non-overlapping) + the one CHANGELOG `### Added` region merge
-> + the S6 contract-doc bundle (`doc/RECIPE_METHODS.md` + the `doctor.py`
-> prompt vocabulary). Awaiting the user decision at the S3 gate.
+> Status: INTEGRATING (2026-10-27) — S3 gate passed: the user confirmed the
+> integration proposal **as-is** (14 as-is files, 6 keep-both merges incl.
+> the CHANGELOG `### Added` merge, M1a/M1b/M2 maintainer changes, 4 commits).
+> S4 applies the files to Gitea `dev`; S5 validates the exact tree.
 
 ## PR metadata
 
@@ -250,7 +249,52 @@ the PR head content is kept as-is and the doc gap is recorded as a follow-up.
 
 ## S3 execution record
 
-(pending — the S3 gate presents the exact proposal for user confirmation.)
+S3 ran 2026-10-27 on a clean `dev` tree (`2d95626`, a doc-only move from the
+S1 state `bf284bb` — the plan doc itself). Pre-flight re-verified before the
+gate:
+
+- PR head unchanged: `e1d3787b179eed6359cf1d2b5afb4e469fe3e253`
+  (`git ls-remote github refs/pull/34/head` = local `refs/pr/34`).
+- Pre-image classification re-run on all 20 files against current dev:
+  identical to S1 (11 base-identical, 3 new, 6 diverged).
+- All six manual-merge landing sites re-checked against current dev content
+  (hunk contexts present; the dev #32/#33 additions confirmed in their own
+  disjoint regions).
+
+Gate result: the user confirmed the proposal **as-is** (2026-10-27):
+
+- A: 14 files applied from the PR head (11 base-identical + 3 new).
+- B: 6 keep-both merges — `runner.py` (9 hunks, keeping dev's
+  `import sqlite3` / `chromium_sandbox=True` / `recover_downloads` block),
+  `db.py` (4 hunks, keeping dev's Download `state`/`staged_path` migration +
+  methods), `docker-compose.yml` (`TZ: ${TZ:-UTC}`, keeping
+  `security_opt: seccomp`), `tests/test_bc_residual_logs.py`
+  (`"date_window_days": 90`, keeping dev's `task_db` mock wiring),
+  `README.md` (step-4 `TZ` list + "Daemon date variables" bullet, keeping
+  dev's sandbox header + Downloads recovery link), `CHANGELOG.md` (the PR's
+  two `### Added` entries on top of dev's #32/#33 entries; the exact merged
+  section was shown and confirmed in the proposal).
+- C: maintainer-side changes — M1a (new `### Date variables (issue #26)`
+  subsection in `doc/RECIPE_METHODS.md` under `## 4. Variables`), M1b
+  (replacement of the stale pre-#26 exact-match/F08 sentence in the same
+  file), M2 (the `doctor.py` prompt extension naming the date variables and
+  forbidding literal-date substitution). Exact intended diffs recorded in
+  the S3 session proposal; all three confirmed.
+- D: commits to create in S7 — (1) `feat: daemon date variables and timezone
+  configuration (issue #26)` (variables.py, runner.py, db.py, scheduler.py,
+  cli.py, orchestrator.py, recipes.py, ui/tasks.py, ui/task_detail.py,
+  Dockerfile, docker-compose.yml, .env.example, apps/.env.example),
+  (2) `test: date-variable and timezone suites (issue #26)`
+  (test_bc_date_variables.py, test_bc_timezone_config.py,
+  test_bc_ui_dashboard.py, test_bc_ui_task_detail.py,
+  test_bc_residual_logs.py), (3) `doc: date-variable contract (issue #26)`
+  (README.md, CHANGELOG.md, doc/RECIPE_METHODS.md),
+  (4) `fix: recipe-doctor prompt preserves date variables (issue #26)`
+  (doctor.py).
+
+Next: S4 applies the files to the working tree (left uncommitted), S5
+validates the exact tree (code checks + the triggered deployment-process
+block on the NAS), then S6/S7.
 
 ## Validation plan (S5)
 
@@ -306,8 +350,8 @@ Deployment-process validation — **trigger fires** (the PR changes `Dockerfile`
 
 ## Open questions
 
-- M1/M2 (S6 contract-doc bundle): confirm at the S3 gate (apply as-is /
-  modify / decline).
+- ~~M1/M2 (S6 contract-doc bundle)~~ — resolved at the S3 gate (2026-10-27):
+  M1a + M1b + M2 all confirmed as-is.
 - The cron-TZ behaviour change: confirm the S6/S7 public wording makes the
   "existing installations must set `TZ` explicitly" note plain (no silent
   Berlin → UTC shift for current users).

@@ -11,6 +11,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Daemon runtime date variables and inline, recursive single-pass argument
+  substitution (issue #26). Recipe save and run start share syntax validation.
+  Tasks have an additive `date_window_days` setting (90 inclusive days by
+  default); dates and cron scheduling use `TZ` with UTC fallback. Task-detail
+  Run now supports a memory-only start-date override with no restart replay.
+  The legacy batch substitution is unchanged.
+
+- Timezone configuration reaches the daemon through Compose: root `.env`
+  or exported `TZ` selects the zone, with UTC for unset or empty values.
+  The image no longer imposes Europe/Berlin, so direct execution can also
+  use `TZ` from `apps/.env`. Runtime environment values take precedence.
+
 - Required Chromium sandbox in daemon and batch browser launches, a pinned
   Playwright seccomp profile for Compose, and isolated sandbox/download/profile
   qualification. Unsupported sandbox setup fails without an unsandboxed retry.

@@ -225,12 +225,43 @@ through unchanged):
 | `{{PASSWORD}}` | the task's password from the vault item |
 | `{{OTP}}` | a fresh TOTP fetched from the vault **at substitution time** (TOTP codes go stale; fallback: the run-start credential when the item has no TOTP or the fetch fails) |
 
-Substitution is exact-match on the whole value: a string is substituted
-only when it equals a placeholder exactly, so a longer string containing
-a placeholder is not substituted. Validation (F08) must therefore reject
-any `{{...}}` sequence other than the three supported placeholders -
-including one embedded in a longer string, which would otherwise reach
-the portal unchanged.
+In the daemon (issue #26), placeholders expand inline inside any argument
+string, not only on exact match; a replacement value is never parsed a
+second time. Validation (F08, extended by issue #26) must therefore reject
+any `{{...}}` sequence that is neither a credential placeholder nor a
+supported date variable (see below) - including one embedded in a longer
+string, which would otherwise reach the portal unchanged.
+
+### Date variables (issue #26)
+
+Date variables expand inside any method-argument string, including nested
+lists and dictionaries; dictionary keys are unchanged.
+
+| variable | value |
+|---|---|
+| `{{TODAY}}` | today's date in the daemon timezone |
+| `{{DATE_TO}}` | `TODAY` |
+| `{{DATE_FROM}}` | `TODAY - (window - 1)` calendar days, where *window* is the task's **Date window (inclusive days)** setting (default 90) |
+| `{{TODAY-Nd}}` / `{{TODAY+Nd}}` | `TODAY` minus/plus *N* calendar days |
+
+- Output defaults to `YYYY-MM-DD`. An optional format suffix
+  (e.g. `{{DATE_FROM|%d/%m/%Y}}`) may use only `%Y`, `%m`, `%d`, `%%` and
+  literal separators `-`, `/`, `.`, `_`, or ASCII space, and must contain a
+  date directive. Format suffixes are not allowed on credential placeholders.
+- Dates must stay within `0001-01-01` to `9999-12-31`. Unknown variables,
+  malformed delimiters, invalid formats, and date overflow fail before browser
+  or vault access; errors name the argument location without its value.
+- The daemon timezone comes from the `TZ` environment variable (Compose
+  forwards the user-selected value; unset or empty means UTC; an invalid zone
+  stops daemon startup).
+- One instant is captured before browser launch and stays fixed through
+  retries and interactive resume.
+- Credential placeholders also expand inline inside longer strings; a
+  replacement value is never parsed a second time (opaque), and an exact
+  `{{OTP}}` token may resolve to nothing when the item has no TOTP.
+- The daemon recipe editor and the run start share the same syntax
+  validation (`validate_variable_recipe` in `apps/billcollector/variables.py`),
+  so an invalid variable contract never reaches vault or browser access.
 
 ## 5. Validation requirements (F08)
 

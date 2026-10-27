@@ -1,11 +1,11 @@
 # PR #34 review: daemon runtime date variables (issue #26)
 
-> Status: INTEGRATING (2026-10-27) — S5 executed: code checks all green
-> (60 new-suite + 1 new test, 589 passed full, regression PASS, ruff clean,
-> bandit no new) and the NAS deployment-validation block all green (build
-> from `origin/dev` `dc0ef7f`, canary 18/5, TZ contract 3/3, compose smoke
-> healthy) — awaiting the user's S5 gate confirmation for VALIDATED. The
-> service was left running on the dev tree per the earlier gate.
+> Status: VALIDATED (2026-10-27) — S5 complete, user-confirmed at the S5
+> gate: code checks all green (60 new-suite + 1 new test, 589 passed full,
+> regression PASS, ruff clean, bandit no new) and the NAS
+> deployment-validation block all green (build from `origin/dev` `dc0ef7f`,
+> canary 18/5, TZ contract 3/3, compose smoke healthy, service left running
+> on the dev tree). Next: S6 documentation.
 
 ## PR metadata
 
@@ -494,8 +494,7 @@ service-state decision):
 - The cron-TZ behaviour change: confirm the S6/S7 public wording makes the
   "existing installations must set `TZ` explicitly" note plain (no silent
   Berlin → UTC shift for current users).
-- S5 gate (pending user confirmation, 2026-10-27): code checks all green
-  (record above) and the NAS deployment-validation block all green (record
-  in the Deployment validation section; agent via SSH on `origin/dev`
-  `dc0ef7f`, service left running on the dev tree). User confirmation
-  flips the status to VALIDATED and routes the next session to S6.
+- ~~S5 gate~~ — confirmed by the user 2026-10-27 (code checks + the NAS
+  deployment-validation block all green, record in the Deployment
+  validation section; agent via SSH on `origin/dev` `dc0ef7f`, service left
+  running on the dev tree). Status VALIDATED; the next session runs S6.

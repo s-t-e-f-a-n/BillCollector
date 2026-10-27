@@ -23,6 +23,7 @@ import yaml
 
 from . import config
 from .login import validate_login_recipe
+from .variables import validate_variable_recipe
 
 
 def validate_recipe(text: str, schema_path=None) -> tuple:
@@ -51,6 +52,10 @@ def validate_recipe(text: str, schema_path=None) -> tuple:
         validate_login_recipe(data)
     except ValueError as e:
         return False, f"invalid login contract: {e}", None
+    try:
+        validate_variable_recipe(data)
+    except ValueError as e:
+        return False, f"invalid variable contract: {e}", None
     return True, None, data
 
 

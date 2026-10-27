@@ -7,6 +7,7 @@ Subcommands:
 
 import argparse
 import logging
+import sys
 
 from . import config
 from .db import Database
@@ -34,6 +35,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p_run = sub.add_parser("run", help="execute one task run")
     p_run.add_argument("task_id", type=int, help="Task id to run")
     p_run.add_argument("--debug", action="store_true", help="run in debug mode")
+
+    p_run.add_argument("--date-from-stdin", action="store_true",
+                       help="read a one-run YYYY-MM-DD start date from stdin")
 
     p_doctor = sub.add_parser(
         "doctor", help="propose a recipe fix for a pause context "
@@ -105,6 +109,9 @@ def main(argv=None) -> int:
         # Lazy import: Playwright is only needed when actually running a task.
         from . import runner
 
+        if args.date_from_stdin:
+            return runner.run_task(args.task_id, args.debug,
+                                   date_from=sys.stdin.read(11))
         return runner.run_task(args.task_id, args.debug)
 
     if args.command == "doctor":

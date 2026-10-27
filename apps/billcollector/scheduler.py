@@ -28,6 +28,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from .db import Database
+from .variables import daemon_timezone
 
 logger = logging.getLogger("billcollector.scheduler")
 
@@ -60,7 +61,9 @@ class TaskScheduler:
         global _run_callback
         self._db = db
         _run_callback = run_func
+        self._timezone = daemon_timezone()
         self._scheduler = AsyncIOScheduler(
+            timezone=self._timezone,
             jobstores={"default": SQLAlchemyJobStore(url=f"sqlite:///{db.path}")},
             job_defaults={"coalesce": True, "max_instances": 1,
                           "misfire_grace_time": None})
@@ -110,7 +113,7 @@ class TaskScheduler:
             return
         self._scheduler.add_job(
             _task_job,
-            trigger=CronTrigger.from_crontab(task["cron"]),
+            trigger=CronTrigger.from_crontab(task["cron"], timezone=self._timezone),
             args=[task["id"]],
             id=job_id_for(task["id"]),
             replace_existing=True)

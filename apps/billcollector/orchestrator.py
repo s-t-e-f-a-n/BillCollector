@@ -83,6 +83,7 @@ from pathlib import Path
 from . import config, display
 from .db import Database, now
 from .login import settle_attempt
+from .variables import DateContext
 
 logger = logging.getLogger("billcollector.orchestrator")
 
@@ -315,7 +316,7 @@ class Orchestrator:
         except ProcessLookupError:
             pass
 
-    async def start_run(self, task_id: int):
+    async def start_run(self, task_id: int, *, date_from=None):
         """Claim and start one run; the monitoring runs as its own task.
 
         Returns True when the run was started - the monitoring task (in
@@ -334,6 +335,8 @@ class Orchestrator:
         if task is None:
             logger.warning("start_run: task %s does not exist; not started", task_id)
             return None
+        if date_from is not None:
+            DateContext.capture(task["date_window_days"], date_from)
         if not self._db.claim_task_run(task_id):
             logger.info("start_run: task %s already running/waiting; skipped", task_id)
             return None
@@ -346,7 +349,8 @@ class Orchestrator:
             self._db.release_task_run(task_id)
             raise
         try:
-            proc = await self._spawn(task_id)
+            proc = (await self._spawn(task_id) if date_from is None
+                    else await self._spawn(task_id, date_from=date_from))
         except asyncio.CancelledError:
             # Cancelled between the claim and the spawn: release slot +
             # claim (the runner never started).
@@ -369,7 +373,7 @@ class Orchestrator:
         self._monitors[task_id] = asyncio.create_task(self._monitor(task_id, proc))
         return True
 
-    async def _spawn(self, task_id: int):
+    async def _spawn(self, task_id: int, *, date_from=None):
         """Spawn the runner subprocess in its own session (stderr merged
         into stdout, piped).
 
@@ -380,14 +384,26 @@ class Orchestrator:
         orphans the runner instead of dragging it down - C7.4's startup
         cleanup then sees the live pid and leaves the run to its
         orphaned runner."""
-        return await asyncio.create_subprocess_exec(
-            *self._runner_cmd, "run", str(task_id),
+        # The override travels through an anonymous pipe. It never enters
+        # argv, the environment, the jobstore, Task, Run or a replay file.
+        options = {}
+        extra = []
+        if date_from is not None:
+            options["stdin"] = asyncio.subprocess.PIPE
+            extra = ["--date-from-stdin"]
+        proc = await asyncio.create_subprocess_exec(
+            *self._runner_cmd, "run", str(task_id), *extra,
             cwd=str(config.APP_DIR),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
             env=self._env,
             start_new_session=True,
+            **options,
         )
+        if date_from is not None:
+            proc.stdin.write(date_from.encode("ascii"))
+            proc.stdin.close()
+        return proc
 
     async def _monitor(self, task_id: int, proc) -> int:
         """Stream the runner's output line by line and finalize the Run row

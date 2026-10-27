@@ -207,6 +207,24 @@ interleaved with the remaining Stage 1b portal sessions.**
   6429514585); the Discussion summary is deferred (draft recorded in
   the review doc, now in `completed/`). The NAS still runs the dev tree
   from S5; a deploy to `main` is a separate user request.
+- PR #34 DELIVERED 2026-10-27 (S3–S7 across five "continue PR #34"
+  sessions): S1+S2 approve (20 files — 11 clean pre-images, 3 new,
+  6 diverged with non-overlapping hunks; the 17-case #26 contract
+  verified), S3 gate as-is (14 as-is + 6 keep-both + the M1a/M1b/M2
+  contract-doc bundle + 4 commits), S4 all 22 files integrated, S5
+  green (60 new-suite + 1 new test / full 589 / regression PASS / ruff
+  clean / bandit no new; NAS deployment-validation block green on
+  `dc0ef7f` — build, canary 18/5, TZ contract 3/3, compose smoke
+  healthy, service left running on the dev tree), S6 CHANGELOG `###
+  Changed` entry confirmed, S7 — delivery commits `cfb7875` / `99c0f2e`
+  / `9c00d83` / `dc0ef7f`, Gitea `main` `53a5dff` (ff-only from
+  `bde713c`), GitHub `main` `6bb3348`, PR closed without merge (comment
+  6453946786, 2026-10-27T21:25:24Z). Issue #26 closed as delivered
+  (comment 6453947542, 2026-10-27T21:25:26Z); the Discussion summary is
+  deferred (draft recorded in the review doc, now in `completed/`).
+  With #33 + #34 landed, **C4 (F06)** can now be drafted. The NAS still
+  runs the dev tree from S5; a deploy to `main` is a separate user
+  request.
 - New PRs #35/#39/#40/#41 arrived after the sequencing decision; they do not
   change #32's position (no known overlap with its 15 files) — a sequencing
   addendum is a separate decision. **Addendum decided 2026-10-27** (plan

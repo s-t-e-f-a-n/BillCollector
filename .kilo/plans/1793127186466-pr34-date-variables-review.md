@@ -1,12 +1,12 @@
 # PR #34 review: daemon runtime date variables (issue #26)
 
-> Status: VALIDATED (2026-10-27) — S5 complete, user-confirmed at the S5
-> gate: code checks all green (60 new-suite + 1 new test, 589 passed full,
-> regression PASS, ruff clean, bandit no new) and the NAS
-> deployment-validation block all green (build from `origin/dev` `dc0ef7f`,
-> canary 18/5, TZ contract 3/3, compose smoke healthy, service left running
-> on the dev tree). S6 documentation user-confirmed (2026-10-27). Next:
-> S7 commit + push (Gitea promotion, GitHub mirror, PR close).
+> Status: DELIVERED (2026-10-27) — S7 complete 2026-10-27T21:25Z: Gitea
+> `main` = `dev` = `53a5dff` (ff-only promotion); GitHub mirror `main`
+> `6bb3348` (sanitized, verified up-to-date); PR #34 closed without merge
+> (close comment 6453946786, 2026-10-27T21:25:24Z); issue #26 closed as
+> delivered (comment 6453947542, 2026-10-27T21:25:26Z); Discussion
+> summary deferred (write API unreachable — draft recorded, user posts
+> manually in the web UI).
 
 ## PR metadata
 
@@ -504,6 +504,70 @@ service-state decision):
   the issue #26 closure comment + close, and the per-public-update
   Discussion summary — each public text user-confirmed first.
 
+## S7 execution record (2026-10-27, 21:11–21:26Z)
+
+- S7.0 prereq: dev = origin/dev = `53a5dff`, clean tree. The tree moved
+  after the S5 confirmation by 4 doc-only commits (`447b23e` / `b59df45`
+  plans, `8249c67` the S6-gated CHANGELOG entry, `53a5dff` plans) — the
+  Dockerfile COPYs only `apps/requirements.txt` + `apps/`, so the image
+  built from `53a5dff` is byte-identical to the validated `dc0ef7f`
+  image; PR #33/#32 precedent (doc-only move since the confirmation, no
+  re-validation required). PR head still `e1d3787` (unchanged since S1).
+- S7.1 dev-commits: nothing new — the 4 S3-confirmed commits
+  (`cfb7875` / `99c0f2e` / `9c00d83` / `dc0ef7f`) were already on
+  origin/dev (created during S5, since the NAS fetch needed the committed
+  tree); the plan-doc/CHANGELOG commits followed.
+- S7.2 promote (user gate; executed in the earlier interrupted "continue
+  PR #34" session at 2026-10-27T21:08Z): `main` `bde713c` → `53a5dff`
+  ff-only, pushed to origin/main; `git diff main dev` empty; no tag (not
+  a release). Re-verified this session: main = origin/main = dev =
+  origin/dev = `53a5dff`.
+- S7.3 mirror (user gate): `sync_github.sh` re-run — the deterministic
+  amend reproduces GitHub `main` `6bb3348` (already pushed by the earlier
+  session before its interruption; the push reports up-to-date). Public
+  gate verified this session: new hash via ls-remote; root listing has no
+  `.kilo` / `.vscode` / `.private` / `openwiki` / `AGENTS.md` /
+  `.openwikiignore` and `.github/` holds only `ISSUE_TEMPLATE`; all
+  integrated #34 content present (variables.py, both new test modules,
+  CHANGELOG entries, README bullet, the Berlin-default-free Dockerfile,
+  compose `TZ`, the RECIPE_METHODS section, the doctor prompt).
+- S7.4 PR #34 close (text user-confirmed as-is 2026-10-27T21:22Z): close
+  comment **6453946786**; closed without merge at 2026-10-27T21:25:24Z
+  (the change reached GitHub via the mirror, keeping public history
+  canonical).
+- S7.5 issue #26 (user decision: close as delivered): comment
+  **6453947542**; closed at 2026-10-27T21:25:26Z.
+- S7.6 Discussion summary: **deferred** (Discussion write API not
+  reachable from this environment — confirmed 2026-10-25; same handling
+  as PR #32/#33). The user-confirmed draft below is for manual posting in
+  the web UI.
+- Plan doc: Status DELIVERED; doc-only commit + push to dev; the review
+  doc then archived to `completed/` with the cross-references (plans
+  README, sequencing) updated.
+
+Discussion summary draft (manual posting, user-confirmed
+2026-10-27T21:22Z):
+
+> **Public update: daemon date variables + timezone selection (PR #34,
+> issue #26)**
+>
+> `main` now expands `{{TODAY}}`, `{{DATE_TO}}`, `{{DATE_FROM}}`, and
+> `{{TODAY±Nd}}` inside any recipe method-argument string (single pass;
+> credentials stay opaque), with a per-task `date_window_days` (default 90
+> inclusive days), `YYYY-MM-DD` output with a restricted format suffix,
+> hard date bounds, and fail-before-resources validation; the Run-now
+> start-date override is memory-only. The image no longer imposes a
+> timezone — the zone is selected via `TZ` (shell or root `.env`, UTC
+> fallback) and is shared by cron scheduling and calendar dates.
+> Integrated from PR #34 (flowcool) via the mirror at 6bb3348;
+> maintainer-side additions were the `doc/RECIPE_METHODS.md`
+> date-variable section and the recipe-doctor prompt extension.
+> Validated: full test suite (589 passed) + regression PASS; image build,
+> Docker-context canary (18/5), TZ contract checks (3/3), and compose
+> smoke all green on the deploy host. Note for existing installations: set
+> `TZ` explicitly if you relied on the previous `Europe/Berlin` default,
+> then recreate the daemon.
+
 ## Out of scope
 
 - The remaining #24 lane (F10/C8 delivery-state exposure) — maintainer work
@@ -527,4 +591,9 @@ service-state decision):
 - ~~S5 gate~~ — confirmed by the user 2026-10-27 (code checks + the NAS
   deployment-validation block all green, record in the Deployment
   validation section; agent via SSH on `origin/dev` `dc0ef7f`, service left
-  running on the dev tree). Status VALIDATED; the next session runs S6.
+  running on the dev tree).
+- ~~S7 gate~~ — confirmed by the user 2026-10-27 (mirror re-run gate
+  21:14Z; the PR close comment, the issue #26 close comment, and the
+  Discussion draft all confirmed as-is 21:22Z; #26 closed as delivered;
+  Discussion deferred per the API limitation — draft recorded, user posts
+  manually). S7 complete — DELIVERED.

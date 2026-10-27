@@ -33,7 +33,6 @@ os.environ["PLAYWRIGHT_BROWSERS_PATH"] = CHROMIUM_PLAYWRIGHT_DIR                
 
 DB_DIR = os.path.join(APP_DIR, "db")                                                        # Directory for database files
 DB_FILE = os.path.join(DB_DIR, "bc.db")                                                     # Database file
-os.makedirs(DB_DIR, exist_ok=True)
 
 LOCK_FILE = os.path.join(APP_DIR, ".bc.lock")                                               # Run lock file (flock)
 

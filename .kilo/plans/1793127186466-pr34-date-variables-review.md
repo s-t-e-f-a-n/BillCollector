@@ -1,11 +1,11 @@
 # PR #34 review: daemon runtime date variables (issue #26)
 
-> Status: INTEGRATING (2026-10-27) — S4 complete: all 22 files applied to
-> the `dev` working tree (left uncommitted for S5). Verified: 14 files
-> byte-identical to the PR head, the 4 patched keep-both files' worktree
-> deltas equal the PR change sets exactly, the compose `TZ` insertion and
-> the CHANGELOG `### Added` merge confirmed manually. S5 validates the
-> exact tree next.
+> Status: INTEGRATING (2026-10-27) — S5 executed: code checks all green
+> (60 new-suite + 1 new test, 589 passed full, regression PASS, ruff clean,
+> bandit no new) and the NAS deployment-validation block all green (build
+> from `origin/dev` `dc0ef7f`, canary 18/5, TZ contract 3/3, compose smoke
+> healthy) — awaiting the user's S5 gate confirmation for VALIDATED. The
+> service was left running on the dev tree per the earlier gate.
 
 ## PR metadata
 
@@ -372,11 +372,16 @@ Deployment-process validation — prerequisites (S5 gate):
 - The NAS fetches from Gitea (`deploy_remote.sh`: fetch + reset in
   `REMOTE_PATH`, `GIT_BRANCH`), so the exact tree must first be committed +
   pushed to `origin/dev` — the 4 S3-confirmed commits (the tree is
-  currently dirty per S4).
+  currently dirty per S4). **Resolved:** the 4 commits were created and
+  pushed to `origin/dev` as `dc0ef7f` (see S3 execution record D).
 - Access finding (2026-10-27T19:40Z): `ssh root@192.168.1.99` from this
   session is refused (`Permission denied (publickey,password)`) — as at the
   #32 S5; the block needs either (a) restored key authorization on the NAS
   before the agent runs it, or (b) the user running it on the NAS console.
+  **Resolved:** the user added the dedicated key on the NAS and the
+  authentication was made permanent via a `~/.ssh/config` entry (the
+  dedicated `id_ed25519_billcollector_nas` is now presented for the NAS
+  host, so a plain `ssh root@192.168.1.99` works without `-i`).
 - Smoke-run verification plan (TZ-specific): the scheduler logs no zone of
   its own, so the block verifies `daemon_timezone()` inside the built image
   (unset/empty `TZ` -> UTC; selected `TZ` -> the zone; invalid `TZ` ->
@@ -423,7 +428,53 @@ Deployment-process validation — **trigger fires** (the PR changes `Dockerfile`
 
 ## Deployment validation
 
-(pending S5 — host, validated tree hash, and results recorded there.)
+Executed 2026-10-27 (20:30–21:45 UTC) on the NAS (`solg`, 192.168.1.99) —
+the canonical deploy host — from the exact dev tree, agent via SSH (the S5
+gate run mode), with the service left running afterwards (the S5 gate
+service-state decision):
+
+- Validated tree: `origin/dev` = `dc0ef7f9dfde6bde1c4c7016b5243c0e22ed8adf`
+  (the 4 S3-confirmed commits, pushed before the run). The NAS repo
+  (`/srv/disk-by-label/Docker/docker-recipes/BillCollector`) was
+  fetch + `reset --hard` to that hash; PR head unchanged at `e1d3787`
+  throughout. (Note: an interrupted earlier `deploy_remote.sh` attempt had
+  left the NAS repo at `origin/main` `bde713c` with the build killed
+  mid-run; the reset to `dc0ef7f` re-established the exact dev tree before
+  this block.)
+- `bash -n` on changed shell scripts: **n/a** — the PR changes no shell
+  script (recorded, not skipped silently).
+- Build: `bash install_docker-image.sh playwright` with `CONSUMER_DIR` /
+  `DB_DIR` forwarded from the deploy `.env` (the canonical deploy path —
+  `deploy_remote.sh`'s remote side) -> **Build successful**, image
+  `billcollector:latest` =
+  `sha256:23d8db51cdf3b12db7be73ee2abf30d0bb199cc725b738591c2f5130479f2d2d`;
+  mount setup completed (the `apps/Downloads` / `apps/db` symlinks and the
+  `apps/data` / `apps/browser/profiles` chown ran without error).
+- Canary: `python3 tests/check_docker_context.py` -> **`Docker context:
+  18 private canaries excluded, 5 source files retained`** (expectation
+  unchanged from the #32 delivery; the TZ change adds/removes no context
+  files).
+- TZ verification in the built image (`python3 -c` on
+  `billcollector.variables.daemon_timezone`, the scheduler's zone source):
+  - unset/empty `TZ` -> **`UTC`**, exit 0 — the image no longer imposes
+    Europe/Berlin.
+  - `TZ=Europe/Berlin` -> **`Europe/Berlin`**, exit 0.
+  - `TZ=Not/AZone` -> **`ValueError: timezone: invalid TZ`**, exit 1 — an
+    invalid zone fails before the daemon serves.
+- Compose smoke (the daemon's deploy shape, `docker compose up -d` with
+  `TZ=Europe/Berlin` — the install's previous effective zone, now explicit
+  instead of image-baked): the `billcollector` container recreated on the
+  dev image -> **healthy**; container env `TZ=Europe/Berlin`;
+  `daemon_timezone()` inside the running container -> `Europe/Berlin`;
+  logs: `serve starting on 0.0.0.0:8000 (ini import created 0 task(s),
+  total 11)`, `Scheduler started (0 job(s))`, `serve started: scheduler
+  running, 0 orphan run(s) interrupted` — no errors or tracebacks.
+- End state: **the service is left running on the dev tree** per the S5
+  gate — the NAS now serves the #34 dev build with the zone explicit in
+  the container env. (A future `docker compose up` without a `TZ` source
+  would resolve the UTC default, per the #26 contract; keeping this
+  install on Berlin across recreations means keeping `TZ` in the project
+  `.env` or environment — flagged for the S7 close comment.)
 
 ## Out of scope
 
@@ -443,8 +494,8 @@ Deployment-process validation — **trigger fires** (the PR changes `Dockerfile`
 - The cron-TZ behaviour change: confirm the S6/S7 public wording makes the
   "existing installations must set `TZ` explicitly" note plain (no silent
   Berlin → UTC shift for current users).
-- S5 gate (pending): the code checks are all green (record above); the NAS
-  block needs (a) the 4 S3-confirmed commits pushed to `origin/dev` first
-  (the NAS fetches from Gitea) and (b) SSH access (currently refused) or a
-  console run by the user. The user decides the run mode + window and the
-  service state after the smoke (leave running on the dev tree / stop).
+- S5 gate (pending user confirmation, 2026-10-27): code checks all green
+  (record above) and the NAS deployment-validation block all green (record
+  in the Deployment validation section; agent via SSH on `origin/dev`
+  `dc0ef7f`, service left running on the dev tree). User confirmation
+  flips the status to VALIDATED and routes the next session to S6.

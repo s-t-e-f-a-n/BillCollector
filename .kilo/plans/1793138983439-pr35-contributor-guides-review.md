@@ -1,9 +1,9 @@
 # PR #35 review: docs — tested daemon setup and recipe author guides
 
-> Status: AWAITING-DECISION (2026-10-27) — verdict approve; 5 new files +
-> 16 clean hunks + 2 non-overlapping manual merges, two doc-currency fixes
-> (M1/M2) as S3 decision points, deployment validation recorded as not
-> deployment-relevant.
+> Status: INTEGRATING (2026-10-27) — S3 gate passed: the user confirmed the
+> integration proposal as-is (16 clean pre-images, 5 new files with the M1/M2
+> doc-currency fixes applied, 2 manual merges, 3 commits). S4 applies the
+> files to Gitea `dev`; S5 validates the exact tree.
 
 ## PR metadata
 
@@ -202,7 +202,8 @@ Apply as-is from `refs/pr/35` — clean pre-images (16):
   testempty,testgraceful,testhappy,testwaituser,winsim}.yaml` (14 ×
   `$schema` line)
 
-Apply as-is — new files (5), subject to M1/M2 if confirmed at S3:
+Apply as-is — new files (5), with the confirmed maintainer-side fixes M1/M2
+applied on top (exact text in the S3 decision section):
 
 - `doc/QUICKSTART.md`, `doc/RECIPE_AUTHORING.md`, `doc/TROUBLESHOOTING.md`
 - `doc/examples/recipe-pw__synthetic.yaml`
@@ -256,16 +257,34 @@ this PR. The S5 user gate still applies to this recorded skip.
 - The #25 publication routine (close comment, issue handling, Discussion
   summary) — S7.
 
-## Open questions (S3 gate)
+## S3 decision (2026-10-27, user-confirmed)
 
-- Confirm M1 (rewrite the TROUBLESHOOTING TZ row against the post-#34
-  baseline) — recommended.
-- Confirm M2 (refresh the QUICKSTART pending list for #33/#34) or keep the
-  conservative hedge as-is.
-- Commit split (to propose at S3/S4):
-  1. `docs: contributor guides for daemon setup and recipe authoring
-     (issue #27 D02/D05/D07)` — README + CONTRIBUTING + 3 guides +
-     synthetic example + test;
-  2. `fix: recipe-relative $schema references in bundled recipes and
-     generator`;
-  3. `doc: CHANGELOG — contributor guides + $schema references`.
+Proposal accepted **as-is**: 16 clean pre-images + 5 new files + 2 manual
+merges (README insertion, CHANGELOG authoring), 104 fork-based STRIP
+artifacts skipped, deployment validation recorded skip (not
+deployment-relevant) accepted.
+
+**M1 confirmed — TROUBLESHOOTING.md, row "Schedule uses the wrong timezone"**
+(replaces the PR head row verbatim):
+
+```
+| Schedule uses the wrong timezone | Root `.env` `TZ` is unset (the Compose default is UTC) or set to the wrong zone. | Use the [quick-start override](QUICKSTART.md#build-start-and-check), set root `.env` `TZ` to your IANA zone, then recreate the daemon. Check for an exported shell `TZ`, which takes precedence. Verify the resolved Compose service environment. | The resolved Compose service contains the chosen `TZ`, and the next task time uses that zone. |
+```
+
+**M2 confirmed — QUICKSTART.md, "Limits and pending work" bullet** (replaces
+the PR head bullet verbatim):
+
+```
+- Broader pre-run method validation (C3/F08) and empty-run semantics must be
+  checked against the public version you install. Do not assume approval means
+  integration.
+```
+
+**Commit split confirmed:**
+
+1. `docs: contributor guides for daemon setup and recipe authoring
+   (issue #27 D02/D05/D07)` — README + CONTRIBUTING + 3 guides +
+   synthetic example + test;
+2. `fix: recipe-relative $schema references in bundled recipes and
+   generator`;
+3. `doc: CHANGELOG — contributor guides + $schema references`.

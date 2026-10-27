@@ -231,6 +231,15 @@ interleaved with the remaining Stage 1b portal sessions.**
   `1793124431799-open-issues-plans-20261027.md`): #34 → #35 → #42 → #39 →
   #40, with #41 HELD on the #38 archive decision; PR #42 (issue #43) arrived
   2026-10-27.
+- PR #35 S1+S2 done 2026-10-27 ("proceed with next pr" session): review plan
+  doc `1793138983439-pr35-contributor-guides-review.md` written, verdict
+  approve (head `205e086` unchanged; actual content vs fork base `d9362b3` =
+  22 files +602/−17 — 5 new, 16 clean pre-images, 2 diverged non-overlapping;
+  the 104 deleted private-file entries in the merge-base diff are fork-based
+  STRIP artifacts, skipped), two doc-currency fixes (M1 TROUBLESHOOTING TZ
+  row against the post-#34 baseline, M2 QUICKSTART pending list) as S3
+  decision points, deployment validation recorded as not deployment-relevant
+  — Status: AWAITING-DECISION.
 - The 1und1 portal iteration remains independent and can run in a live
   session at any time.
 

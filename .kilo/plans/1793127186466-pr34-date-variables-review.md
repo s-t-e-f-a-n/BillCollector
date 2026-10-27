@@ -1,9 +1,11 @@
 # PR #34 review: daemon runtime date variables (issue #26)
 
-> Status: INTEGRATING (2026-10-27) — S3 gate passed: the user confirmed the
-> integration proposal **as-is** (14 as-is files, 6 keep-both merges incl.
-> the CHANGELOG `### Added` merge, M1a/M1b/M2 maintainer changes, 4 commits).
-> S4 applies the files to Gitea `dev`; S5 validates the exact tree.
+> Status: INTEGRATING (2026-10-27) — S4 complete: all 22 files applied to
+> the `dev` working tree (left uncommitted for S5). Verified: 14 files
+> byte-identical to the PR head, the 4 patched keep-both files' worktree
+> deltas equal the PR change sets exactly, the compose `TZ` insertion and
+> the CHANGELOG `### Added` merge confirmed manually. S5 validates the
+> exact tree next.
 
 ## PR metadata
 
@@ -295,6 +297,44 @@ Gate result: the user confirmed the proposal **as-is** (2026-10-27):
 Next: S4 applies the files to the working tree (left uncommitted), S5
 validates the exact tree (code checks + the triggered deployment-process
 block on the NAS), then S6/S7.
+
+## S4 execution record
+
+S4 ran 2026-10-27 from `dev` = `bc1950d` (clean). Preflight: PR head
+unchanged at `e1d3787b179eed6359cf1d2b5afb4e469fe3e253`; pre-image
+re-check on all 20 files identical to S1/S3 (11 base-identical, 3 new,
+6 diverged).
+
+Application:
+
+- 14 as-is files restored from `refs/pr/34` (worktree, unstaged).
+- `runner.py`, `db.py`, `test_bc_residual_logs.py`, `README.md`: the PR's
+  per-file hunks applied with `git apply` to dev's current content (all four
+  passed `git apply --check` first) — dev's #32/#33 additions untouched.
+- `docker-compose.yml`: the PR hunk did not context-match because dev's
+  `security_opt: seccomp` block (added in #32) sits inside its context; the
+  intended change (the `TZ: ${TZ:-UTC}` line + comment at the top of
+  `environment:`) was applied manually at the same unambiguous position.
+- `CHANGELOG.md`: merged by hand exactly as proposed (the PR's two `###
+  Added` entries on top of dev's #32/#33 entries, Keep a Changelog order).
+- M1a + M1b in `doc/RECIPE_METHODS.md` and M2 in `apps/billcollector/doctor.py`
+  applied exactly as the confirmed intended diffs.
+
+Verification (on the dirty tree, before any commit):
+
+- All 14 as-is files blob-identical to the PR head (`git show
+  refs/pr/34:<f> | cmp -s - <f>`).
+- The four `git apply`-patched files: the worktree delta vs `dev` equals
+  the PR's change set for that file, line for line (added/removed lines
+  compared) — the keep-both content is exactly dev + PR.
+- `docker-compose.yml` and `CHANGELOG.md` diffs reviewed: the `TZ` pair
+  above `BC_UI_HOST` with `security_opt` intact; the two `### Added`
+  entries prepended, dev's entries unchanged.
+- `doctor.py` diff matches the confirmed M2 text; `doc/RECIPE_METHODS.md`
+  shows +37/−6 (the M1b sentence replacement + the M1a subsection).
+
+Tree left dirty and uncommitted (22 files: 19 modified + 3 new); S5
+validates this exact content.
 
 ## Validation plan (S5)
 

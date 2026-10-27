@@ -209,7 +209,10 @@ interleaved with the remaining Stage 1b portal sessions.**
   from S5; a deploy to `main` is a separate user request.
 - New PRs #35/#39/#40/#41 arrived after the sequencing decision; they do not
   change #32's position (no known overlap with its 15 files) — a sequencing
-  addendum is a separate decision.
+  addendum is a separate decision. **Addendum decided 2026-10-27** (plan
+  `1793124431799-open-issues-plans-20261027.md`): #34 → #35 → #42 → #39 →
+  #40, with #41 HELD on the #38 archive decision; PR #42 (issue #43) arrived
+  2026-10-27.
 - The 1und1 portal iteration remains independent and can run in a live
   session at any time.
 

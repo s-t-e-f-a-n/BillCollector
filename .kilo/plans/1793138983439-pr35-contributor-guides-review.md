@@ -1,10 +1,11 @@
 # PR #35 review: docs — tested daemon setup and recipe author guides
 
-> Status: INTEGRATING (2026-10-27) — S4 applied: preflight green (head
-> `205e0869` unchanged, pre-images re-verified); 16 clean pre-images + 5 new
-> files (M1/M2 verbatim) + README insertion + authored CHANGELOG entry now in
-> the dev working tree, uncommitted. S5 validates the exact tree before any
-> commit.
+> Status: INTEGRATING (2026-10-27) — S5 code checks all green on the exact
+> tree (PR test 1 passed; full suite 590 passed / 10 skipped / 53 subtests;
+> regression VERDICT: PASS 7 scenarios / 8 PDFs; ruff clean; bandit
+> baseline-consistent; 15/15 recipes validate); deployment-process validation
+> is the recorded skip (not deployment-relevant), S5 gate pending user
+> confirmation before S6.
 
 ## PR metadata
 
@@ -326,3 +327,44 @@ the PR head bullet verbatim):
 
 Integration files intentionally left dirty (S4 rule); this doc-only commit
 records the stage. Next: S5 validation on the exact tree.
+
+## S5 execution record (2026-10-27)
+
+**Code checks (all green)** — on the exact integrated dev tree (dev tip
+`8479806` doc-only + the S4 dirty files: 18 modified + 5 untracked), from the
+repo root with `apps/.venv/bin/python` (`PYTHONPATH=apps`):
+
+- PR's unit test: `pytest tests/test_doc_recipe.py -q` → **1 passed in
+  101.34s** (two runs against the ephemeral loopback mock portal).
+- Full pytest: `pytest tests/ -q` → **590 passed, 10 skipped, 53 subtests
+  passed** (396s). Delta fully accounted for: 589 (dev baseline recorded at
+  the #34 delivery) + 1 (the new doc-recipe test) = 590.
+- Full regression: `tests/run_regression.py --ini tests/bc_regression.ini` →
+  exit 0, **7 scenarios / 8 PDFs, VERDICT: PASS — all expectations matched**
+  (testbadlogin / testempty / testdlfail fail as expected; downloads exactly
+  the 8 expected files).
+- `ruff check --select F821,E4,E7,E9` on the two changed Python files
+  (generator + new test) → **All checks passed**.
+- bandit on the two changed Python files → **13 LOW / 0 MEDIUM / 0 HIGH**,
+  all baseline-consistent: the new test's B101×8 / B105×1 match the existing
+  test idioms (`tests/` already carries B101×785 / B105×36, synthetic
+  credentials); the generator's B404 / B607 / B603×2 sit in pre-existing code
+  (the PR's diff is the single `$schema` line at line 314). **Zero new beyond
+  the known baseline.**
+- Bundled-recipe schema check: **all 15** `recipe-pw__*.yaml` validate via
+  `billcollector.recipes.load_recipe` (including the untouched 15th,
+  `recipe-pw__freenet_mobilfunk`).
+- PR head unchanged throughout: `git ls-remote github refs/pull/35/head` =
+  `205e08693e189387c2c9549c823be1e91f78f1b2`.
+
+**Deployment-process validation — recorded skip (S5 gate pending):**
+
+- Trigger check: the PR changes no `Dockerfile`, `.dockerignore`,
+  `BillCollector.sh`, `install_docker-image.sh`, `deploy_remote.sh`, INI keys,
+  or `.env` handling → **not deployment-relevant** (as recorded at S3/S4).
+  The `$schema` lines are inert at runtime (verified fact 1); the generator is
+  a dev-time tool. Container build/launch/canary behavior on the dev tree is
+  unchanged by this PR.
+- Gate: the user confirms this recorded skip (or orders the full NAS block
+  anyway) before S6/S7 proceed; S7 may not commit or push to `main` without
+  the confirmation.

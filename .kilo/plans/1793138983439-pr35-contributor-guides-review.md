@@ -1,9 +1,10 @@
 # PR #35 review: docs — tested daemon setup and recipe author guides
 
-> Status: INTEGRATING (2026-10-27) — S3 gate passed: the user confirmed the
-> integration proposal as-is (16 clean pre-images, 5 new files with the M1/M2
-> doc-currency fixes applied, 2 manual merges, 3 commits). S4 applies the
-> files to Gitea `dev`; S5 validates the exact tree.
+> Status: INTEGRATING (2026-10-27) — S4 applied: preflight green (head
+> `205e0869` unchanged, pre-images re-verified); 16 clean pre-images + 5 new
+> files (M1/M2 verbatim) + README insertion + authored CHANGELOG entry now in
+> the dev working tree, uncommitted. S5 validates the exact tree before any
+> commit.
 
 ## PR metadata
 
@@ -288,3 +289,40 @@ the PR head bullet verbatim):
 2. `fix: recipe-relative $schema references in bundled recipes and
    generator`;
 3. `doc: CHANGELOG — contributor guides + $schema references`.
+
+## S4 execution record (2026-10-27)
+
+**Preflight (green):**
+
+- On `dev` at `cbb995d`, clean tree.
+- PR head unchanged: `git ls-remote github refs/pull/35/head` =
+  `205e08693e189387c2c9549c823be1e91f78f1b2` = local `refs/pr/35`.
+- Pre-image check re-run against the current dev: all 16 candidate files
+  byte-identical to their fork-base `d9362b3` versions; all 5 new files
+  absent on dev.
+
+**Applied (working tree, uncommitted — S5 validates before any commit):**
+
+- 16 clean pre-images from `refs/pr/35` — verified byte-identical per file
+  after apply.
+- 5 new files from `refs/pr/35` — `QUICKSTART.md`/`TROUBLESHOOTING.md`
+  carry exactly the confirmed M2/M1 replacements (the only deltas vs the PR
+  head); the other three byte-identical to the PR head.
+- `README.md`: the PR's four guide-link lines inserted under "## Quick
+  Start" (byte-identical to the PR block; dev's rest of the divergence
+  untouched).
+- `CHANGELOG.md` (authored; the PR ships no entry): `### Added` — the three
+  contributor guides + credential-free synthetic example + doc test (issue
+  #27, D02/D05/D07); `### Fixed` — recipe-relative `$schema` references in
+  the bundled recipes and the generator.
+
+**Post-apply checks:**
+
+- All 15 bundled recipes validate via `billcollector.recipes.load_recipe`
+  (incl. the untouched 15th).
+- Sanitization grep over all applied content: no private paths, hosts or
+  credentials.
+- `os` import present in the modified generator (verified fact 3).
+
+Integration files intentionally left dirty (S4 rule); this doc-only commit
+records the stage. Next: S5 validation on the exact tree.

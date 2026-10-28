@@ -66,6 +66,10 @@ class DatabaseManager:
     def __init__(self, db_name):
         """Initialize the central tracking system."""
         self.db_name = db_name
+        # Create legacy storage only when opening it, never on helper import.
+        parent = os.path.dirname(db_name)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         self.conn = sqlite3.connect(self.db_name)
         self.cursor = self.conn.cursor()
 

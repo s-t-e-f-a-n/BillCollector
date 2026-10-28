@@ -1,9 +1,10 @@
 # PR #39 review: input-triggered protected login submissions (issue #36)
 
-> Status: VALIDATED (2026-10-28) — S5 code checks all green on the exact
-> dirty dev tree (PR tests 62, full suite 600, regression PASS, ruff clean,
-> bandit +22 test-only B101); deployment-validation skip user-accepted at the
-> S5 gate (not deployment-relevant); tree still dirty for S6/S7.
+> Status: DELIVERED (2026-10-28) — S7 complete: Gitea `main` `b693517`
+> (ff-only from `2a6e462`), GitHub `main` `ad18f7a`; PR #39 closed without
+> merge (comment 6481319827, 2026-10-28T21:38:49Z), issue #36 closed as
+> completed (comment 6481326228, 2026-10-28T21:39:09Z); Discussion summary
+> confirmed for manual web-UI posting (write API 404).
 
 ## PR metadata
 
@@ -318,3 +319,75 @@ plan. No host, build, canary, or smoke results to record.
   ships as-is from the PR head in the feature commit. Status: VALIDATED.
   Next: S7 (commit + push: 3 commits feat/test/doc, Gitea dev, ff-only
   promotion, GitHub mirror, gated PR/issue close + Discussion summary).
+- 2026-10-28 S7: complete. S7.1: three dev-commits (user-confirmed,
+  dev-commits), pushed to origin/dev — `b6fa862` feat (login.py +1/−1,
+  SAFE_LOGIN.md +32/−2), `bbd5169` test (test_bc_login.py +159/−2),
+  `b693517` doc (CHANGELOG +7). S7.2: ff-only promotion `2a6e462` →
+  `b693517` on Gitea `main` (user gate passed; not a release — no tag);
+  `git diff main dev` empty. S7.3: `sync_github.sh` → GitHub `main`
+  `ad18f7a`; public gate green (new hash; no STRIP paths at root; `.github`
+  = `ISSUE_TEMPLATE` only, no `workflows/`; integrated content present —
+  all 3 PR files + the CHANGELOG entry on `github/main`). S7.4: PR #39 close
+  comment 6481319827 (text user-confirmed), PR closed **without merge**
+  2026-10-28T21:38:49Z. S7.5: issue #36 close comment 6481326228 (text
+  user-confirmed), issue closed as **completed** 2026-10-28T21:39:09Z — all
+  acceptance criteria met (the 4 shipped tests map 1:1 to the #36 acceptance
+  list). S7.6: per-public-update Discussion summary text user-confirmed; the
+  Discussion write API is unavailable from this environment (404, same as the
+  2026-10-25 finding) — handed to the user for manual web-UI posting. S7.7:
+  Status: DELIVERED. Gitea `dev`/`main` `b693517`, GitHub `main` `ad18f7a`.
+  Plan doc archived to `completed/`, cross-references updated. Next chain
+  head: PR #40.
+
+## S7 execution record (2026-10-28)
+
+**S7.0 prerequisite:** dev = origin/dev = `5054c2a` at S7 start (the S6 plan
+doc tip); working tree = the S4-validated integration (`git diff 5054c2a --
+apps/ tests/ doc/` = the 3 PR files, login.py +1/−1, SAFE_LOGIN.md +32/−2,
+test_bc_login.py +159/−2, byte-identical to head `0053ec6` per the S4 log) +
+the maintainer-authored CHANGELOG `### Added` entry (+7); PR head still
+`0053ec6` (unchanged since S1); deployment validation = recorded skip (not
+deployment-relevant), user-confirmed at the S5 gate (2026-10-28) — the
+trigger check still holds (the CHANGELOG entry is doc-only).
+
+**S7.1 dev-commits (user-confirmed 2026-10-28):** the S3-confirmed three-way
+split, pushed to origin/dev:
+- `b6fa862` `feat: input-triggered protected login submissions (issue #36)` —
+  `apps/billcollector/login.py` (+1/−1), `doc/SAFE_LOGIN.md` (+32/−2).
+- `bbd5169` `test: input-triggered protected login submissions (issue #36)` —
+  `tests/test_bc_login.py` (+159/−2).
+- `b693517` `doc: CHANGELOG — input-triggered protected login submissions
+  (issue #36)` — `CHANGELOG.md` (+7).
+
+**S7.2 promotion (user gate passed 2026-10-28):** ff-only `dev` → Gitea
+`main` `2a6e462` → `b693517`, pushed. Verified: `git diff main dev` empty,
+tree clean, on `main`. Not a release — no tag, no CHANGELOG finalization.
+
+**S7.3 mirror (deploy stage 3):** `sync_github.sh` → GitHub `main`
+`ad18f7a` (sanitize-by-amend, forced push by design). Public gate: new hash
+confirmed; root listing has no `.kilo` / `.vscode` / `.private` / `openwiki`
+/ `AGENTS.md` / `.openwikiignore`; `.github` contains `ISSUE_TEMPLATE` only
+(no `workflows/`); integrated content present (all 3 PR files + the
+maintainer-authored CHANGELOG entry on `github/main`).
+
+**S7.4 PR close (text user-confirmed 2026-10-28):** comment
+https://github.com/s-t-e-f-a-n/BillCollector/pull/39#issuecomment-6481319827
+(mirror flow, landed content with the public commit links, no code
+adaptations, validation summary, non-blocking nit on the reused full-suite
+result); PR #39 closed **without merge** at 2026-10-28T21:38:49Z.
+
+**S7.5 issue close (text user-confirmed 2026-10-28):** comment
+https://github.com/s-t-e-f-a-n/BillCollector/issues/36#issuecomment-6481326228;
+issue #36 closed as **completed** at 2026-10-28T21:39:09Z. Acceptance
+criteria met — the four shipped tests map 1:1 to the #36 acceptance list
+(Verified facts).
+
+**S7.6 per-public-update Discussion summary (publication routine, issue
+#25):** text user-confirmed; the Discussion write API returns 404 from this
+environment (2026-10-25 finding) — the user posts it in the web UI manually
+(text handed over in the S7 session).
+
+**S7.7:** Status: DELIVERED. Gitea `dev`/`main` `b693517`, GitHub `main`
+`ad18f7a`, PR #39 closed 2026-10-28T21:38:49Z, issue #36 closed
+2026-10-28T21:39:09Z. Plan doc archived to `completed/`, cross-references
+updated. Next chain head: PR #40.

@@ -1,7 +1,7 @@
 # PR #42 review: fix — defer legacy database directory creation to database open
 
 > Status: VALIDATED (2026-10-28) — S5 gate passed: all code checks green,
-> deployment-validation skip user-accepted; next S6 (CHANGELOG).
+> deployment-validation skip user-accepted; S6 docs confirmed as-is; next S7.
 
 ## PR metadata
 
@@ -258,3 +258,16 @@ Skip recorded 2026-10-28 alongside the green code checks; **user-confirmed
 - 2026-10-28 S5: gate passed — deployment-validation skip user-accepted
   (timestamp 2026-10-28, S5 gate). Status: VALIDATED. Next: S6 (CHANGELOG
   entry, authored by maintainer).
+- 2026-10-28 S6: CHANGELOG `## [Unreleased]` → `### Fixed` entry authored by
+  maintainer (PR ships no entry); README/CONTRIBUTING unchanged (README
+  mentions `apps/db` only as a volume/setup path — no import-time creation
+  claim; no contributor-rule change); sanitization re-checked (no private
+  paths/hosts). PR head still `0efaec90`. Gate passed — docs confirmed
+  as-is. The first S6 record commit (`40d6aae`, already pushed) accidentally
+  included the staged S4 code files; re-split on user approval into the
+  S3-confirmed split — `f8e16c7` fix commit (2 `apps/` files, +4/−1),
+  `550ef80` test commit (new test module, +86), then this doc commit — and
+  force-pushed `origin/dev` (private Gitea; `main` unaffected). Working
+  tree: only CHANGELOG dirty (uncommitted for S7). Next: S7 (commit + push
+  Gitea first, then GitHub mirror, PR close, issue #43 closure, Discussion
+  summary).

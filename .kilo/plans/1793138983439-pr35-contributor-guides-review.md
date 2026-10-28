@@ -374,3 +374,34 @@ repo root with `apps/.venv/bin/python` (`PYTHONPATH=apps`):
 documentation (the CHANGELOG `## [Unreleased]` entry was authored at S4;
 S6 reviews its wording + confirms the README/CONTRIBUTING changes need no
 further doc work).
+
+## S6 execution record (2026-10-28)
+
+**State verified:** dev tip `6555cd1` (doc-only), working tree exactly the
+S4 integration (18 modified + 5 untracked); PR head unchanged
+(`205e08693e189387c2c9549c823be1e91f78f1b2`).
+
+**CHANGELOG `## [Unreleased]` wording reviewed and confirmed:**
+
+- `### Added`: contributor guides (issue #27, D02/D05/D07) —
+  `doc/QUICKSTART.md`, `doc/TROUBLESHOOTING.md`, `doc/RECIPE_AUTHORING.md`
+  + credential-free synthetic example
+  `doc/examples/recipe-pw__synthetic.yaml` + the doc test
+  `tests/test_doc_recipe.py` that keeps the documented steps verified.
+- `### Fixed`: recipe-relative `$schema` references in the bundled recipes
+  and the generator (editor/contributor only; runtime recipe behavior
+  unchanged).
+
+**README / CONTRIBUTING:** no further doc work beyond the PR's own insertions
+applied at S4 (README four guide-link lines under "Quick Start"; CONTRIBUTING
+anchor fix + guide pointer under "Local development").
+
+**S6 checks:** all guide cross-references resolve on dev
+(`RECIPE_METHODS.md`, `SAFE_LOGIN.md`, `vault_transport.md`,
+QUICKSTART anchor `#build-start-and-check`; `apps/requirements-dev.txt`
+exists); M1/M2 remain the only deltas vs the PR head; sanitization re-checked
+over all public-facing text (no private paths, hosts, credentials).
+
+**S6 gate (2026-10-28, user-confirmed):** docs confirmed as-is. Next: S7 —
+commit + push (Gitea first, then GitHub mirror), PR close, issue closures,
+Discussion summary (publication routine, issue #25).

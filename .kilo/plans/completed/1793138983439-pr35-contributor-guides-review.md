@@ -1,10 +1,11 @@
 # PR #35 review: docs — tested daemon setup and recipe author guides
 
-> Status: VALIDATED (2026-10-27) — S5 complete: code checks all green on the
-> exact tree (PR test 1 passed; full suite 590 passed / 10 skipped / 53
-> subtests; regression VERDICT: PASS 7 scenarios / 8 PDFs; ruff clean; bandit
-> zero-new; 15/15 recipes validate); deployment-process validation skip
-> (not deployment-relevant) confirmed by the user at the S5 gate.
+> Status: DELIVERED (2026-10-28) — S7 complete: commits `5f45502` / `5896f40`
+> / `75b885b` on origin/dev, ff-only promotion Gitea `main` `75b885b`,
+> sanitized mirror GitHub `main` `484048d03b86500c9abdb548ef052763050630e4`
+> (public gate green), PR closed without merge (comment 6474460727,
+> 2026-10-28T16:21:27Z); Discussion summary deferred (draft recorded —
+> write API not reachable, manual post in the web UI).
 
 ## PR metadata
 
@@ -405,3 +406,87 @@ over all public-facing text (no private paths, hosts, credentials).
 **S6 gate (2026-10-28, user-confirmed):** docs confirmed as-is. Next: S7 —
 commit + push (Gitea first, then GitHub mirror), PR close, issue closures,
 Discussion summary (publication routine, issue #25).
+
+## S7 execution record (2026-10-28)
+
+**S7.0 prerequisite:** dev = origin/dev = `fd116c9` (doc-only S6 record);
+working tree exactly the S4 integration (18 modified + 5 untracked) —
+byte-identical content to the tree validated at S5 (the commits since S5
+touch only `.kilo/plans/`, never the mirrored content); PR head still
+`205e08693e189387c2c9549c823be1e91f78f1b2` (unchanged since S1).
+
+**S7.1 dev-commits (per-item user-confirmed 2026-10-28):** the three
+S3-confirmed commits, in order:
+
+- `5f45502` `docs: contributor guides for daemon setup and recipe authoring
+  (issue #27 D02/D05/D07)` — README + CONTRIBUTING + 3 guides + synthetic
+  example + `tests/test_doc_recipe.py` (7 files, +587/−2).
+- `5896f40` `fix: recipe-relative $schema references in bundled recipes and
+  generator` — generator line 314 + 14 recipe `$schema` lines (15 files,
+  15/15).
+- `75b885b` `doc: CHANGELOG — contributor guides + $schema references`
+  (1 file, +10).
+
+Pushed: `fd116c9..75b885b` → origin/dev; tree clean after the commits.
+
+**S7.2 promote (user gate 2026-10-28):** `main` `53a5dff` → `75b885b`
+ff-only, pushed to origin/main. Verified: `git diff main dev` empty, status
+clean, on `main`. No tag (not a release; the CHANGELOG entry stays under
+`## [Unreleased]`).
+
+**S7.3 mirror (user gate 2026-10-28):** `sync_github.sh` → GitHub `main`
+`484048d03b86500c9abdb548ef052763050630e4` (sanitized amend; differs from
+Gitea by design). Public gate green: new hash via ls-remote; root listing has
+no `.kilo` / `.vscode` / `.private` / `openwiki` / `AGENTS.md` /
+`.openwikiignore`, `.github/` holds only `ISSUE_TEMPLATE`; all integrated
+content present (the three guides, `doc/examples/recipe-pw__synthetic.yaml`,
+README/CONTRIBUTING guide links, the `$schema` lines, the CHANGELOG entries).
+
+**S7.4 PR #35 close (text user-confirmed as-is 2026-10-28):** close comment
+**6474460727**; closed without merge at 2026-10-28T16:21:27Z (the change
+reached GitHub via the mirror, keeping public history canonical).
+
+**S7.5 related issue:** #27 already closed (state `completed`, 2026-10-24) —
+no issue-closure action needed.
+
+**S7.6 Discussion summary: deferred** (the Discussion write API is not
+reachable from this environment — confirmed 2026-10-25; same handling as
+PR #32/#33/#34). The user-confirmed draft below is for manual posting in the
+web UI.
+
+**Plan doc:** Status DELIVERED; doc-only commit + push to dev; the review doc
+then archived to `completed/` with the cross-references (plans README,
+sequencing) updated.
+
+Discussion summary draft (manual posting, user-confirmed 2026-10-28):
+
+> **Public update: contributor guides for daemon setup and recipe authoring
+> (PR #35, issue #27 D02/D05/D07)**
+>
+> `main` now ships three contributor guides:
+>
+> - `doc/QUICKSTART.md` — tested daemon setup with a local first-check
+>   procedure (loopback-only Compose override, `TZ` forwarding with UTC
+>   fallback)
+> - `doc/TROUBLESHOOTING.md` — troubleshooting by symptom: likely cause,
+>   safe action, proof of resolution
+> - `doc/RECIPE_AUTHORING.md` — the recipe contract with a credential-free
+>   phased-login example (`doc/examples/recipe-pw__synthetic.yaml`)
+>
+> The documented steps stay verified: `tests/test_doc_recipe.py` runs the
+> guide's synthetic recipe through the full daemon runner against the
+> bundled mock portal (two runs, two PDFs per run, dedup, no login
+> failures).
+>
+> Also on `main`: the bundled recipes and the recipe generator now use the
+> recipe-relative `recipe-pw-schema.yaml` instead of a workstation-absolute
+> path (editor/contributor only; runtime behavior unchanged).
+>
+> Maintainer-side adaptations: the troubleshooting timezone row and the
+> quick-start pending-work list were brought current against the post-#34
+> baseline (the reference Compose file forwards `TZ` with a UTC default;
+> the image sets no default).
+>
+> Validated: full test suite + regression green, all 15 bundled recipes
+> validate, lint/security clean. Not deployment-relevant — no image rebuild
+> required.

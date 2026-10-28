@@ -231,17 +231,29 @@ interleaved with the remaining Stage 1b portal sessions.**
   `1793124431799-open-issues-plans-20261027.md`): #34 → #35 → #42 → #39 →
   #40, with #41 HELD on the #38 archive decision; PR #42 (issue #43) arrived
   2026-10-27.
-- PR #35 S1+S2 done 2026-10-27 ("proceed with next pr" session): review plan
-  doc `1793138983439-pr35-contributor-guides-review.md` written, verdict
-  approve (head `205e086` unchanged; actual content vs fork base `d9362b3` =
-  22 files +602/−17 — 5 new, 16 clean pre-images, 2 diverged non-overlapping;
-  the 104 deleted private-file entries in the merge-base diff are fork-based
-  STRIP artifacts, skipped), two doc-currency fixes (M1 TROUBLESHOOTING TZ
-  row against the post-#34 baseline, M2 QUICKSTART pending list) as S3
-  decision points, deployment validation recorded as not deployment-relevant
-  — Status: AWAITING-DECISION.
-- The 1und1 portal iteration remains independent and can run in a live
-  session at any time.
+ - PR #35 S1+S2 done 2026-10-27 ("proceed with next pr" session): review plan
+   doc `1793138983439-pr35-contributor-guides-review.md` written, verdict
+   approve (head `205e086` unchanged; actual content vs fork base `d9362b3` =
+   22 files +602/−17 — 5 new, 16 clean pre-images, 2 diverged non-overlapping;
+   the 104 deleted private-file entries in the merge-base diff are fork-based
+   STRIP artifacts, skipped), two doc-currency fixes (M1 TROUBLESHOOTING TZ
+   row against the post-#34 baseline, M2 QUICKSTART pending list) as S3
+   decision points, deployment validation recorded as not deployment-relevant
+   — Status: AWAITING-DECISION.
+ - PR #35 DELIVERED 2026-10-28 (S3–S7 across four "continue PR #35"
+   sessions): S3 gate as-is (M1/M2 confirmed, 3-commit split), S4 all 23
+   files integrated (16 clean pre-images + 5 new + README insertion +
+   authored CHANGELOG), S5 green (PR test 1 passed / full 590 / regression
+   PASS / ruff clean / bandit zero-new / 15/15 recipes validate; deployment
+   skip user-confirmed), S6 docs confirmed as-is, S7 — commits `5f45502` /
+   `5896f40` / `75b885b`, Gitea `main` `75b885b` (ff-only from `53a5dff`),
+   GitHub `main` `484048d03b86500c9abdb548ef052763050630e4`, PR closed
+   without merge (comment 6474460727, 2026-10-28T16:21:27Z). Related issue
+   #27 already closed (2026-10-24) — no closure action; the Discussion
+   summary is deferred (draft recorded in the review doc, now in
+   `completed/`). Chain head is now #42.
+ - The 1und1 portal iteration remains independent and can run in a live
+   session at any time.
 
 ## Explicitly not doing
 

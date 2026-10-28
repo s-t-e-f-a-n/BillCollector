@@ -1,10 +1,10 @@
 # PR #39 review: input-triggered protected login submissions (issue #36)
 
-> Status: AWAITING-DECISION (2026-10-28) — S1 review complete; verdict
-> **approve**; 3-file clean-apply change set (no private paths), one commit;
-> the PR ships no CHANGELOG entry (maintainer authors it); deployment
-> validation not deployment-relevant (skip recorded); S3 maintainer sign-off
-> on the #36 recipe-contract extension is the single decision.
+> Status: INTEGRATING (2026-10-28) — S3 gate passed (proposal confirmed
+> as-is: 3 PR files from head `0053ec6` as-is + maintainer-authored
+> CHANGELOG `### Added` entry; S7 commit split feat/test/doc); S4 applied on
+> clean dev `c2bd066`, all files verified byte-identical to head, tree left
+> dirty for S5.
 
 ## PR metadata
 
@@ -250,8 +250,39 @@ plan. No host, build, canary, or smoke results to record.
 
 ## Open questions
 
-- The maintainer sign-off on the #36 recipe-contract extension (adding terminal
-  `fill` to the phase submission contract) — the single decision; resolved at
-  the S3 gate.
-- CHANGELOG subsection — proposed `### Added` (grouped with the issue #20
-  phased-login entry); confirm at S3.
+- None. (The #36 recipe-contract sign-off was given at the S3 gate
+  2026-10-28; the CHANGELOG subsection was confirmed as `### Added`,
+  newest-first.)
+
+## Execution log
+
+- 2026-10-28 S1: review complete (findings above). Head `0053ec6` fetched
+  and verified stable; true base `d9362b3` (PR starts from public `main` at
+  that hash); merge base `36a8d31` classified as mirror-hash artifact; the
+  raw-merge-base 91-file diff decomposed into the 3 real files + 88
+  fork-behind-base comparison artifacts; pre-image checks clean on all three
+  files.
+- 2026-10-28 S2: plan doc written, verdict **approve** (maintainer-side
+  change: authored CHANGELOG `### Added` entry only). Status:
+  AWAITING-DECISION.
+- 2026-10-28 S3: gate passed — proposal confirmed **as-is**: apply the 3 PR
+  files from head `0053ec6` (`login.py` +1/−1, `SAFE_LOGIN.md` +32/−2,
+  `tests/test_bc_login.py` +159/−2) as-is, no files skipped, one manual
+  resolution (maintainer-authored CHANGELOG `### Added` entry at the top of
+  the Unreleased Added list, newest-first, same subsection as the #20
+  phased-login entry), no other maintainer-side changes. S7 commit split:
+  feat commit (`login.py` + `SAFE_LOGIN.md`) + test commit
+  (`tests/test_bc_login.py`) + doc commit (CHANGELOG). Head re-verified
+  unchanged (`git ls-remote github refs/pull/39/head` == local `refs/pr/39`
+  == `0053ec6`); pre-image re-checks clean on dev `c2bd066`. Status:
+  INTEGRATING.
+- 2026-10-28 S4: integration applied. Preflight green on dev `c2bd066`:
+  clean tree; remote head == local `refs/pr/39` == `0053ec6` (unchanged
+  since S1); pre-image re-checks clean (all three files byte-identical to
+  PR base `d9362b3`). Applied from PR head: `apps/billcollector/login.py`
+  (+1/−1), `doc/SAFE_LOGIN.md` (+32/−2), `tests/test_bc_login.py`
+  (+159/−2) — all three verified byte-identical to head (`git diff
+  refs/pr/39 -- <files>` empty). Maintainer-side: CHANGELOG `### Added`
+  entry inserted at the top of the Unreleased Added list (confirmed draft,
+  sanitized). Working tree left dirty (uncommitted) for S5 to validate the
+  exact content. Status: INTEGRATING.

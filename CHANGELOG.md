@@ -135,6 +135,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   an operator resume of `download_all` skips the item keys already persisted
   for the step; a suggested filename already saved earlier in the run fails
   instead of being overwritten.
+- Contributor guides (issue #27, D02/D05/D07): `doc/QUICKSTART.md` (tested
+  daemon setup with a local first-check procedure), `doc/TROUBLESHOOTING.md`
+  (symptom guide), and `doc/RECIPE_AUTHORING.md` (recipe author guide with a
+  credential-free synthetic example,
+  `doc/examples/recipe-pw__synthetic.yaml`). An automated test
+  (`tests/test_doc_recipe.py`) runs the guide's recipe end-to-end against the
+  bundled mock portal so the documented steps stay verified.
 
 ### Changed
 
@@ -262,6 +269,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   only its own task's enabled state and scheduler registration (previously
   every switch read the last-created switch's value, so in a multi-task
   setup enabling one task could leave it disabled) (issue #27, F07).
+- Bundled recipe `$schema` references and the recipe generator now use the
+  recipe-relative `recipe-pw-schema.yaml` instead of a workstation-absolute
+  path (editor/contributor only; runtime recipe behavior is unchanged).
 
 ## [v0.4] - 2026-10-02
 

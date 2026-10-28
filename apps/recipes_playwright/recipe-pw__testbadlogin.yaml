@@ -1,4 +1,4 @@
-$schema: "/home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml"
+$schema: "recipe-pw-schema.yaml"
 services:
 - serviceName: "testbadlogin"
   description: "Login is rejected (wrong password); the run aborts at the one-time code step."

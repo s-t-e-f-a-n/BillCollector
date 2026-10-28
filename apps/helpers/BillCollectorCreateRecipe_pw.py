@@ -311,7 +311,7 @@ def playwright_python_to_yaml(service_name: str):
     steps = parse_playwright_script(content)
 
     output_data = {
-        "$schema": RECIPES_PLAYWRIGHT_SCHEMA_FILE,
+        "$schema": os.path.relpath(RECIPES_PLAYWRIGHT_SCHEMA_FILE, RECIPES_PLAYWRIGHT_DIR),
         "services": [
             {
                 "serviceName": service_name,

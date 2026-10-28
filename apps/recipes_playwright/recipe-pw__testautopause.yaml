@@ -1,4 +1,4 @@
-$schema: "/home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml"
+$schema: "recipe-pw-schema.yaml"
 services:
 - serviceName: "testautopause"
   description: "Layer B: the Verified button only appears after an operator clicks the I am not a robot button; 3x failure triggers the auto-pause."

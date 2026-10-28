@@ -4,13 +4,18 @@ Candidate interface for [upstream issue #20](https://github.com/s-t-e-f-a-n/Bill
 This is a complete fork implementation candidate. Local proof and upstream
 contract acceptance are separate gates. It is not approved for deployment.
 The recipe and database interface were agreed in issue #20 (2026-10-22).
+The terminal-fill extension is a local candidate for issue #36. Maintainer
+agreement is pending for that extension.
 
 ## Candidate recipe
 
 Navigate to the portal before the login block. An already visible success locator
 skips the whole block. Preparation supports locator chains ending in `fill` only.
-The submit chain ends in one `click` or `press(key="Enter")`. Do not use this
-contract for a portal that submits automatically when a field is filled.
+The submit chain ends in one `click`, `press(key="Enter")`, or an explicit
+`fill` for portals that submit when the credential field is filled. The durable
+reservation is taken before that terminal fill.
+Keep non-submitting fills in preparation. Put an input-triggered submission
+only in `submit`; do not add a click afterward.
 For password then TOTP, use ordered `phases`. Each phase contains `steps`,
 `submit` and `success`. The last success must equal the login success locator.
 Do not combine `phases` with the single-phase shorthand below.
@@ -63,6 +68,27 @@ services:
 
 The daemon is the only supported executor of the new method. The historical batch
 runner is unchanged. Existing daemon recipes keep their existing behavior.
+
+For an input-triggered OTP phase, replace its `submit` with a terminal fill:
+
+```yaml
+submit:
+  step: 42
+  methods:
+    - method: locator
+      arguments:
+        - selector: '#synthetic-otp'
+    - method: fill
+      arguments:
+        - value: '{{OTP}}'
+```
+
+The current OTP resolves when the submit action runs, after reservation.
+The phase still needs its success locator. The final authenticated marker must
+follow any portal finalization after OTP acceptance. This also protects direct
+entry at the OTP phase. No database, control-protocol or exit-code change is
+needed. This extension is proposed in
+[issue #36](https://github.com/s-t-e-f-a-n/BillCollector/issues/36).
 
 ## Persistence and recovery
 
@@ -117,6 +143,10 @@ The implementation follows six steps:
 | Session proof bypasses login and resets budget | `test_real_browser_existing_session_skips_and_resets` |
 | One submit per phase, failed resume never replays | `test_real_browser_failure_pause_resume_never_resubmits` |
 | Password/TOTP success, failures and direct OTP entry | `test_two_phase_browser_login_counts_one_transaction` |
+| Input-triggered password/OTP reserves before dispatch; fresh OTP and one fill | `test_input_triggered_login_submits_once_and_supports_direct_otp` |
+| Existing session skips input-triggered submissions | `test_input_triggered_login_existing_session_skips_all_input` |
+| OTP rejection or missing finalization never replays or resets before final proof | `test_input_triggered_login_resume_waits_for_final_proof_without_replay` |
+| Interruption before/after terminal fill stays durable and settles on recovery | `test_input_triggered_login_interruption_is_durable_before_and_after_fill` |
 | Crash between password and TOTP consumes one attempt | `test_interruption_between_phases_keeps_one_durable_attempt` |
 | Two failures block; clear grants only one attempt | `test_real_browser_threshold_blocks_and_clear_grants_one_attempt` |
 | Ambiguous submit consumes budget | `test_submission_exception_never_replays_and_consumes_budget` |

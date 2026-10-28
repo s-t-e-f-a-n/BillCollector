@@ -1,7 +1,7 @@
 # PR #42 review: fix — defer legacy database directory creation to database open
 
-> Status: VALIDATED (2026-10-28) — S5 gate passed: all code checks green,
-> deployment-validation skip user-accepted; S6 docs confirmed as-is; next S7.
+> Status: DELIVERED (2026-10-28) — S7 complete: dev/main `2a6e462`, GitHub
+> `main` `c2fb7f8`, PR #42 closed without merge, issue #43 closed.
 
 ## PR metadata
 
@@ -271,3 +271,63 @@ Skip recorded 2026-10-28 alongside the green code checks; **user-confirmed
   tree: only CHANGELOG dirty (uncommitted for S7). Next: S7 (commit + push
   Gitea first, then GitHub mirror, PR close, issue #43 closure, Discussion
   summary).
+- 2026-10-28 S7: complete. S7.1: `2a6e462` CHANGELOG commit (user-confirmed,
+  dev-commits) + push. S7.2: ff-only promotion `75b885b` → `2a6e462` on
+  Gitea `main` (user gate passed; not a release — no tag); `git diff main
+  dev` empty. S7.3: `sync_github.sh` → GitHub `main` `484048d` → `c2fb7f8`;
+  public gate green (new hash; no STRIP paths in the listing, `.github` =
+  `ISSUE_TEMPLATE` only; integrated content present — test module blob
+  `d1e8b32` matches). S7.4: PR #42 close comment 6478433499 (text
+  user-confirmed), PR closed without merge 2026-10-28T19:22:36Z. S7.5:
+  issue #43 close comment 6478434230 (text user-confirmed), issue closed
+  2026-10-28T19:22:39Z — all acceptance criteria met (covered by the two
+  shipped tests). S7.6: Discussion summary text user-confirmed, but the
+  Discussion write API is unavailable from this environment (404, same as
+  the 2026-10-25 finding) — handed to the user for manual web-UI posting.
+  Status: DELIVERED. Plan doc archived to `completed/`.
+
+## S7 execution record (2026-10-28)
+
+**S7.0 prerequisite:** dev = origin/dev = `3c9f4cd` at S7 start; working tree
+= S5-validated content (`git diff f2a0ac2..HEAD -- apps/ tests/` is exactly
+the S4 integration, +90/−1, byte-identical) + the S6 CHANGELOG entry; PR
+head still `0efaec90` (unchanged since S1); deployment validation = recorded
+skip, user-confirmed at the S5 gate (2026-10-28) — the trigger check still
+holds (the CHANGELOG entry is doc-only).
+
+**S7.1 dev-commits (user-confirmed 2026-10-28):** `2a6e462` `doc: CHANGELOG
+— deferred legacy database directory creation (issue #43)` (1 file, +6);
+pushed to origin/dev. (The S3-confirmed fix commit `f8e16c7` and test commit
+`550ef80` were created at the S6 re-split — see the S6 log.)
+
+**S7.2 promotion (user gate passed 2026-10-28):** ff-only `dev` → Gitea
+`main` `75b885b` → `2a6e462`, pushed. Verified: `git diff main dev` empty,
+tree clean, on `main`. Not a release — no tag, no CHANGELOG finalization.
+
+**S7.3 mirror (deploy stage 3):** `sync_github.sh` → GitHub `main`
+`484048d` → `c2fb7f8` (sanitize-by-amend, forced push by design). Public
+gate: new hash confirmed; root listing has no `.kilo` / `.vscode` /
+`.private` / `openwiki` / `AGENTS.md` / `.openwikiignore`; `.github`
+contains `ISSUE_TEMPLATE` only (no `workflows/`); integrated content present
+(test module blob `d1e8b32` matches the dev commit; the tip diff +6 is the
+CHANGELOG entry).
+
+**S7.4 PR close (text user-confirmed 2026-10-28):** comment
+https://github.com/s-t-e-f-a-n/BillCollector/pull/42#issuecomment-6478433499
+(mirror flow, landed content with the public commit link, no code
+adaptations, validation summary, nits N1/N2); PR #42 closed **without merge**
+at 2026-10-28T19:22:36Z.
+
+**S7.5 issue close (text user-confirmed 2026-10-28):** comment
+https://github.com/s-t-e-f-a-n/BillCollector/issues/43#issuecomment-6478434230;
+issue #43 closed at 2026-10-28T19:22:39Z. Acceptance criteria all met — the
+two shipped tests cover all four criteria (Verified fact 5).
+
+**S7.6 per-public-update Discussion summary (publication routine, issue #25):**
+text user-confirmed; the Discussion write API returns 404 from this
+environment (2026-10-25 finding confirmed again) — the user posts it in the
+web UI manually (text handed over in the S7 session).
+
+**S7.7:** Status: DELIVERED. Dev/main `2a6e462`, GitHub `main` `c2fb7f8`,
+PR #42 closed 2026-10-28T19:22:36Z. Plan doc archived to `completed/`,
+cross-references updated. Next chain head: PR #39.

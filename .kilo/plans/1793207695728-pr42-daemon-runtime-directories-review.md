@@ -1,7 +1,7 @@
 # PR #42 review: fix — defer legacy database directory creation to database open
 
-> Status: INTEGRATING (2026-10-28) — S4 applied: 3 PR files from head
-> `0efaec90` byte-identical on dev; tree left dirty for S5 validation.
+> Status: VALIDATED (2026-10-28) — S5 gate passed: all code checks green,
+> deployment-validation skip user-accepted; next S6 (CHANGELOG).
 
 ## PR metadata
 
@@ -202,8 +202,8 @@ No manual conflict resolutions expected. Tree left dirty after S4 for S5.
 `deploy_remote.sh`, or app runtime configuration (INI keys / `.env`
 handling). The runner-import change has no container-build or startup-path
 effect (the container runtime UID already owns the writable paths it uses).
-Skip recorded 2026-10-28 alongside the green code checks; user
-confirmation pending at the S5 gate.
+Skip recorded 2026-10-28 alongside the green code checks; **user-confirmed
+2026-10-28 at the S5 gate** — S6/S7 unblocked.
 
 ## Out of scope
 
@@ -253,6 +253,8 @@ confirmation pending at the S5 gate.
   the 3 files: 9 findings, identical to the pre-change baseline (all
   legacy code, none in the PR hunks) — nothing new. Bandit: legacy files
   = known B608 only; the new test module adds 11 test-only findings
-  (8 assert, 3 subprocess) — no runtime findings. Deployment
-  validation: recorded skip (not deployment-relevant, above). S5 gate
-  pending (user confirmation of the skip).
+  (8 assert, 3 subprocess) — no runtime findings.   Deployment
+  validation: recorded skip (not deployment-relevant, above).
+- 2026-10-28 S5: gate passed — deployment-validation skip user-accepted
+  (timestamp 2026-10-28, S5 gate). Status: VALIDATED. Next: S6 (CHANGELOG
+  entry, authored by maintainer).

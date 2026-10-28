@@ -3,8 +3,8 @@
 > Status: DELIVERED (2026-10-28) — S7 complete: Gitea `main` `b693517`
 > (ff-only from `2a6e462`), GitHub `main` `ad18f7a`; PR #39 closed without
 > merge (comment 6481319827, 2026-10-28T21:38:49Z), issue #36 closed as
-> completed (comment 6481326228, 2026-10-28T21:39:09Z); Discussion summary
-> confirmed for manual web-UI posting (write API 404).
+> completed (comment 6481326228, 2026-10-28T21:39:09Z); per-public-update
+> Discussion summary omitted at user request (2026-10-28).
 
 ## PR metadata
 
@@ -385,9 +385,14 @@ criteria met — the four shipped tests map 1:1 to the #36 acceptance list
 **S7.6 per-public-update Discussion summary (publication routine, issue
 #25):** text user-confirmed; the Discussion write API returns 404 from this
 environment (2026-10-25 finding) — the user posts it in the web UI manually
-(text handed over in the S7 session).
+(text handed over in the S7 session). Omitted (2026-10-28): the user
+instructed to omit the Discussion step for PR #39 — the manual posting is
+withdrawn and no Discussion is posted for this delivery.
 
 **S7.7:** Status: DELIVERED. Gitea `dev`/`main` `b693517`, GitHub `main`
 `ad18f7a`, PR #39 closed 2026-10-28T21:38:49Z, issue #36 closed
-2026-10-28T21:39:09Z. Plan doc archived to `completed/`, cross-references
-updated. Next chain head: PR #40.
+   2026-10-28T21:39:09Z. Plan doc archived to `completed/`, cross-references
+   updated. Next chain head: PR #40.
+- 2026-10-28 S7.6: user instructed to omit the per-public-update Discussion
+  summary for PR #39 (the last remaining S7 item) — recorded as omitted, no
+  manual web-UI posting. Nothing further outstanding for PR #39.

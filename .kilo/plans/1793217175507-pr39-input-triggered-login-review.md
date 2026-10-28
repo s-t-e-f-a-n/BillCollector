@@ -1,10 +1,9 @@
 # PR #39 review: input-triggered protected login submissions (issue #36)
 
-> Status: INTEGRATING (2026-10-28) — S3 gate passed (proposal confirmed
-> as-is: 3 PR files from head `0053ec6` as-is + maintainer-authored
-> CHANGELOG `### Added` entry; S7 commit split feat/test/doc); S4 applied on
-> clean dev `c2bd066`, all files verified byte-identical to head, tree left
-> dirty for S5.
+> Status: VALIDATED (2026-10-28) — S5 code checks all green on the exact
+> dirty dev tree (PR tests 62, full suite 600, regression PASS, ruff clean,
+> bandit +22 test-only B101); deployment-validation skip user-accepted at the
+> S5 gate (not deployment-relevant); tree still dirty for S6/S7.
 
 ## PR metadata
 
@@ -303,3 +302,8 @@ plan. No host, build, canary, or smoke results to record.
   (synthetic data, test-only idioms); the pre-existing `B603`/`B404` legacy
   findings are unchanged. Deployment validation: recorded skip (not
   deployment-relevant, see the Validation plan). S5 gate pending.
+- 2026-10-28 S5: gate passed — the recorded deployment-validation skip was
+  user-accepted (timestamp 2026-10-28, S5 gate), satisfying the S7
+  prerequisite for the exact dirty dev tree (dev `81c16c6` doc tip;
+  integration files uncommitted). Status: VALIDATED. Next: S6
+  (documentation).

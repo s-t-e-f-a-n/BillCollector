@@ -1,7 +1,7 @@
 # PR #42 review: fix — defer legacy database directory creation to database open
 
-> Status: INTEGRATING (2026-10-28) — S3 gate passed: proposal confirmed
-> as-is (3 PR files, no maintainer-side changes); next S4 apply on dev.
+> Status: INTEGRATING (2026-10-28) — S4 applied: 3 PR files from head
+> `0efaec90` byte-identical on dev; tree left dirty for S5 validation.
 
 ## PR metadata
 
@@ -232,4 +232,13 @@ gate.
   as-is), skip the 89 STRIP/orphan artifacts, no manual conflict
   resolutions, no maintainer-side changes. Commit split: fix commit + test
   commit (S7), CHANGELOG authored in S6. Head re-verified unchanged;
-  pre-image re-checked clean on dev `287d4dc`. Status: INTEGRATING.
+  pre-image   re-checked clean on dev `287d4dc`. Status: INTEGRATING.
+- 2026-10-28 S4: integration applied. Preflight green on dev
+  `e1eee39`: clean tree; remote head == local `refs/pr/42` ==
+  `0efaec90` (unchanged since S1); pre-image re-checks clean (both
+  modified files byte-identical to PR base; test module absent in dev).
+  Applied from PR head: `BillCollectorHelpers.py` (−1),
+  `BillCollectorServices_pw.py` (+4), `tests/test_bc_runtime_paths.py`
+  (+86, new) — all three verified byte-identical to head (+90/−1). No
+  maintainer-side changes; no CHANGELOG merge (PR ships no entry;
+  authored in S6). Tree left dirty for S5. Status: INTEGRATING.

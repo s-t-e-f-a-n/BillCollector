@@ -274,6 +274,18 @@ interleaved with the remaining Stage 1b portal sessions.**
     (comment 6478433499, 2026-10-28T19:22:36Z), issue #43 closed (comment
     6478434230, 2026-10-28T19:22:39Z); Discussion summary deferred to
     manual web-UI posting (write API 404). Chain head is now #39.
+  - PR #39 S1+S2 done 2026-10-28 ("continue with pr#39" session): review plan
+    doc `1793217175507-pr39-input-triggered-login-review.md` written, verdict
+    approve (head `0053ec6` stable; actual content vs fork base `d9362b3` =
+    3 files +192/−5 — the 1-line submit-terminal `fill` validation,
+    SAFE_LOGIN contract doc, 4 new tests + 1 parametrization; the 87 deleted
+    private-file entries in the merge-base diff are fork-behind-base
+    artifacts, skipped); issue #36 contract verified point-by-point against
+    the unchanged `runner._execute_login` (reserve-before, fill-once,
+    proof-gated, durable interruption); the PR ships no CHANGELOG entry —
+    maintainer authors the `### Added` line (S3 decision); deployment
+    validation recorded as not deployment-relevant — Status:
+    AWAITING-DECISION.
  - The 1und1 portal iteration remains independent and can run in a live
    session at any time.
 

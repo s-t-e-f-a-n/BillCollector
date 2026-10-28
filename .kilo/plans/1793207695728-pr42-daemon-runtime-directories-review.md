@@ -1,7 +1,7 @@
 # PR #42 review: fix — defer legacy database directory creation to database open
 
-> Status: AWAITING-DECISION (2026-10-28) — S1+S2 complete: verdict approve,
-> no maintainer-side changes; awaiting user review of verdict + plan.
+> Status: INTEGRATING (2026-10-28) — S3 gate passed: proposal confirmed
+> as-is (3 PR files, no maintainer-side changes); next S4 apply on dev.
 
 ## PR metadata
 
@@ -226,3 +226,10 @@ gate.
   classified; pre-image checks clean on both modified files.
 - 2026-10-28 S2: plan doc written, verdict **approve** (no maintainer-side
   changes). Status: AWAITING-DECISION.
+- 2026-10-28 S3: gate passed — proposal confirmed **as-is**: apply the 3 PR
+  files from head `0efaec90` (`BillCollectorHelpers.py` −1,
+  `BillCollectorServices_pw.py` +4, `tests/test_bc_runtime_paths.py` +86
+  as-is), skip the 89 STRIP/orphan artifacts, no manual conflict
+  resolutions, no maintainer-side changes. Commit split: fix commit + test
+  commit (S7), CHANGELOG authored in S6. Head re-verified unchanged;
+  pre-image re-checked clean on dev `287d4dc`. Status: INTEGRATING.

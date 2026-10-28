@@ -252,16 +252,28 @@ interleaved with the remaining Stage 1b portal sessions.**
    #27 already closed (2026-10-24) — no closure action; the Discussion
    summary is deferred (draft recorded in the review doc, now in
    `completed/`). Chain head is now #42.
- - PR #42 S1+S2 done 2026-10-28 ("continue pr#42" session): review plan
-   doc `1793207695728-pr42-daemon-runtime-directories-review.md` written,
+  - PR #42 S1+S2 done 2026-10-28 ("continue pr#42" session): review plan
+    doc `completed/1793207695728-pr42-daemon-runtime-directories-review.md` written,
    verdict approve, no maintainer-side changes (head `0efaec90` stable;
    actual content vs fork base `93bfcc85` = 3 files +90/−1 — helper import
    line removed, `DatabaseManager` first-open dir creation, new 86-line
-   pytest module; the 89 deleted private-file entries in the merge-base
-   diff are STRIP artifacts of the orphaned parent commit `93bfcc85`,
-   skipped); issue #43 acceptance fully covered by the two shipped tests;
-   deployment validation recorded as not deployment-relevant — Status:
-   AWAITING-DECISION.
+    pytest module; the 89 deleted private-file entries in the merge-base
+    diff are STRIP artifacts of the orphaned parent commit `93bfcc85`,
+    skipped); issue #43 acceptance fully covered by the two shipped tests;
+    deployment validation recorded as not deployment-relevant — Status:
+    AWAITING-DECISION.
+  - PR #42 DELIVERED 2026-10-28 (S3–S7 across four "continue PR #42"
+    sessions): S3 gate as-is (3 files from head `0efaec90`, no
+    maintainer-side changes), S4 applied (2 files + new test, +90/−1),
+    S5 green (PR tests 2 passed / full 592 / regression PASS / ruff +
+    bandit nothing new; deployment skip user-confirmed), S6 CHANGELOG
+    `### Fixed` entry confirmed as-is (one re-split incident on the S6
+    doc commit, corrected by force-push of `origin/dev`), S7 — commits
+    `f8e16c7` / `550ef80` / `2a6e462`, Gitea `main` `2a6e462` (ff-only
+    from `75b885b`), GitHub `main` `c2fb7f8`, PR #42 closed without merge
+    (comment 6478433499, 2026-10-28T19:22:36Z), issue #43 closed (comment
+    6478434230, 2026-10-28T19:22:39Z); Discussion summary deferred to
+    manual web-UI posting (write API 404). Chain head is now #39.
  - The 1und1 portal iteration remains independent and can run in a live
    session at any time.
 

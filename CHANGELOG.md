@@ -273,6 +273,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   recipe-relative `recipe-pw-schema.yaml` instead of a workstation-absolute
   path (editor/contributor only; runtime recipe behavior is unchanged).
 
+- Runner import no longer creates the legacy `apps/db` directory (issue #43):
+  the directory is now created when the legacy database is first opened, so
+  an unwritable application tree no longer raises `PermissionError` at
+  import. Legacy first-use creation and the daemon's configured runtime
+  directories are unchanged.
+
 ## [v0.4] - 2026-10-02
 
 ### Added

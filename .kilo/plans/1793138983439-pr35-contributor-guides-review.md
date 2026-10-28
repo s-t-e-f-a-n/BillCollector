@@ -1,11 +1,10 @@
 # PR #35 review: docs — tested daemon setup and recipe author guides
 
-> Status: INTEGRATING (2026-10-27) — S5 code checks all green on the exact
-> tree (PR test 1 passed; full suite 590 passed / 10 skipped / 53 subtests;
-> regression VERDICT: PASS 7 scenarios / 8 PDFs; ruff clean; bandit
-> baseline-consistent; 15/15 recipes validate); deployment-process validation
-> is the recorded skip (not deployment-relevant), S5 gate pending user
-> confirmation before S6.
+> Status: VALIDATED (2026-10-27) — S5 complete: code checks all green on the
+> exact tree (PR test 1 passed; full suite 590 passed / 10 skipped / 53
+> subtests; regression VERDICT: PASS 7 scenarios / 8 PDFs; ruff clean; bandit
+> zero-new; 15/15 recipes validate); deployment-process validation skip
+> (not deployment-relevant) confirmed by the user at the S5 gate.
 
 ## PR metadata
 
@@ -368,3 +367,10 @@ repo root with `apps/.venv/bin/python` (`PYTHONPATH=apps`):
 - Gate: the user confirms this recorded skip (or orders the full NAS block
   anyway) before S6/S7 proceed; S7 may not commit or push to `main` without
   the confirmation.
+
+**S5 gate (2026-10-27, user-confirmed):** the recorded skip is accepted
+(not deployment-relevant; no Dockerfile/.dockerignore/shell/INI/.env change,
+`$schema` inert at runtime). Status flipped to VALIDATED. Next: S6
+documentation (the CHANGELOG `## [Unreleased]` entry was authored at S4;
+S6 reviews its wording + confirms the README/CONTRIBUTING changes need no
+further doc work).

@@ -202,8 +202,8 @@ No manual conflict resolutions expected. Tree left dirty after S4 for S5.
 `deploy_remote.sh`, or app runtime configuration (INI keys / `.env`
 handling). The runner-import change has no container-build or startup-path
 effect (the container runtime UID already owns the writable paths it uses).
-Skip to be recorded here with the user-confirmation timestamp at the S5
-gate.
+Skip recorded 2026-10-28 alongside the green code checks; user
+confirmation pending at the S5 gate.
 
 ## Out of scope
 
@@ -242,3 +242,17 @@ gate.
   (+86, new) — all three verified byte-identical to head (+90/−1). No
   maintainer-side changes; no CHANGELOG merge (PR ships no entry;
   authored in S6). Tree left dirty for S5. Status: INTEGRATING.
+- 2026-10-28 S5: code checks all green on the exact dirty dev tree (S4
+  applied, pre-commit). PR tests: `pytest tests/test_bc_runtime_paths.py
+  -q` → **2 passed in 1.99 s** (uid 1000 / stefan, non-root — the `0555`
+  unwritable simulation is effective; R2 mitigated). Full suite:
+  `pytest tests/ -q` → **592 passed, 10 skipped, 53 subtests passed**
+  (PR #35 baseline 590 + the 2 new tests). Full regression:
+  `run_regression.py --ini tests/bc_regression.ini` → **exit 0, VERDICT:
+  PASS** (7 scenarios / 8 PDFs, downloads 8/8). Ruff (F821, E4/E7/E9) on
+  the 3 files: 9 findings, identical to the pre-change baseline (all
+  legacy code, none in the PR hunks) — nothing new. Bandit: legacy files
+  = known B608 only; the new test module adds 11 test-only findings
+  (8 assert, 3 subprocess) — no runtime findings. Deployment
+  validation: recorded skip (not deployment-relevant, above). S5 gate
+  pending (user confirmation of the skip).

@@ -252,6 +252,16 @@ interleaved with the remaining Stage 1b portal sessions.**
    #27 already closed (2026-10-24) — no closure action; the Discussion
    summary is deferred (draft recorded in the review doc, now in
    `completed/`). Chain head is now #42.
+ - PR #42 S1+S2 done 2026-10-28 ("continue pr#42" session): review plan
+   doc `1793207695728-pr42-daemon-runtime-directories-review.md` written,
+   verdict approve, no maintainer-side changes (head `0efaec90` stable;
+   actual content vs fork base `93bfcc85` = 3 files +90/−1 — helper import
+   line removed, `DatabaseManager` first-open dir creation, new 86-line
+   pytest module; the 89 deleted private-file entries in the merge-base
+   diff are STRIP artifacts of the orphaned parent commit `93bfcc85`,
+   skipped); issue #43 acceptance fully covered by the two shipped tests;
+   deployment validation recorded as not deployment-relevant — Status:
+   AWAITING-DECISION.
  - The 1und1 portal iteration remains independent and can run in a live
    session at any time.
 

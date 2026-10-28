@@ -307,3 +307,14 @@ plan. No host, build, canary, or smoke results to record.
   prerequisite for the exact dirty dev tree (dev `81c16c6` doc tip;
   integration files uncommitted). Status: VALIDATED. Next: S6
   (documentation).
+- 2026-10-28 S6: docs authored and confirmed **as-is**. CHANGELOG `###
+  Added` entry (the confirmed S3 draft) was applied in S4 and re-verified on
+  the dirty tree: top of the Unreleased Added list, newest-first, sanitized
+  wording, public issue ref only. README: no change (the phased-login
+  paragraph at `README.md:277` describes blocking behaviour and points to
+  `doc/SAFE_LOGIN.md` for the contract — still accurate; the
+  submit-terminal extension is documented in `SAFE_LOGIN.md` itself).
+  CONTRIBUTING: no change (no contributor-rule changes). `SAFE_LOGIN.md`
+  ships as-is from the PR head in the feature commit. Status: VALIDATED.
+  Next: S7 (commit + push: 3 commits feat/test/doc, Gitea dev, ff-only
+  promotion, GitHub mirror, gated PR/issue close + Discussion summary).

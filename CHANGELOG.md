@@ -11,6 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Input-triggered protected login submissions (issue #36): a login phase
+  `submit` chain may now end with `fill`, for portals that submit when a
+  password or OTP field is filled. The durable attempt is reserved before that
+  terminal fill, the fill runs once (resume only re-verifies), and the final
+  authenticated marker still proves success. No database, control-protocol, or
+  exit-code change.
+
 - Daemon runtime date variables and inline, recursive single-pass argument
   substitution (issue #26). Recipe save and run start share syntax validation.
   Tasks have an additive `date_window_days` setting (90 inclusive days by

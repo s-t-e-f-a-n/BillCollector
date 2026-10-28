@@ -286,3 +286,20 @@ plan. No host, build, canary, or smoke results to record.
   entry inserted at the top of the Unreleased Added list (confirmed draft,
   sanitized). Working tree left dirty (uncommitted) for S5 to validate the
   exact content. Status: INTEGRATING.
+- 2026-10-28 S5: code checks all green on the exact dirty dev tree (S4
+  applied, pre-commit). PR unit suite: `pytest tests/test_bc_login.py -q` →
+  **62 passed in 182.84 s** (the PR's claimed count, re-run on the
+  integrated dev tree). Full suite: `pytest tests/ -q` → **600 passed,
+  10 skipped, 53 subtests passed in 433.81 s** (dev baseline 592 + the 8 new
+  cases: the 4 new test functions are parametrized 2/1/2/2 plus the 1 new
+  parametrization on an existing test). Full regression:
+  `run_regression.py --ini tests/bc_regression.ini` → **exit 0, VERDICT:
+  PASS** (7 scenarios / 8 PDFs, downloads 8/8; the designed failing pairs
+  return the expected `BillCollector exit semantics: 1`). Ruff (repo
+  `ruff.toml`) on the 2 changed Python files: **All checks passed** on both
+  the working tree and the HEAD-dev baseline — nothing new. Bandit on the
+  same files: working tree 165 Low / 0 Med / 0 High vs. baseline 143 Low /
+  0 / 0 — the delta is exactly +22 `B101 assert_used` in the new test code
+  (synthetic data, test-only idioms); the pre-existing `B603`/`B404` legacy
+  findings are unchanged. Deployment validation: recorded skip (not
+  deployment-relevant, see the Validation plan). S5 gate pending.

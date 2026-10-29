@@ -1,0 +1,278 @@
+# PR #41 review: source notice identities and PDF revisions (issue #38)
+
+> Status: AWAITING-DECISION (2026-10-29) — S1+S2 complete; verdict approve
+> with maintainer changes (reconcile against current dev; #33 pipeline
+> re-author; contract/schema are S3 decision points). #38 decision revised
+> 2026-10-29 toward integration (see Decision history); F10/C8 gap accepted
+> as risk. Awaiting S3 proposal confirmation.
+
+## PR metadata
+
+- Author: flowcool; head branch
+  `flowcool:feature/upstream-notice-revisions-20261026`
+- Head hash: `74421dd2ea3feac6cb290b611a7d62bbd4f43484` (stable at S1;
+  `git ls-remote github refs/pull/41/head` matches the local `refs/pr/41`)
+- Base: `main` @ `f26b2a9d04bd89b45260b5ba9b13e90418b912d5` (current public
+  tip); the branch itself starts from public main `36a8d31` (post-#31),
+  i.e. it **predates #32, #33, #34, #40** which are already in dev/main
+- Issue refs: #38 (source notice identity + revision handling) — OPEN,
+  explicitly a *"decision requested before code"*; source implementation
+  `flowcool/BillCollector#64`
+- Created 2026-10-26T14:25:23Z; updated 2026-10-29T21:42:54Z; 2 commits;
+  state open; 97 files / +833 / −19459
+- Local state at review: Gitea `dev` `a4ccc15` (clean, == `origin/dev`),
+  Gitea `main` `61defd3`, GitHub `main` `f26b2a9`
+
+## Verdict
+
+**Approve with maintainer changes.** The core feature (source-scoped notice
+identity + a conservative, versioned PDF object-graph revision digest) is
+sound, self-contained, opt-in, backward-compatible, and well tested. It
+cannot be applied as-is because the PR branched from `36a8d31`, which
+predates #32/#33/#34/#40; four files need manual adaptation against current
+dev, dominated by re-authoring the download-tracking path on #33's journal
+staged-publication + crash-recovery pipeline. The two new shared interfaces
+(the `notice_identity` recipe contract and the additive `Download` schema)
+are S3 decision points per issue #38.
+
+## Decision history (issue #38)
+
+- **2026-10-27 (comment `6449978430`, recorded in
+  `1793124431799-open-issues-plans-20261027.md`):** collector keeps byte-hash
+  dedup; stable notice identity / revision handling **delegated to the
+  archive layer**. PR #41 **HELD** until (1) #34 lands, (2) F10/C8
+  delivery-state exposure is scheduled/done, (3) identity scope +
+  metadata-vs-correction rule decided on the issue.
+- **2026-10-29 (user, this session):** the HOLD is **revised toward
+  integration**. The collector-side `notice_identity` + PDF revision digest
+  (PR #41's approach) is accepted as the path forward, superseding the
+  archive-delegation direction for the collector. Precondition (1) #34 was
+  already delivered; precondition (3) is resolved by accepting PR #41's
+  contract as the issue #38 interface; precondition (2) F10/C8 delivery-state
+  exposure is **not yet done** and is carried as an **accepted risk** (the
+  collector-side suppression is opt-in, additive, and does not weaken #33's
+  crash-recovery contract).
+
+## Verified facts
+
+- Merge base of `refs/pr/41` and `github/main` is `36a8d31` (PR #31 delivery
+  test commit). The branch carries the sanitized public tip re-committed as
+  `d9362b3` (orphaned public-history commit, skill flag) plus exactly one
+  feature commit `74421dd`. `d9362b3` is byte-for-byte the same artifact
+  commit as PR #40's.
+- The `d9362b3` diff vs the merge base is 88 files: the public CHANGELOG
+  entry (already present in current `github/main` via the sanitized lineage)
+  + 87 pure deletions of private agent-context files (`.kilo/` 49,
+  `openwiki/` 32, `.vscode/` 2, `.github` 1, `.private`, `.openwikiignore`,
+  `AGENTS.md`) — none present in current `github/main` → all comparison
+  artifacts (fork-behind-base noise), **skipped, never applied**. This
+  accounts for the −19459 deletion count. No candidate file under a
+  protected path.
+- Actual feature content (`d9362b3..74421dd`): 10 files, +828/−10:
+  - new: `apps/billcollector/notice.py` (232), `tests/test_notice_identity.py`
+    (326), `doc/NOTICE_IDENTITY.md` (109);
+  - modified: `apps/billcollector/db.py` (+30), `downloads.py` (+100),
+    `recipes.py` (+5), `runner.py` (+12),
+    `apps/recipes_playwright/recipe-pw-schema.yaml` (+20),
+    `apps/requirements.txt` (+1, pin `pypdf==6.21.2`), `CHANGELOG.md` (+3).
+- Pre-image / applicability check of each base→`74421dd` hunk against Gitea
+  `dev` `a4ccc15` (via `git apply --check`):
+  - **clean**: `notice.py`/`test_notice_identity.py`/`NOTICE_IDENTITY.md`
+    (absent in base and dev → clean add), `runner.py` (both call sites match
+    the pre-image), `recipe-pw-schema.yaml`, `requirements.txt`;
+  - **manual adaptation required**: `db.py`, `downloads.py`, `recipes.py`,
+    `CHANGELOG.md`.
+- dev moved since the PR base via, at least: `78ed5f9` (#33 staged
+  publication + crash recovery — `db.py`, `downloads.py`, `runner.py`),
+  `cfb7875` (#34 daemon date variables — `db.py`, `recipes.py`, `runner.py`),
+  `b01be29` (#32 Chromium sandbox — `runner.py`), `df3ec4b` (#40
+  replacement_calendar — `runner.py`, `recipe-pw-schema.yaml`). All four are
+  in `origin/dev` **and** in `github/main` `f26b2a9`; `origin/dev` and
+  `github/main` are byte-identical for `downloads.py` (post-#33).
+- #40's `replacement_calendar` (a method that `notice.py::validate_notice_recipe`
+  names as a valid download step) is already in dev — the feature's only
+  cross-feature dependency is satisfied.
+
+## Code review findings
+
+Behavior is preserved for the legacy path and additive for the opt-in path:
+
+- `apps/billcollector/notice.py` (new, self-contained, depends only on
+  `pypdf` + stdlib):
+  - `validate_identity`: `notice_identity` is `{query_parameters: [...]}`
+    only; 1–16 unique, non-blank names ≤128 chars.
+  - `source_digest(url, options)`: rejects non-http(s), authority userinfo,
+    `blob:`, URL >16 KiB; requires each declared field to occur exactly once
+    with a non-blank value; hashes `[source-v1, scheme, host, port, path,
+    sorted fields]` → 64-hex `source_identity`. Undeclared fields (session
+    tokens) are excluded. Generic `ValueError` on any failure.
+  - `revision_digest(path)` → `_revision_digest`: `pdf-graph-v1` digest over
+    the parsed object graph; size ≤20 MiB; refuses encrypted/empty docs;
+    omits trailer `/ID`,`/Size`,`/Prev`,`/XRefStm`, Info `/CreationDate`,
+    `/ModDate`, stream `/Length`; normalizes a single generated named-dest
+    alias (`[A-Za-z]{3}_[A-Za-z0-9]{6}`) in a single-child name tree + its
+    `/Limits` and matching `/Dest`/`/GoTo` refs; preserves sharing/cycles via
+    an explicit DFS stack (`seen` map, `b"ref"` emission) with independent
+    100,000-node and depth-100 limits; uses `StreamObject._data` (pinned
+    dep) to avoid decompressing untrusted streams.
+  - Security hygiene: `_reject_pdf_diagnostics` installs a logging filter on
+    `pypdf*` loggers to drop warnings (which can embed raw PDF bytes) and
+    rejects the document if any fired; no raw parser error escapes the
+    boundary.
+  - `validate_notice_recipe`: walks services/steps/nested/submit/phases;
+    `notice_identity` is allowed only on a step whose methods intersect
+    `{expect_download, download_all, replacement_calendar}`.
+- `downloads.py`: `track_download` gains keyword-only `identity`; when set,
+  routes to `_track_notice_download` (source digest + revision digest +
+  `find_notice_revision` → duplicate suppresses publication and consumers;
+  `_publish_unique` stages in a temp dir and atomically `os.link`s with
+  ` (index)` suffixing on collision); when unset, routes to the renamed
+  `_track_legacy_download` (unchanged legacy behavior).
+- `db.py`: adds nullable `source_identity`, `revision_sha256` columns to
+  `Download`; idempotent `PRAGMA table_info`-guarded `ALTER TABLE` migration
+  + `CREATE INDEX download_notice_revision (task_id, source_identity,
+  revision_sha256)`; `insert_download` gains keyword-only
+  `source_identity`/`revision_sha256`; new `find_notice_revision` (matches
+  `task_id`+identity+revision with `duplicate_of_id IS NULL`).
+- `recipes.py`: imports + calls `validate_notice_recipe` in `validate_recipe`
+  (same pattern as the existing `validate_login_recipe` / #34
+  `validate_variable_recipe` guards).
+- `runner.py`: `_collection_actions.save_download` and `_handle_download`
+  build `identity_kwargs` from `step["notice_identity"]` and pass
+  `**identity_kwargs` to `track_download`; the collection duplicate-filename
+  guard is bypassed when `identity_kwargs` is set (opted-in collection steps
+  permit equal filenames, per doc).
+- `recipe-pw-schema.yaml`: adds `noticeIdentity` definition and a
+  `notice_identity` property to the step and method-carrying step
+  definitions, described as "Daemon-only … unsupported by the legacy batch
+  runner".
+- `requirements.txt`: pins `pypdf==6.21.2`.
+- `tests/test_notice_identity.py`: 14 synthetic tests (no private data).
+  Coverage: metadata-only regeneration suppresses re-publish + re-consume;
+  corrections and distinct sources each keep their original; identical bytes
+  across accounts are distinct; identity fields hashed and session tokens
+  excluded (asserts no raw account/notice values retained); missing/ambiguous
+  identity and malformed PDFs refuse with generic errors and leak no secret
+  into the message or logs; named-dest alias vs meaningful label
+  discrimination; non-text/metadata/attachment participation in revision;
+  legacy additive migration without backfill; recipe-option gating on
+  download steps; runner adapter; browser collection repeat + correction with
+  equal filenames (intercepted loopback); long linked graphs accepted; deep
+  direct nesting refused.
+
+## Risks
+
+- **Stale base / #33 pipeline (HIGH, integration).** The PR's
+  `_track_notice_download` + `_publish_unique` target the **pre-#33**
+  `downloads.py`. dev's `track_download` is #33's journal
+  staged-publication + crash-recovery model (`staged_path`, `state`,
+  `manifest.json`, `_publish`/`_deliver`/`_recover_locked`, subprocess
+  recovery). The notice path must be **re-authored** on that pipeline, not
+  copied. The PR's `db.insert_download` call shape (positional +
+  `duplicate_of_id`/`source_identity`/`revision_sha256`) differs from dev's
+  (`**record` + `state`/`staged_path`) and must be reconciled.
+- **Shared interface not yet agreed (MEDIUM, process).** Issue #38 is open
+  and a "decision requested before code" vehicle; the `notice_identity`
+  recipe contract and the additive `Download` schema are exactly the
+  interfaces it says need agreement first. Mitigation: opt-in + backward
+  compatible + additive (nullable, no backfill, old engine ignores columns);
+  author defers the decision to the maintainer and offers to adapt.
+- **Behavioral coupling to #33 crash window (LOW).** The PR's doc states the
+  existing publication/consumer/DB crash window is unchanged and there is no
+   exactly-once consumer guarantee; the notice duplicate-suppression must not
+   weaken #33's recovery semantics.
+- **F10/C8 archive contract not yet delivered (ACCEPTED, MEDIUM).** The
+  2026-10-27 #38 decision tied the no-duplicate-output claim to the archive's
+  F10/C8 delivery-state proof, still an open maintainer lane. The 2026-10-29
+  revision accepts the collector-side suppression now; the archive lane stays
+  separate. The collector change is opt-in and must not weaken #33 recovery.
+- **`pypdf` private attr (LOW).** `StreamObject._data` is a private API;
+  mitigated by the `pypdf==6.21.2` pin and the "no stream decode" guarantee.
+
+## Integration plan (per file)
+
+Apply on Gitea `dev`, file-level (S4). Skip every `d9362b3` deletion under a
+protected path and the stale PR #31 CHANGELOG line.
+
+1. `apps/billcollector/notice.py` — **apply as-is** (new).
+2. `tests/test_notice_identity.py` — **apply as-is** (new).
+3. `doc/NOTICE_IDENTITY.md` — **apply as-is** (new).
+4. `apps/requirements.txt` — **apply as-is** (`pypdf==6.21.2`); verify the
+   pin matches the lock/venv and update any lockfile if present.
+5. `apps/billcollector/runner.py` — **apply the two hunks** (clean); confirm
+   against post-#32/#40 `runner.py`.
+6. `apps/recipes_playwright/recipe-pw-schema.yaml` — **apply as-is** (clean).
+7. `apps/billcollector/recipes.py` — **manual union**: add
+   `from .notice import validate_notice_recipe` alongside #34's
+   `validate_variable_recipe`, and add the `validate_notice_recipe` guard in
+   `validate_recipe` next to the existing two guards.
+8. `apps/billcollector/db.py` — **manual merge** with #33/#34: add the two
+   nullable columns to the `Download` `CREATE TABLE`, extend the
+   `PRAGMA table_info`-guarded migration, add `find_notice_revision`, and
+   extend `insert_download`'s keyword-only args (merge with dev's
+   `state`/`staged_path`).
+9. `apps/billcollector/downloads.py` — **manual re-author** (dominant work):
+   keep the legacy path = dev's current #33 `track_download`; add the
+   `identity` keyword; implement the notice path by computing
+   `source_digest`/`revision_digest`, looking up `find_notice_revision`, and
+   routing a duplicate through the existing "audit row without another
+   publication/consumers" branch, while a new source/revision stages through
+   the #33 journal (`staged_path`/`state`, `_publish`/`_deliver`) so the
+   crash-recovery contract is preserved. Preserve the observable test
+   contract (duplicate flag, `saved_path`, consumer-once, no secret leak).
+   The PR's `_publish_unique` (temp-dir + `os.link`) is **not** reused; its
+   collision-suffixing intent maps onto #33's existing filename handling.
+10. `CHANGELOG.md` — **manual merge**: fold the PR's `Added` entry into the
+    existing `## [Unreleased]` (Keep a Changelog order).
+
+## Validation plan (S5, on the exact dev tree, from repo root, venv)
+
+- PR unit tests: `apps/.venv/bin/python -m pytest tests/test_notice_identity.py -q`
+  → expected 14 passed (re-run after the S4 re-author; the re-authored
+  notice path must keep the same observable contract).
+- Full regression: `apps/.venv/bin/python -m pytest tests/ -q --tb=short`
+  → all pass (PR reported 466 passed / 3 skipped / 53 subtests on its own
+  base; expect the dev baseline plus the 14 new, no new failures).
+- Regression harness: `apps/.venv/bin/python tests/run_regression.py --ini
+  tests/bc_regression.ini` → exit 0 (VERDICT: PASS).
+- Recipe/schema validation: run the CheckRecipe / schema validation path over
+  all bundled recipes → 15/15 still validate (the new schema `definitions`
+  must not break existing recipes).
+- ruff + bandit on changed files → nothing new beyond the known baseline.
+- `pypdf` import/availability in `apps/.venv` (pin installed).
+
+## Deployment validation
+
+Not deployment-relevant for the *code* change (no `Dockerfile`,
+`.dockerignore`, `BillCollector.sh`, `install_docker-image.sh`,
+`deploy_remote.sh`, or INI/`.env` handling touched). The only runtime-config
+impact is the new `pypdf` dependency, which must be present in the build
+image — to be confirmed when the S5/S7 gate decides whether a dependency-only
+image rebuild is in scope. Recorded as "not deployment-relevant (code);
+dependency pin to be re-confirmed at S5 gate." No Docker build/canary/smoke
+recorded yet; user confirmation required before S7 per the invariant.
+
+## Out of scope
+
+- Issue #38's broader ownership decision (collector vs archive revision
+  authority) — the PR does not claim that resolution; it ships a conservative
+  opt-in collector-side implementation.
+- Crash-recovery semantics (#33) — unchanged; only the notice path is
+  grafted onto it.
+- The legacy batch engine — explicitly not implementing `notice_identity`
+  (schema/doc state this); no backfill or historical conversion.
+- Any change to consumer error handling, run results, scheduling, or
+  financial import behavior.
+
+## Open questions (S3 decision points)
+
+- **M1 — recipe contract:** accept the `notice_identity` contract
+  (`query_parameters`: 1–16 unique non-blank names ≤128 chars, on daemon
+  `expect_download`/`download_all`/`replacement_calendar` steps only) as the
+  issue #38 interface?
+- **M2 — DB schema:** accept the additive `Download` columns
+  `source_identity`/`revision_sha256` + the
+  `download_notice_revision` index?
+- **M3 — reconciliation approach:** confirm re-authoring the notice tracking
+  path on the #33 journal pipeline (item 9) rather than shipping the PR's
+  pre-#33 `_publish_unique`?

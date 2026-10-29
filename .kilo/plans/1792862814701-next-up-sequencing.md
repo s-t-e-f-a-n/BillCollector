@@ -286,11 +286,26 @@ interleaved with the remaining Stage 1b portal sessions.**
     proof-gated, durable interruption); the PR ships no CHANGELOG entry —
     maintainer authors the `### Added` line (S3 decision); deployment
     validation recorded as not deployment-relevant — Status:
-    DELIVERED (2026-10-28: S7 complete; Gitea `main` `b693517` / GitHub
-    `main` `ad18f7a`; PR #39 closed without merge; issue #36 closed
-    completed).
- - The 1und1 portal iteration remains independent and can run in a live
-   session at any time.
+     DELIVERED (2026-10-28: S7 complete; Gitea `main` `b693517` / GitHub
+     `main` `ad18f7a`; PR #39 closed without merge; issue #36 closed
+     completed).
+  - PR #40 S1+S2 done 2026-10-28 ("continue pr#40" session): review plan
+    doc `1793228064786-pr40-replacement-calendar-review.md` written, verdict
+    approve (head `73acc023` stable; branch re-commits the sanitized tip
+    `d9362b3` as an orphaned public-history commit whose 87 private-file
+    deletions are comparison artifacts, skipped; actual content = 9 files
+    +816/−11 — new `calendar.py` bounded traversal, optional
+    `download_all` deadline/before-download hooks, new daemon action +
+    legacy-runner refusal, schema + contract doc + 382-line pytest module;
+    the #37 seven-point contract verified point-by-point; 4 dev-diverged
+    files (runner.py, BillCollectorServices_pw.py, README, CHANGELOG) all
+    non-overlapping hunks; M1 doc currency + M2 CHANGELOG wording as S3
+    decision points), deployment validation recorded as not
+    deployment-relevant — Status: AWAITING-DECISION. New PR #44 (C3 method-
+    chain validation) arrived after the addendum — separate sequencing
+    decision.
+  - The 1und1 portal iteration remains independent and can run in a live
+    session at any time.
 
 ## Explicitly not doing
 

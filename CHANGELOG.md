@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Opt-in daemon `replacement_calendar` action for bounded monthly
+  replacement-calendar traversal (issue #37). Months come from the run-start
+  date context (issue #26). The legacy batch runner refuses the action.
+
 - Input-triggered protected login submissions (issue #36): a login phase
   `submit` chain may now end with `fill`, for portals that submit when a
   password or OTP field is filled. The durable attempt is reserved before that

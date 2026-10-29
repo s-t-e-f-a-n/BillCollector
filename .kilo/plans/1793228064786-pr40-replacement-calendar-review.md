@@ -263,7 +263,35 @@ requested at the S5 gate before S7 may commit/push to `main`.
   of each working-tree diff were verified equal to the PR diff. M1: 4
   fork-perspective edits to the new doc (header note, "The fork's daemon"
   sentence, "fork's pinned runtime", final paragraph). M2: the confirmed
-  CHANGELOG `### Added` entry (issue #37 / #26, present tense, legacy
-  runner refusal) inserted at the top of the Unreleased Added list. Working
-  tree left dirty (uncommitted) for S5 to validate the exact content.
-  Status: INTEGRATING.
+   CHANGELOG `### Added` entry (issue #37 / #26, present tense, legacy
+   runner refusal) inserted at the top of the Unreleased Added list. Working
+   tree left dirty (uncommitted) for S5 to validate the exact content.
+   Status: INTEGRATING.
+- 2026-10-29 S5: code checks all green on the exact dirty dev tree (S4
+  applied, pre-commit; dev doc tip `e89aee8`, head `73acc02` unchanged).
+  PR companion suites: `pytest tests/test_bc_calendar.py
+  tests/test_bc_collection.py -q` → **57 passed, 1 skipped in 33.71 s**
+  (the skip is the pre-existing `BILLCOLLECTOR_BROWSER_TESTS=1`-gated
+  loopback Chromium smoke in test_bc_collection.py:860, not a calendar
+  test; matches the PR's claimed "57/1 with #34"). Full suite: `pytest
+  tests/ -q` → **633 passed, 10 skipped, 53 subtests passed in 469.77 s**
+  (dev baseline 600 + the 33 new calendar cases; the 10 skips are
+  pre-existing environment-gated skips). Full regression:
+  `run_regression.py --ini tests/bc_regression.ini` → **exit 0, VERDICT:
+  PASS** (7 scenarios / 8 PDFs, downloads 8/8; the designed failing pairs
+  return the expected `BillCollector exit semantics: 1`). Ruff (repo
+  `ruff.toml`) on the 5 changed Python files: working-tree finding set is
+  **identical to the dev baseline** (40 pre-existing findings, all in
+  BillCollectorServices_pw.py; calendar.py, collection.py, runner.py,
+  test_bc_calendar.py clean) — nothing new. Bandit on the same files:
+  delta vs. baseline is exactly **+39 `B101 assert_used`, all in the new
+  `tests/test_bc_calendar.py`** (test-only idiom, synthetic data — same
+  pattern as PR #39's +22); the pre-existing B608 (SQL, services) and B110
+  (try-except-pass, runner) findings are unchanged. Recipe validation:
+  all **15 bundled recipes** pass `recipes.validate_recipe` against the
+  updated `recipe-pw-schema.yaml`; **none** uses `replacement_calendar`.
+  Deployment validation: recorded skip (not deployment-relevant, see the
+  Deployment validation section; the trigger check still holds — the S4
+  tree touches no Dockerfile/.dockerignore/BillCollector.sh/
+  install_docker-image.sh/deploy_remote.sh/INI keys/.env handling). S5
+  gate pending (user confirmation of the recorded skip before S6/S7).

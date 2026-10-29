@@ -1,8 +1,9 @@
 # PR #40 review: bounded replacement calendars (issue #37)
 
-> Status: INTEGRATING (2026-10-29) — S3 confirmed as-is (M1/M2 approved,
-> 3-commit split); S4 applied: 5 files byte-identical from head `73acc02`,
-> 7 hunks on 3 diverged files, M1+M2 applied; tree left dirty for S5.
+> Status: VALIDATED (2026-10-29) — S5 all green on the exact dirty dev
+> tree (companion 57 passed, full suite 633, regression PASS, ruff no
+> delta, bandit +39 test-only B101, 15/15 recipes validate); deployment
+> validation skip user-confirmed at the S5 gate. Next: S6 (documentation).
 
 ## PR metadata
 
@@ -293,5 +294,9 @@ requested at the S5 gate before S7 may commit/push to `main`.
   Deployment validation: recorded skip (not deployment-relevant, see the
   Deployment validation section; the trigger check still holds — the S4
   tree touches no Dockerfile/.dockerignore/BillCollector.sh/
-  install_docker-image.sh/deploy_remote.sh/INI keys/.env handling). S5
-  gate pending (user confirmation of the recorded skip before S6/S7).
+  install_docker-image.sh/deploy_remote.sh/INI keys/.env handling).
+- 2026-10-29 S5: gate passed — the recorded deployment-validation skip
+  was user-accepted (timestamp 2026-10-29, S5 gate), satisfying the S7
+  prerequisite for the exact dirty dev tree (dev `03da883` doc tip;
+  integration files uncommitted). Status: VALIDATED. Next: S6
+  (documentation).

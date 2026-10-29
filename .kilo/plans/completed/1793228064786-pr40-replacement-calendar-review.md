@@ -1,12 +1,10 @@
 # PR #40 review: bounded replacement calendars (issue #37)
 
-> Status: VALIDATED (2026-10-29) — S6 docs user-confirmed as-is (M2
-> CHANGELOG entry, README bullet, doc/REPLACEMENT_CALENDARS.md as applied
-> in S4); S5 all green on the exact dirty dev tree (companion 57 passed,
-> full suite 633, regression PASS, ruff no delta, bandit +39 test-only
-> B101, 15/15 recipes validate); deployment validation skip
-> user-confirmed at the S5 gate. Next: S7 (commit + push: Gitea dev,
-> promote main, mirror, PR close).
+> Status: DELIVERED (2026-10-29) — S7 complete: Gitea `main` `61defd3`
+> (ff-only from `b693517`), GitHub `main` `f26b2a9`; PR #40 closed without
+> merge (comment 6509093900, 2026-10-29T21:48:00Z), issue #37 closed
+> (comment 6509221226, 2026-10-29T21:55:06Z); per-public-update
+> Discussion summary omitted at user request (2026-10-29).
 
 ## PR metadata
 
@@ -314,3 +312,36 @@ requested at the S5 gate before S7 may commit/push to `main`.
   edits made; the tree is unchanged since the S6 presentation. Status:
   VALIDATED. Next: S7 (commit + push: Gitea dev, promote main, mirror,
   PR close).
+- 2026-10-29 S7: delivery. **S7.0 prerequisite** held — the S5
+  deployment-validation skip covers the exact tree being promoted (only
+  the doc-only S6 plan commit `b7900ba` landed after the S5 gate; no
+  integration file changed). **S7.1 commits** (S3-confirmed split,
+  messages user-confirmed): `df3ec4b` feat (calendar.py, collection.py,
+  runner.py, BillCollectorServices_pw.py, recipe-pw-schema.yaml; +328/−10),
+  `d34e396` test (test_bc_calendar.py; +382), `61defd3` doc (CHANGELOG,
+  README, doc/REPLACEMENT_CALENDARS.md; +107/−1). Pushed to Gitea `dev`
+  (`b7900ba..61defd3`). **S7.2 promotion** (user-gated, ff-only, no tag —
+  not a release): `origin/main` `b693517` → `61defd3`, pushed; verified
+  `main` == `dev`, clean tree. **S7.3 mirror** (user-gated):
+  `sync_github.sh` published Gitea `main` to GitHub `main` `ad18f7a` →
+  `f26b2a9` (sanitize-by-amend; public gate verified — new hash, no
+  `.kilo`/`.vscode`/`.private`/`openwiki`/`AGENTS.md`/`.openwikiignore`/
+  `.github/workflows`, integrated content present). **S7.4 PR close**
+  (text user-confirmed): comment
+  https://github.com/s-t-e-f-a-n/BillCollector/pull/40#issuecomment-6509093900
+  (mirror flow, landed content with the public tip, M1/M2 adaptations,
+  validation summary, non-blocking nit on the stale TZ-test skip reason);
+  PR #40 closed **without merge** at 2026-10-29T21:48:00Z. **S7.5 issue
+  close** (text user-confirmed): comment
+  https://github.com/s-t-e-f-a-n/BillCollector/issues/37#issuecomment-6509221226;
+  issue #37 closed at 2026-10-29T21:55:06Z (all seven agreed acceptance
+  requirements met). **S7.6 per-public-update Discussion summary
+  (publication routine, issue #25):** omitted at user request (2026-10-29,
+  like PR #39) — the Discussion write API is unavailable from this
+  environment (2026-10-25 finding) and the user chose not to post it
+  manually. **S7.7:** Status: DELIVERED. Gitea `dev`/`main` `61defd3`,
+  GitHub `main` `f26b2a9`, PR #40 closed 2026-10-29T21:48:00Z, issue #37
+  closed 2026-10-29T21:55:06Z. Plan doc archived to `completed/`,
+  cross-references updated. Next chain head: none (the #34 → #35 → #42 →
+  #39 → #40 chain is complete; #41 HELD on the #38 archive decision,
+  #44 a separate sequencing decision).

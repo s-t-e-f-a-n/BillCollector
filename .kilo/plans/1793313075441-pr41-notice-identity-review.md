@@ -1,10 +1,11 @@
 # PR #41 review: source notice identities and PDF revisions (issue #38)
 
-> Status: AWAITING-DECISION (2026-10-29) — S1+S2 complete; verdict approve
-> with maintainer changes (reconcile against current dev; #33 pipeline
-> re-author; contract/schema are S3 decision points). #38 decision revised
-> 2026-10-29 toward integration (see Decision history); F10/C8 gap accepted
-> as risk. Awaiting S3 proposal confirmation.
+> Status: INTEGRATING (2026-10-29) — S3 confirmed as-is (M1 contract,
+> M2 schema, M3 #33-journal re-author); S4 applied on dev `c24d1b4` (PR head
+> `74421dd` unchanged): clean files via git apply, db.py/recipes.py/CHANGELOG
+> manual merges, downloads.py re-authored on the #33 journal pipeline, 2 test
+> assertions adapted; 14/14 unit tests green on the dirty tree. Awaiting S5
+> validation on the exact tree.
 
 ## PR metadata
 
@@ -225,6 +226,54 @@ protected path and the stale PR #31 CHANGELOG line.
 10. `CHANGELOG.md` — **manual merge**: fold the PR's `Added` entry into the
     existing `## [Unreleased]` (Keep a Changelog order).
 
+## S3/S4 execution record (2026-10-29)
+
+- **S3 gate:** user confirmed the proposal as-is → M1 (`notice_identity`
+  recipe contract), M2 (additive `Download` columns + index), M3 (re-author
+  on the #33 journal pipeline) all accepted.
+- **S4 preflight:** `dev` clean at `c24d1b4` (== `origin/dev`); PR head
+  `74421dd` unchanged vs S1; `git apply --check` of the six clean candidates
+  re-verified against dev.
+- **Applied from `refs/pr/41` head** (single `git apply` of the
+  base→head diff for the clean set): `notice.py` (new), `runner.py` (2
+  hunks), `recipe-pw-schema.yaml`, `requirements.txt` (`pypdf==6.21.2`),
+  `doc/NOTICE_IDENTITY.md` (new), `tests/test_notice_identity.py` (new).
+- **`db.py` manual merge** (per plan item 8): two nullable columns appended
+  after `staged_path TEXT` in `CREATE TABLE Download`; the two names added to
+  the existing `PRAGMA table_info`-guarded migration dict;
+  `download_notice_revision` index created after the loop;
+  `insert_download` keyword-only `source_identity`/`revision_sha256`
+  (INSERT 11→13 columns); `find_notice_revision` added after
+  `find_download_by_sha`.
+- **`recipes.py` manual merge** (plan item 7): `validate_notice_recipe`
+  import + `invalid notice identity contract` guard beside the login/variable
+  guards.
+- **`downloads.py` re-author** (plan item 9 / M3): `track_download` gains
+  keyword-only `identity`; `notice.source_digest` runs **before staging**
+  (unidentifiable sources fail with no journal entry); `notice.revision_digest`
+  runs on the staged document after the sha; the record carries
+  `source_identity`/`revision_sha256` and duplicates resolve via
+  `find_notice_revision` into the existing audit-row branch (no publication,
+  no consumers); staging/manifest/`_publish`/`_deliver`/journal cleanup are
+  the unchanged #33 code. The PR's `_track_notice_download`/`_publish_unique`
+  and RUN_DIR staging are **not** shipped.
+- **Test adaptation** (maintainer-side, 2 lines): both output-dir assertions
+  now filter to files (`[p for p in out.iterdir() if p.is_file()]`), house
+  style from `tests/test_bc_downloads_recovery.py:100`, because the #33
+  journal (`.billcollector/`) lives inside the output dir.
+- **`CHANGELOG.md`:** PR's `Added` entry folded into `## [Unreleased]` with a
+  trailing `(issue #38)` reference, matching the neighboring entries' style.
+- **Environment:** `pypdf==6.21.2` installed into `apps/.venv` (env-only,
+  not committed; no lockfile exists).
+- **Smoke (not the S5 gate):** `pytest tests/test_notice_identity.py -q` →
+  14 passed in 7.86s on the dirty tree, including the real-browser
+  collection test (chromium 153.0.8010.12 verified in the venv).
+- **Known edge (recorded, not fixed):** a row recovered through
+  `_recover_locked`'s conservative manifest path is re-inserted with only the
+  `_FIELDS` keys, so its identity columns stay NULL and a later regeneration
+  of that one document republishes with a suffixed filename instead of being
+  suppressed — conservative (no missed delivery, no data loss).
+
 ## Validation plan (S5, on the exact dev tree, from repo root, venv)
 
 - PR unit tests: `apps/.venv/bin/python -m pytest tests/test_notice_identity.py -q`
@@ -266,13 +315,13 @@ recorded yet; user confirmation required before S7 per the invariant.
 
 ## Open questions (S3 decision points)
 
-- **M1 — recipe contract:** accept the `notice_identity` contract
+Resolved 2026-10-29 at the S3 gate — user confirmed the proposal as-is:
+
+- **M1 — recipe contract:** accepted as the issue #38 interface
   (`query_parameters`: 1–16 unique non-blank names ≤128 chars, on daemon
-  `expect_download`/`download_all`/`replacement_calendar` steps only) as the
-  issue #38 interface?
-- **M2 — DB schema:** accept the additive `Download` columns
-  `source_identity`/`revision_sha256` + the
-  `download_notice_revision` index?
-- **M3 — reconciliation approach:** confirm re-authoring the notice tracking
-  path on the #33 journal pipeline (item 9) rather than shipping the PR's
-  pre-#33 `_publish_unique`?
+  `expect_download`/`download_all`/`replacement_calendar` steps only).
+- **M2 — DB schema:** accepted (additive `source_identity`/`revision_sha256`
+  + `download_notice_revision` index).
+- **M3 — reconciliation approach:** confirmed — notice tracking re-authored
+  on the #33 journal pipeline; the PR's pre-#33 `_publish_unique` is not
+  shipped.

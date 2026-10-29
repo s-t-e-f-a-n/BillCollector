@@ -1,9 +1,12 @@
 # PR #40 review: bounded replacement calendars (issue #37)
 
-> Status: VALIDATED (2026-10-29) — S5 all green on the exact dirty dev
-> tree (companion 57 passed, full suite 633, regression PASS, ruff no
-> delta, bandit +39 test-only B101, 15/15 recipes validate); deployment
-> validation skip user-confirmed at the S5 gate. Next: S6 (documentation).
+> Status: VALIDATED (2026-10-29) — S6 docs user-confirmed as-is (M2
+> CHANGELOG entry, README bullet, doc/REPLACEMENT_CALENDARS.md as applied
+> in S4); S5 all green on the exact dirty dev tree (companion 57 passed,
+> full suite 633, regression PASS, ruff no delta, bandit +39 test-only
+> B101, 15/15 recipes validate); deployment validation skip
+> user-confirmed at the S5 gate. Next: S7 (commit + push: Gitea dev,
+> promote main, mirror, PR close).
 
 ## PR metadata
 
@@ -300,3 +303,14 @@ requested at the S5 gate before S7 may commit/push to `main`.
   prerequisite for the exact dirty dev tree (dev `03da883` doc tip;
   integration files uncommitted). Status: VALIDATED. Next: S6
   (documentation).
+- 2026-10-29 S6: documentation gate passed — the S6 doc set was
+  user-confirmed **as-is**: the M2 CHANGELOG `### Added` entry (issue
+  #37 + #26, present tense, opt-in, legacy batch runner refusal) at the
+  top of `## [Unreleased]`, the README bounded-pagination bullet sentence
+  linking `doc/REPLACEMENT_CALENDARS.md`, and the new
+  `doc/REPLACEMENT_CALENDARS.md` (PR head content + the M1
+  upstream-perspective reframe applied in S4). CONTRIBUTING.md verified:
+  no method-list or contributor-rule change required. No further doc
+  edits made; the tree is unchanged since the S6 presentation. Status:
+  VALIDATED. Next: S7 (commit + push: Gitea dev, promote main, mirror,
+  PR close).

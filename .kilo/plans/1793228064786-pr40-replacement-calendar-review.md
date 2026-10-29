@@ -1,8 +1,8 @@
 # PR #40 review: bounded replacement calendars (issue #37)
 
-> Status: AWAITING-DECISION (2026-10-28) — S1+S2 done: verdict approve, two
-> doc-wording nits (M1/M2) as S3 decision points, deployment validation
-> recorded as not deployment-relevant.
+> Status: INTEGRATING (2026-10-29) — S3 confirmed as-is (M1/M2 approved,
+> 3-commit split); S4 applied: 5 files byte-identical from head `73acc02`,
+> 7 hunks on 3 diverged files, M1+M2 applied; tree left dirty for S5.
 
 ## PR metadata
 
@@ -229,8 +229,41 @@ requested at the S5 gate before S7 may commit/push to `main`.
 
 ## Open questions
 
-- S3 decision: M1 + M2 as-is, adjusted, or declined.
 - New PR #44 (C3: validate daemon recipe method chains before runtime
   access) arrived after the chain addendum; it is a separate sequencing
   decision (no code dependency on #40; regional overlap in the
   method-chain-validation area only, re-checked by #44's own S1).
+
+## Execution log
+
+- 2026-10-29 S3: proposal presented and confirmed **as-is** (user gate
+  passed). The S3 proposal restated the S2 integration plan: apply 5 files
+  byte-identical from head `73acc02` (incl. `doc/REPLACEMENT_CALENDARS.md`
+  + M1), apply the 7 hunks on the 3 diverged files, skip the `d9362b3`
+  re-commit, and merge the M2 CHANGELOG entry at the top of Unreleased
+  `### Added` (newest-first). S7 commit split confirmed: feat (calendar.py,
+  collection.py, runner.py, BillCollectorServices_pw.py,
+  recipe-pw-schema.yaml) + test (test_bc_calendar.py) + doc (CHANGELOG,
+  README, doc/REPLACEMENT_CALENDARS.md). Head re-verified unchanged
+  (`git ls-remote github refs/pull/40/head` == local `refs/pr/40` ==
+  `73acc02`).
+- 2026-10-29 S4: integration applied. Preflight green on dev `ee6e532`:
+  clean tree; remote head == local `refs/pr/40` == `73acc02` (unchanged
+  since S1); pre-image re-checks clean (collection.py + schema
+  byte-identical to PR base `d9362b3`; calendar.py, test_bc_calendar.py,
+  doc/REPLACEMENT_CALENDARS.md absent on dev; the 4 diverged files
+  re-confirmed). Applied from PR head, verified byte-identical to head
+  (`git hash-object` == `refs/pr/40:` blob): `apps/billcollector/calendar.py`
+  (new), `apps/billcollector/collection.py`,
+  `apps/recipes_playwright/recipe-pw-schema.yaml`,
+  `tests/test_bc_calendar.py` (new), `doc/REPLACEMENT_CALENDARS.md` (new,
+  then M1 applied). Hunk patch `git diff d9362b3..refs/pr/40` on
+  `runner.py` (3), `BillCollectorServices_pw.py` (4), `README.md` (1)
+  applied via `git apply --check` then `git apply`; the added/removed lines
+  of each working-tree diff were verified equal to the PR diff. M1: 4
+  fork-perspective edits to the new doc (header note, "The fork's daemon"
+  sentence, "fork's pinned runtime", final paragraph). M2: the confirmed
+  CHANGELOG `### Added` entry (issue #37 / #26, present tense, legacy
+  runner refusal) inserted at the top of the Unreleased Added list. Working
+  tree left dirty (uncommitted) for S5 to validate the exact content.
+  Status: INTEGRATING.

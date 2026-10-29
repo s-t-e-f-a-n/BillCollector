@@ -22,7 +22,9 @@ COLLECTION_LOCATOR_METHODS = frozenset({
     "locator", "get_by_role", "get_by_label", "get_by_text",
     "get_by_title", "get_by_placeholder", "get_by_test_id",
 })
-COLLECTION_ACTION_METHODS = frozenset({"click_until_absent", "download_all"})
+COLLECTION_ACTION_METHODS = frozenset({
+    "click_until_absent", "download_all", "replacement_calendar",
+})
 
 logger = logging.getLogger(__name__)
 
@@ -343,7 +345,7 @@ def _download_one(page, context, target, save_download, index, count,
 
 
 def download_all(page, context, locator, save_download, options,
-                 *, completed_keys=None):
+                 *, completed_keys=None, before_download=None, deadline=None):
     """Download every item from one stable, explicitly keyed locator.
 
     The initial ordered key set is the contract for the whole action.  The
@@ -373,6 +375,8 @@ def download_all(page, context, locator, save_download, options,
     if event_window_ms >= timeout_ms:
         raise CollectionError("event_window_ms must be less than timeout_ms")
     total_deadline = time.monotonic() + timeout_ms / 1000
+    if deadline is not None:
+        total_deadline = min(total_deadline, deadline)
 
     keys = _snapshot(locator, key_attribute)
     _validate_snapshot(keys, max_items)
@@ -418,6 +422,9 @@ def download_all(page, context, locator, save_download, options,
                 raise CollectionError(
                     f"download list changed after {index} of {count} items"
                 )
+            if before_download is not None:
+                before_download()
+
             def save_completed(download):
                 record = save_download(download)
                 completed_keys.add(expected_key)

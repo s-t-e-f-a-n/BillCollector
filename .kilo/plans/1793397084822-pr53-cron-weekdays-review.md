@@ -1,8 +1,8 @@
 # PR #53 review: crontab weekday numbering (issue #46)
 
-> Status: AWAITING-DECISION (2026-10-30) — S1+S2 done: verdict approve with one
-> maintainer change (M1, CHANGELOG placement); 4 files, 3 as-is + 1 manual;
-> next S3 gate.
+> Status: INTEGRATING (2026-10-30) — S3 gate passed (M1 confirmed as-is) +
+> S4 integration applied (3 files as-is from head `6b41040b` + M1 CHANGELOG
+> placement); tree dirty for S5; next S5 validation.
 
 ## PR metadata
 
@@ -157,4 +157,20 @@ Block skipped; recorded here + user-confirmed at the S5 gate.
 
 ## Open questions
 
-- S3 gate: confirm M1 (CHANGELOG placement) as-is or with changes.
+- None. S3 gate passed 2026-10-30 (M1 confirmed as-is).
+
+## Execution record
+
+- S1+S2 (2026-10-30, "continue last sessions" session): plan doc created,
+  verdict approve with M1; commit `8c9a17d` (plan doc + sequencing + README),
+  pushed to `origin/dev`.
+- S3 (2026-10-30, same session): user confirmed the proposal as-is — M1
+  CHANGELOG placement accepted, no changes to the as-is file set.
+- S4 (2026-10-30, same session): preflight green on dev `8c9a17d` (clean
+  tree; head `6b41040b` unchanged via `git ls-remote`; pre-image re-check:
+  all 4 files still dev-identical to the PR base). Applied:
+  `scheduler.py` / `ui/tasks.py` / `test_bc_scheduler.py` as-is from
+  `refs/pr/53` (verified byte-identical to head), CHANGELOG M1 — entry
+  text verbatim into the existing `### Fixed` subsection (prepended), the
+  PR's duplicate `### Fixed`-above-`### Added` insertion dropped. Tree left
+  dirty (4 files) for S5; no commit of the integrated content.

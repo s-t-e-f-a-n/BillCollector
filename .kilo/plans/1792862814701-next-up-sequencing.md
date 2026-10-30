@@ -227,8 +227,8 @@ interleaved with the remaining Stage 1b portal sessions.**
   request.
 - New PRs #35/#39/#40/#41 arrived after the sequencing decision; they do not
   change #32's position (no known overlap with its 15 files) — a sequencing
-  addendum is a separate decision. **Addendum decided 2026-10-27** (plan
-  `1793124431799-open-issues-plans-20261027.md`): #34 → #35 → #42 → #39 →
+  addendum is a separate decision.   **Addendum decided 2026-10-27** (plan
+  `completed/1793124431799-open-issues-plans-20261027.md`): #34 → #35 → #42 → #39 →
   #40, with #41 HELD on the #38 archive decision; PR #42 (issue #43) arrived
   2026-10-27.
  - PR #35 S1+S2 done 2026-10-27 ("proceed with next pr" session): review plan
@@ -308,9 +308,32 @@ interleaved with the remaining Stage 1b portal sessions.**
      commits `df3ec4b`/`d34e396`/`61defd3`, Gitea `main` `61defd3` (ff-only
      from `b693517`) / GitHub `main` `f26b2a9`; PR #40 closed without merge
      (comment 6509093900, 2026-10-29T21:48:00Z); issue #37 closed (comment
-     6509221226, 2026-10-29T21:55:06Z); Discussion summary omitted at user
-     request). New PR #44 (C3 method-chain validation) arrived after the
-     addendum — separate sequencing decision.
+      6509221226, 2026-10-29T21:55:06Z); Discussion summary omitted at user
+      request). New PR #44 (C3 method-chain validation) arrived after the
+      addendum — separate sequencing decision.
+  - PR #41 S1+S2 done 2026-10-29 ("continue PR #41" session): review plan
+    doc `completed/1793313075441-pr41-notice-identity-review.md` written,
+    verdict approve with maintainer changes (head `74421dd` stable; branch
+    re-commits the sanitized tip `d9362b3` as an orphaned
+    public-history commit, skipped; actual content = 10 files +828/−10; #38
+    HOLD revised toward integration 2026-10-29 with F10/C8 as an accepted
+    risk; M1 contract / M2 schema / M3 #33 re-author as S3 decision
+    points; deployment-validation skip recorded), S3–S7 across three
+    "continue PR #41" sessions: S3 as-is, S4 selective integration (6 clean
+    files + db/recipes manual merge + downloads re-authored on the #33
+    journal + 2 test adaptations + CHANGELOG fold), S5 all green on the
+    exact tree (14/14 unit, 647 + 53 subtests, harness PASS 7/7, 15/15
+    recipes, ruff/bandit baseline; deployment skip user-confirmed), S6 docs
+    as-is (README pointer + NOTICE_IDENTITY header reframe, docs-only),
+    S7 — commits `14bab50`/`5c8216f`/`74ba171`, Gitea `main` `74ba171`
+    (ff-only from `61defd3`) / GitHub `main` `e83c8e2`; PR #41 closed
+    without merge (comment 6531164937, 2026-10-30T19:00:36Z); issue #38
+    closed completed (comment 6531165804, 2026-10-30T19:00:39Z).
+    **The planned PR chain #34 → #35 → #42 → #39 → #40 → #41 is
+    complete.** Discussion summary text recorded in the review doc for
+    manual web-UI post (write API unavailable). Flowcool's archive-side
+    contract proposal on #38 (2026-10-30, comment 6518010065) awaits a
+    maintainer decision — a dedicated new issue if tracked.
   - The 1und1 portal iteration remains independent and can run in a live
     session at any time.
 

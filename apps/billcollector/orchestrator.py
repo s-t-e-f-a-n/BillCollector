@@ -83,6 +83,7 @@ from pathlib import Path
 from . import config, display
 from .db import Database, now
 from .login import settle_attempt
+from .notify import notify_run_result
 from .variables import DateContext
 
 logger = logging.getLogger("billcollector.orchestrator")
@@ -211,6 +212,7 @@ class Orchestrator:
             if run["display"] is not None:
                 display.remove_display_lock(run["display"])
             self._db.release_task_run(run["task_id"])
+            notify_run_result(self._db, "interrupted", dispatch=self._dispatch_notification)
             count += 1
             logger.info("orphan cleanup: run %s (task %s, pid %s) marked interrupted",
                         run["id"], run["task_id"], run["pid"])
@@ -491,6 +493,9 @@ class Orchestrator:
             logger.warning("start_run: no Run row for task %s (pid %s, exit %s); "
                            "runner output tail: %s", task_id, pid, exit_code,
                            "".join(tail).strip() or "(none)")
+            if exit_code != 0:
+                notify_run_result(self._db, "interrupted" if exit_code < 0 else "failure",
+                                  dispatch=self._dispatch_notification)
             return
         run_id = row["id"]
         settle_attempt(self._db, task_id, run_id,
@@ -524,3 +529,6 @@ class Orchestrator:
         self._db.release_task_run(task_id)
         logger.info("runner for task %s (run %s) exited with code %s",
                     task_id, run_id, exit_code)
+        # Only the monitor sends terminal notifications, including after shutdown.
+        notify_run_result(self._db, updates.get("result", row["result"]),
+                          dispatch=self._dispatch_notification)

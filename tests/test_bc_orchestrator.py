@@ -28,6 +28,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
@@ -255,6 +256,94 @@ class StartRunTests(OrchestratorTestBase):
         self.assertEqual(exit_code, 1)
         self.assertEqual(self.db.list_runs(task_id), [])
         self.assertEqual(self.db.get_task(task_id)["status"], "idle")
+
+
+class RunNotificationTests(OrchestratorTestBase):
+    def setUp(self):
+        super().setUp()
+        self.db.set_setting("ntfy_topic", "bc-topic")
+        patcher = mock.patch("billcollector.notify.requests.post",
+                             return_value=mock.Mock(status_code=200))
+        self.post = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.task_id = self.db.create_task("private-service", "private-account", enabled=True)
+
+    def _run_and_drain(self, orch):
+        async def scenario():
+            self.assertTrue(await orch.start_run(self.task_id))
+            code = await orch.monitors[self.task_id]
+            await orch.shutdown()  # drains notification workers, never sends twice
+            return code
+        return asyncio.run(scenario())
+
+    def test_failed_crashed_and_early_failed_runs_send_once(self):
+        for mode in ("fail", "crash", "earlyfail"):
+            with self.subTest(mode=mode):
+                self.post.reset_mock()
+                self.assertEqual(self._run_and_drain(self._orch(mode)), 1)
+                self.post.assert_called_once()
+                self.assertEqual(self.post.call_args.kwargs["data"],
+                                 b"A collector run failed. Check the BillCollector dashboard.")
+                self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
+
+    def test_no_topic_means_no_send(self):
+        self.db.set_setting("ntfy_topic", "")
+        self.assertEqual(self._run_and_drain(self._orch("fail")), 1)
+        self.post.assert_not_called()
+
+    def test_send_error_does_not_change_result_or_task_release(self):
+        self.post.side_effect = RuntimeError("private secret")
+        with self.assertLogs("billcollector.notify", level="WARNING") as logs:
+            self.assertEqual(self._run_and_drain(self._orch("fail")), 1)
+        self.post.assert_called_once()
+        self.assertEqual(self.db.list_runs(self.task_id)[0]["result"], "failure")
+        self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
+        self.assertNotIn("private secret", str(logs.output))
+
+    def test_success_does_not_send(self):
+        self.assertEqual(self._run_and_drain(self._orch("ok")), 0)
+        self.post.assert_not_called()
+
+    def test_interrupted_shutdown_sends_once(self):
+        orch = self._orch("crash", sleep=30)
+        async def scenario():
+            self.assertTrue(await orch.start_run(self.task_id))
+            for _ in range(400):
+                if self.db.list_runs(self.task_id):
+                    break
+                await asyncio.sleep(0.01)
+            self.assertTrue(self.db.list_runs(self.task_id))
+            await orch.shutdown()
+        asyncio.run(scenario())
+        self.post.assert_called_once()
+        self.assertEqual(self.post.call_args.kwargs["data"],
+                         b"A collector run was interrupted. Check the BillCollector dashboard.")
+        self.assertEqual(self.db.list_runs(self.task_id)[0]["result"], "interrupted")
+
+    def test_dashboard_stop_sends_one_interruption_push(self):
+        orch = self._orch("crash", sleep=30)
+        async def scenario():
+            self.assertTrue(await orch.start_run(self.task_id))
+            monitor = orch.monitors[self.task_id]
+            for _ in range(400):
+                if self.db.list_runs(self.task_id):
+                    break
+                await asyncio.sleep(0.01)
+            self.assertTrue(self.db.list_runs(self.task_id))
+            self.assertTrue(await orch.stop_run(self.task_id))
+            await monitor
+            await orch.shutdown()
+        asyncio.run(scenario())
+        self.post.assert_called_once()
+        self.assertEqual(self.post.call_args.kwargs["data"],
+                         b"A collector run was interrupted. Check the BillCollector dashboard.")
+
+    def test_orphan_recovery_notifies_only_on_first_cleanup(self):
+        run_id = self.db.create_run(self.task_id)
+        self.assertEqual(self.orch.cleanup_orphans(), 1)
+        self.assertEqual(self.orch.cleanup_orphans(), 0)
+        self.post.assert_called_once()
+        self.assertEqual(self.db.get_run(run_id)["result"], "interrupted")
 
 
 class SkipTests(OrchestratorTestBase):

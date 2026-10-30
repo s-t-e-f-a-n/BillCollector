@@ -1,5 +1,10 @@
 # Changelog
 
+
+## Terminal run notifications (#49)
+
+- Send account-free failure, interruption and attention notices through the existing opt-in ntfy topic.
+- Keep successful runs silent and delivery best-effort; the monitor sends each terminal notice once.
 All notable changes to BillCollector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 

@@ -3,7 +3,8 @@
 > Status: VALIDATED (2026-10-30) — S5 validation all green on the exact dev
 > tree (PR tests 24 passed / 15 subtests, unit 651 passed, regression
 > VERDICT: PASS, ruff/bandit clean); deployment block recorded skip (not
-> deployment-relevant); awaiting the S5 user gate before S6.
+> deployment-relevant); S6 docs verified (CHANGELOG entry in place, no
+> README/CONTRIBUTING changes); awaiting the S6 user gate before S7.
 
 ## PR metadata
 
@@ -195,3 +196,12 @@ Block skipped; recorded here + user-confirmed at the S5 gate.
   - Deployment validation: not deployment-relevant (see Deployment
     validation section) — recorded skip, user-confirmed at the S5 gate.
   - No scope adjustments needed; tree left dirty (4 files) for S6/S7.
+- S6 (2026-10-30, "continue PR #53" session): doc review on the dirty tree —
+  CHANGELOG `## [Unreleased]` entry confirmed in place (M1, verbatim from
+  the PR, prepended to the existing `### Fixed` subsection; Keep a Changelog
+  order; sanitized, public-safe); no README change (README documents cron
+  only as "a 5-field crontab expression" with a day-of-month example — the
+  fix restores the semantics it already advertises; no doc anywhere states
+  weekday numbering); no CONTRIBUTING change (no contributor-rule change);
+  validation results + integration details already recorded (S4/S5 entries).
+  Tree left dirty (4 files) for S7. Awaiting the S6 user gate.

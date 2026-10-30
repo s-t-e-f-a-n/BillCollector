@@ -1,14 +1,12 @@
 # PR #41 review: source notice identities and PDF revisions (issue #38)
 
-> Status: VALIDATED (2026-10-30) — S5 all green on the exact dirty tree (dev
-> `e0cab50` + the 10 uncommitted S4 files): 14/14 unit, 647 passed / 10
-> skipped full regression, harness VERDICT: PASS (7/7 scenarios, 8 PDFs),
-> 15/15 recipe validation, ruff clean, bandit baseline-identical, pypdf
-> 6.21.2 verified in venv; deployment-process validation justified skip
-> (no deploy-script change; pypdf via existing `Dockerfile:35` pip install)
-> user-confirmed 2026-10-30. S6 documentation gate passed 2026-10-30 (doc set
-> confirmed as-is; the two S6 edits are docs-only). Awaiting S7
-> (commit + push).
+> Status: DELIVERED (2026-10-30) — S7 complete: dev commits
+> `14bab50`/`5c8216f`/`74ba171` (feat/test/doc), Gitea `main` `74ba171`
+> (ff-only from `61defd3`), GitHub `main` `e83c8e2` (mirrored from
+> `f26b2a9`); PR #41 closed without merge (comment 6531164937,
+> 2026-10-30T19:00:37Z), issue #38 closed completed (comment 6531165804,
+> 2026-10-30T19:00:40Z); Discussion summary text recorded for manual web-UI
+> post (write API unavailable).
 
 ## PR metadata
 
@@ -42,7 +40,7 @@ are S3 decision points per issue #38.
 ## Decision history (issue #38)
 
 - **2026-10-27 (comment `6449978430`, recorded in
-  `1793124431799-open-issues-plans-20261027.md`):** collector keeps byte-hash
+  `completed/1793124431799-open-issues-plans-20261027.md`):** collector keeps byte-hash
   dedup; stable notice identity / revision handling **delegated to the
   archive layer**. PR #41 **HELD** until (1) #34 lands, (2) F10/C8
   delivery-state exposure is scheduled/done, (3) identity scope +
@@ -348,9 +346,74 @@ protected path and the stale PR #31 CHANGELOG line.
 - **Re-validation note (S7.0 prerequisite):** the two S6 edits touch
   docs-only files (README.md, doc/NOTICE_IDENTITY.md). No code or
   deployment-surface file changed after the S5 gate; no S5 check reads those
-  two files (`test_doc_recipe.py` reads only
-  `doc/examples/recipe-pw__synthetic.yaml`), so the S5 code checks and the
-  user-confirmed deployment-validation skip still cover the tree.
+   two files (`test_doc_recipe.py` reads only
+   `doc/examples/recipe-pw__synthetic.yaml`), so the S5 code checks and the
+   user-confirmed deployment-validation skip still cover the tree.
+
+## S7 execution record (2026-10-30)
+
+- **S7.0 prerequisite (exact tree):** `dev` == `origin/dev` == `27fd70b`
+  (doc-only S6 commit); `main` == `origin/main` == `61defd3`; PR head
+  `74421dd` unchanged; the 9 non-doc dirty files byte-match the S5
+  fingerprints; README.md + doc/NOTICE_IDENTITY.md exactly the S6-confirmed
+  content — the S5 code checks and the user-confirmed deployment-validation
+  skip still cover the tree.
+- **Commits (dev-commits, per-item confirmed):** `14bab50` `feat: opt-in
+  notice_identity with source-scoped identity and PDF revision digest
+  (issue #38)` (7 files, +308/−13); `5c8216f` `test: notice identity
+  revision-digest and runner adapter tests (issue #38)` (1 file, +326);
+  `74ba171` `doc: notice identity docs, README pointer, and CHANGELOG entry
+  (issue #38)` (3 files, +113/−1). Pushed `origin/dev` `27fd70b..74ba171`.
+- **Promotion (user-gated):** Gitea `main` `61defd3` → `74ba171` ff-only
+  (7 commits: the 4 PR #41 plan-doc commits + the 3 above); pushed. No tag
+  (no release decided).
+- **Mirror:** `bash .private/sync_github.sh` → GitHub `main` `f26b2a9` →
+  `e83c8e2` (sanitize-by-amend). Public gate green: no `.kilo`/`.vscode`/
+  `.private`/`openwiki`/`AGENTS.md`/`.openwikiignore`; `.github` holds only
+  `ISSUE_TEMPLATE` (no `workflows/`); `notice.py`,
+  `tests/test_notice_identity.py`, `doc/NOTICE_IDENTITY.md` present.
+- **PR #41 closed** (user confirmed the exact comment text): comment
+  6531164937 (2026-10-30T19:00:36Z), closed without merge
+  2026-10-30T19:00:37Z — content reached GitHub via the mirror.
+- **Issue #38 closed** (user chose close + comment): comment 6531165804
+  (2026-10-30T19:00:39Z), closed completed 2026-10-30T19:00:40Z. The
+  confirmed draft said "stays open"; only its final paragraph was rewritten
+  to the close wording ("I am closing it; if you want to track the
+  archive-side contract, please open a dedicated issue (or re-open this
+  one)") to match the confirmed close decision — all other text verbatim.
+- **Open item handed off:** flowcool's 2026-10-30 archive-side contract
+  proposal on #38 (comment 6518010065) awaits a maintainer decision; if
+  tracked, it becomes a dedicated new issue.
+- **Discussion summary (S7.6):** GitHub Discussion write API unavailable
+  from this environment (2026-10-25 finding); user chose manual web-UI
+  posting — text recorded below.
+  > **Public update: opt-in notice_identity download tracking (issue #38,
+  > PR #41)**
+  >
+  > `main` now includes the opt-in `notice_identity` step option for daemon
+  > download steps, contributed by @flowcool in PR #41: source-scoped
+  > identity plus a conservative PDF object-graph revision digest. A
+  > metadata-only regeneration of a notice no longer republishes or
+  > re-runs the consumer; a real correction preserves the original and
+  > publishes the new revision.
+  >
+  > Maintainer-side adaptations: the branch predated the staged-publication
+  > + crash-recovery pipeline (issue #33) on `main`, so the notice path was
+  > re-authored on that pipeline and the PR's pre-#33 publish helper was
+  > not shipped. The recipe contract and the additive `Download` columns
+  > were agreed and merged into the current schema; two test assertions
+  > were adapted to house style.
+  >
+  > Docs: `doc/NOTICE_IDENTITY.md` (contract + verification), README
+  > pointer, CHANGELOG entry. Validation on the promoted tree: 14/14 new
+  > unit tests, 647 passed full suite, regression harness PASS (7/7), 15/15
+  > bundled recipes validate.
+  >
+  > @flowcool: the archive-side contract proposal on issue #38 remains open
+  > and under separate review — this delivery does not close that question.
+- **Archive:** this plan doc + `completed/1793124431799-open-issues-plans-20261027.md`
+  (consumed per its own archive trigger: PR #41 reached DELIVERED) moved to
+  `completed/`; README + cross-references updated.
 
 ## Validation plan (S5, on the exact dev tree, from repo root, venv)
 

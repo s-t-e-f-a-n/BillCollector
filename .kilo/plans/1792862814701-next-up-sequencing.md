@@ -337,6 +337,46 @@ interleaved with the remaining Stage 1b portal sessions.**
   - The 1und1 portal iteration remains independent and can run in a live
     session at any time.
 
+## PR batch #2 (2026-10-30)
+
+Six open PRs, all flowcool, all based on public `main` `e83c8e2` (the
+post-#41 mirror tip): #53 (cron weekday numbering, #46), #54 (persistent
+job-store rebuild, #47), #56 (terminal ntfy failures, #49), #55 (exact vault
+item identity, #48), #45 (browser cache precedence, no issue), #44 (C3/F08
+recipe method-chain validation, contract agreed in #27). Open issues without
+PRs: #50 (incremental download keys + single-PDF ZIP extraction), #51
+(Bourse Direct original-PDF adapter agreement), #52 (archive receipts after
+notice identity — the pending #38 archive-side contract), plus the
+maintainer lane #24.
+
+**Decision (user-confirmed 2026-10-30): #53 → #54 → #56 → #55 → #45 → #44,
+one pr-review chain at a time.**
+
+Grounds:
+
+- #53 and #54 both touch `scheduler.py` + `test_bc_scheduler.py`
+  (non-overlapping hunks: #53 adds `cron_trigger` + the `_add_job_for`
+  guard; #54 changes `start()`/`resync()`). Kept adjacent so #54's S1
+  pre-image check runs against the settled #53 tree.
+- #56 (monitor/orchestrator/notify) and #55 (vault transport) are disjoint
+  from the scheduler and from each other; both single-commit PRs with S5
+  fully local.
+- #45 starts from the old sanitized tip `f26b2a9` (103 files / −22928 in the
+  diff = orphaned-tip STRIP artifact; the real change is ~10 files) and shows
+  `mergeable_state: dirty` — S1 must untangle the base before any verdict;
+  scheduled after the clean single-commit PRs.
+- #44 (18 files +698/−90) extends the recipe-contract interface (agreed in
+  #27, cited in the PR body) and is the heaviest S1; it closes the batch.
+
+- PR #53 S1+S2 done 2026-10-30 ("continue last sessions" session): review
+  plan doc `1793397084822-pr53-cron-weekdays-review.md` — verdict approve
+  with maintainer changes (M1: the PR's new `### Fixed` header lands above
+  `### Added` and duplicates the existing `### Fixed` subsection; the entry
+  moves into the existing one); head `6b41040b` stable, merge-base
+  `e83c8e2`, single commit, 4 files — 3 as-is + 1 manual CHANGELOG; issue
+  #46 before-claim verified on the pinned APScheduler 3.11.3; deployment
+  validation recorded not deployment-relevant — Status: AWAITING-DECISION.
+
 ## Explicitly not doing
 
 - No idling on the PRs: since 2026-10-25 they are handled through the

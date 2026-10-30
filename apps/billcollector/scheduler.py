@@ -22,6 +22,7 @@ a missed monthly run still runs on the next daemon start.
 """
 
 import logging
+import re
 
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -31,6 +32,40 @@ from .db import Database
 from .variables import daemon_timezone
 
 logger = logging.getLogger("billcollector.scheduler")
+
+
+def cron_trigger(expression: str, timezone=None) -> CronTrigger:
+    """Use cron's numeric weekdays (0/7 Sunday), not APScheduler's Monday=0.
+
+    Convert numeric lists/ranges/steps before the pinned APScheduler parser.
+    Other fields and named weekday expressions retain that parser's semantics.
+    """
+    fields = expression.split()
+    if len(fields) != 5:
+        raise ValueError("Cron requires five fields")
+    names = ("sun", "mon", "tue", "wed", "thu", "fri", "sat", "sun")
+    weekdays = []
+    for item in fields[4].split(","):
+        if not any(c.isdigit() for c in item):
+            weekdays.append(item)
+            continue
+        match = re.fullmatch(r"(\*|[0-7](?:-[0-7])?)(?:/([1-9][0-9]*))?", item)
+        if not match:
+            raise ValueError("Invalid numeric cron weekday")
+        base, step = match.groups()
+        if base == "*":
+            start, end = 0, 6
+        elif "-" in base:
+            start, end = map(int, base.split("-"))
+        else:
+            if step is not None:
+                raise ValueError("Cron weekday steps require a range or wildcard")
+            start = end = int(base)
+        if start > end:
+            raise ValueError("Cron weekday range must ascend")
+        weekdays.extend(names[day] for day in range(start, end + 1, int(step or 1)))
+    fields[4] = ",".join(dict.fromkeys(weekdays))
+    return CronTrigger.from_crontab(" ".join(fields), timezone=timezone)
 
 
 def job_id_for(task_id: int) -> str:
@@ -111,9 +146,14 @@ class TaskScheduler:
     def _add_job_for(self, task) -> None:
         if not task["enabled"] or not task["cron"]:
             return
+        try:
+            trigger = cron_trigger(task["cron"], timezone=self._timezone)
+        except ValueError as exc:
+            logger.error("Task %s not scheduled: invalid cron (%s)", task["id"], exc)
+            return
         self._scheduler.add_job(
             _task_job,
-            trigger=CronTrigger.from_crontab(task["cron"], timezone=self._timezone),
+            trigger=trigger,
             args=[task["id"]],
             id=job_id_for(task["id"]),
             replace_existing=True)

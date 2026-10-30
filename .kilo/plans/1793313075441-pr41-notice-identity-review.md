@@ -1,11 +1,12 @@
 # PR #41 review: source notice identities and PDF revisions (issue #38)
 
-> Status: INTEGRATING (2026-10-29) — S3 confirmed as-is (M1 contract,
-> M2 schema, M3 #33-journal re-author); S4 applied on dev `c24d1b4` (PR head
-> `74421dd` unchanged): clean files via git apply, db.py/recipes.py/CHANGELOG
-> manual merges, downloads.py re-authored on the #33 journal pipeline, 2 test
-> assertions adapted; 14/14 unit tests green on the dirty tree. Awaiting S5
-> validation on the exact tree.
+> Status: VALIDATED (2026-10-30) — S5 all green on the exact dirty tree (dev
+> `e0cab50` + the 10 uncommitted S4 files): 14/14 unit, 647 passed / 10
+> skipped full regression, harness VERDICT: PASS (7/7 scenarios, 8 PDFs),
+> 15/15 recipe validation, ruff clean, bandit baseline-identical, pypdf
+> 6.21.2 verified in venv; deployment-process validation justified skip
+> (no deploy-script change; pypdf via existing `Dockerfile:35` pip install)
+> user-confirmed 2026-10-30. Awaiting S6 documentation.
 
 ## PR metadata
 
@@ -274,6 +275,51 @@ protected path and the stale PR #31 CHANGELOG line.
   of that one document republishes with a suffixed filename instead of being
   suppressed — conservative (no missed delivery, no data loss).
 
+## S5 execution record (2026-10-30)
+
+- **Preflight:** on `dev` at `e0cab50` (== `origin/dev`, the S3/S4 record
+  commit); dirty set exactly the 10 S4 files; PR head `74421dd` unchanged
+  (`git ls-remote github refs/pull/41/head` == local `refs/pr/41`).
+- **Validated-tree fingerprint** (worktree `git hash-object` of the 10
+  files, in this order): CHANGELOG.md `d311ea6`, db.py `c669fe7`,
+  downloads.py `06dadd0`, recipes.py `c15fd6a`, runner.py `c5b4f55`,
+  recipe-pw-schema.yaml `20904d5`, requirements.txt `4d13c37`,
+  notice.py `23019be`, doc/NOTICE_IDENTITY.md `b3fa1b6`,
+  tests/test_notice_identity.py `2ae7a51`.
+- **PR unit tests:** `apps/.venv/bin/python -m pytest
+  tests/test_notice_identity.py -q` -> 14 passed in 5.7s (incl. the
+  real-chromium collection test).
+- **Full regression:** `apps/.venv/bin/python -m pytest tests/ -q
+  --tb=short` -> 647 passed, 10 skipped, 53 subtests passed in 499s; zero
+  failures (dev baseline plus the 14 new).
+- **Regression harness:** `apps/.venv/bin/python tests/run_regression.py
+  --ini tests/bc_regression.ini` -> VERDICT: PASS — 7/7 scenario pairs OK
+  (testhappy x3, testgraceful, testbadlogin, testempty, testdlfail; the
+  three expected failures returned their expected `False`), "downloads:
+  exactly the 8 expected file(s)", 8 test downloads cleaned up from
+  `apps/Downloads`.
+- **Recipe/schema validation:** `CheckRecipe` over all 15 bundled
+  `recipe-pw__*.yaml` against the modified `recipe-pw-schema.yaml` ->
+  15/15 OK (invoked with the `apps/` package root on `PYTHONPATH`; the
+  helper's `from helpers import *` needs it).
+- **ruff (F821, E4/E7/E9, ruff 0.17.0)** on the five changed app files +
+  `notice.py` + the new test file -> all checks passed.
+- **bandit** on the same files -> worktree identical to the HEAD baseline
+  (B110 x1, B608 x2, all pre-existing); test-file B101 (assert) is the
+  house test pattern.
+- **pypdf:** `pypdf 6.21.2` imports in `apps/.venv` (pin installed at S4,
+  env-only; no lockfile exists).
+- **Deployment-process validation: justified skip, user-confirmed
+  2026-10-30 at the S5 gate.** No `Dockerfile` / `.dockerignore` /
+  `BillCollector.sh` / `install_docker-image.sh` / `deploy_remote.sh` /
+  INI/`.env` change. The only runtime impact is the `pypdf==6.21.2` pin in
+  `apps/requirements.txt`; `Dockerfile:35` already runs `pip3 install -r
+  requirements.txt`, so the standard deploy rebuild installs it (pure-Python
+  package, no wheels or build toolchain). The venv checks above prove the
+  pin resolves and the full suite + harness are green under it. No Docker
+  build/canary/smoke on the dev host (no Docker). Re-validation required if
+  the tree moves before the S7 promotion.
+
 ## Validation plan (S5, on the exact dev tree, from repo root, venv)
 
 - PR unit tests: `apps/.venv/bin/python -m pytest tests/test_notice_identity.py -q`
@@ -292,14 +338,16 @@ protected path and the stale PR #31 CHANGELOG line.
 
 ## Deployment validation
 
-Not deployment-relevant for the *code* change (no `Dockerfile`,
-`.dockerignore`, `BillCollector.sh`, `install_docker-image.sh`,
-`deploy_remote.sh`, or INI/`.env` handling touched). The only runtime-config
-impact is the new `pypdf` dependency, which must be present in the build
-image — to be confirmed when the S5/S7 gate decides whether a dependency-only
-image rebuild is in scope. Recorded as "not deployment-relevant (code);
-dependency pin to be re-confirmed at S5 gate." No Docker build/canary/smoke
-recorded yet; user confirmation required before S7 per the invariant.
+**Recorded skip, user-confirmed at the S5 gate (2026-10-30).** Not
+deployment-relevant for the code change: no `Dockerfile`, `.dockerignore`,
+`BillCollector.sh`, `install_docker-image.sh`, `deploy_remote.sh`, or
+INI/`.env` handling touched. The only runtime impact is the `pypdf==6.21.2`
+pin in `apps/requirements.txt`; `Dockerfile:35` already runs `pip3 install -r
+requirements.txt`, so the standard deploy rebuild installs it (pure-Python
+package; venv-verified — import + full suite + harness green under it). No
+Docker build/canary/smoke run on the dev host (no Docker). S7 may proceed on
+this confirmation; re-validation required if the tree moves before
+promotion.
 
 ## Out of scope
 

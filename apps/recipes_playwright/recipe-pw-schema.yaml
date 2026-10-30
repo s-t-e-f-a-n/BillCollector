@@ -72,7 +72,7 @@ definitions:
                 type: object
                 properties:
                   method:
-                    enum: [ "click_until_absent", "download_all" ]
+                    enum: [ "click_until_absent", "download_all", "replacement_calendar" ]
                 required: [ method ]
         then:
           properties:
@@ -116,12 +116,13 @@ definitions:
                 required: [ method ]
                 properties:
                   method:
-                    enum: [ "click_until_absent", "download_all" ]
+                    enum: [ "click_until_absent", "download_all", "replacement_calendar" ]
   method:
     oneOf:
       - $ref: "#/definitions/playwrightMethod"
       - $ref: "#/definitions/clickUntilAbsentMethod"
       - $ref: "#/definitions/downloadAllMethod"
+      - $ref: "#/definitions/replacementCalendarMethod"
   collectionLocatorMethod:
     type: object
     required: [ method ]
@@ -146,6 +147,7 @@ definitions:
     oneOf:
       - $ref: "#/definitions/clickUntilAbsentMethod"
       - $ref: "#/definitions/downloadAllMethod"
+      - $ref: "#/definitions/replacementCalendarMethod"
   playwrightMethod:
     type: object
     required:
@@ -154,7 +156,7 @@ definitions:
       method:
         type: string
         not:
-          enum: [ "click_until_absent", "download_all" ]
+          enum: [ "click_until_absent", "download_all", "replacement_calendar" ]
       arguments:
         oneOf:
           - type: array
@@ -238,4 +240,79 @@ definitions:
               type: integer
               minimum: 1
               maximum: 10000
+  replacementCalendarMethod:
+    type: object
+    required:
+    - method
+    - arguments
+    additionalProperties: false
+    properties:
+      method:
+        const: replacement_calendar
+      arguments:
+        type: array
+        minItems: 1
+        maxItems: 1
+        items:
+          type: object
+          required:
+          - account_id
+          - account_selector
+          - year_selector
+          - month_selector
+          - previous_selector
+          - item_selector
+          - empty_selector
+          - ready_selector
+          - max_months
+          - download_options
+          additionalProperties: false
+          properties:
+            account_id:
+              type: string
+              minLength: 1
+              pattern: .*\S.*
+            account_selector:
+              type: string
+              minLength: 1
+              pattern: .*\S.*
+            year_selector:
+              type: string
+              minLength: 1
+              pattern: .*\S.*
+            month_selector:
+              type: string
+              minLength: 1
+              pattern: .*\S.*
+            previous_selector:
+              type: string
+              minLength: 1
+              pattern: .*\S.*
+            item_selector:
+              type: string
+              minLength: 1
+              pattern: .*\S.*
+            empty_selector:
+              type: string
+              minLength: 1
+              pattern: .*\S.*
+            ready_selector:
+              type: string
+              minLength: 1
+              pattern: .*\S.*
+            max_months:
+              type: integer
+              minimum: 1
+              maximum: 120
+            download_options:
+              $ref: '#/definitions/downloadAllMethod/properties/arguments/items'
+            month_names:
+              type: array
+              minItems: 12
+              maxItems: 12
+              uniqueItems: true
+              items:
+                type: string
+                minLength: 1
+
 additionalProperties: false

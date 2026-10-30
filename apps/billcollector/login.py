@@ -78,7 +78,7 @@ def login_options(step):
             raise ValueError("login preparation must be a list")
         for preparation in preparations:
             _action(preparation, {"fill"})
-        _action(phase.get("submit"), {"click", "press"})
+        _action(phase.get("submit"), {"click", "press", "fill"})
     options["phases"] = phases
     return options
 

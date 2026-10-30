@@ -75,10 +75,12 @@ design: a locator chain such as `get_by_role` -> `first` -> `filter` ->
 `get_by_label` -> `click` is valid, and new Playwright API added by a
 version bump stays supported automatically.
 
-Five method names are **reserved**: the runner intercepts them before
+Six method names are **reserved**: the runner intercepts them before
 Playwright dispatch and they are never passed to the browser API:
 `login`, `wait_user`, `expect_download`, `click_until_absent`,
-`download_all`. Their exact contracts are in section 3.
+`download_all`, `replacement_calendar`. Their exact contracts are in section 3
+and [Replacement calendars](REPLACEMENT_CALENDARS.md). C3 validates calendar
+options with the same offline validator used by calendar execution.
 
 Validation (F08) rejects unknown attributes before vault and browser access.
 It derives the public surface, signatures and argument types from the installed
@@ -124,8 +126,9 @@ Structure: the step carries either the single-phase shorthand
 submit, success}`; the last phase's `success` must equal the login
 `success`; `phases` cannot mix with top-level `steps`/`submit`).
 Preparation steps are locator chains ending in `fill`; `submit` is a
-locator chain ending in `click` or `press` (argument `key: Enter`, or
-the positional single-argument form `"Enter"`). The non-terminal
+locator chain ending in `click`, `press` (argument `key: Enter`, or
+the positional single-argument form `"Enter"`), or `fill` for input-triggered
+submission (issue #36). The non-terminal
 methods of these chains are restricted to the locator set
 (`login.py::LOCATORS`): `locator`, `get_by_role`, `get_by_text`,
 `get_by_label`, `get_by_test_id`, `get_by_placeholder`,

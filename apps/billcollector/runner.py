@@ -76,7 +76,9 @@ MAX_STEP_ATTEMPTS = 3
 # Collection actions have bounded side effects. They execute once per recipe
 # step instead of inheriting the generic three-attempt replay loop. An
 # operator-driven resume starts a new, explicit invocation after inspection.
-_COLLECTION_METHODS = frozenset({"click_until_absent", "download_all"})
+_COLLECTION_METHODS = frozenset({
+    "click_until_absent", "download_all", "replacement_calendar",
+})
 
 
 def _collection_methods_in(step):
@@ -348,6 +350,7 @@ def transform_step_to_json(step):
         if method_name in [
             "click", "fill", "expect_download", "goto", "close",
             "content_frame", "first", "click_until_absent", "download_all",
+            "replacement_calendar",
         ]:
             transformed_step["actions"] = transformed_step.get("actions", [])
             transformed_step["actions"].append({
@@ -541,9 +544,23 @@ def _collection_actions(ctx, step=None):
             completed_keys=completed_keys,
         )
 
+    def replacement_calendar(root, options):
+        from .calendar import collect_calendar
+
+        calendar_progress = getattr(ctx, "calendar_completed_keys", None)
+        if calendar_progress is None:
+            calendar_progress = {}
+            ctx.calendar_completed_keys = calendar_progress
+        return collect_calendar(
+            ctx.page, ctx.context, root, save_download, options,
+            dates=getattr(getattr(ctx, "bcs", None), "date_context", None),
+            completed_by_month=calendar_progress.setdefault(id(step), {}),
+        )
+
     return {
         "click_until_absent": paginate,
         "download_all": download,
+        "replacement_calendar": replacement_calendar,
     }
 
 

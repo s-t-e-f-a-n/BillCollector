@@ -472,7 +472,8 @@ def test_submission_exception_never_replays_and_consumes_budget(browser_ctx):
     assert browser_ctx.db.get_task(browser_ctx.task["id"])["login_pending_run_id"] is None
 
 
-def test_dispatcher_runs_login_and_continues_only_after_success(browser_ctx, portal):
+@pytest.mark.parametrize("terminal", ["click", "press"])
+def test_dispatcher_runs_login_and_continues_only_after_success(browser_ctx, portal, terminal):
     ctx = browser_ctx
     ctx.context = ctx.page.context
     ctx.bcs.usr = "synthetic"
@@ -480,7 +481,10 @@ def test_dispatcher_runs_login_and_continues_only_after_success(browser_ctx, por
     portal.accept_submissions = True
     after_login = {"step": 3, "methods": [{"method": "wait_for_timeout",
                                             "arguments": [{"timeout": 1}]}]}
-    recipe = {"services": [{"serviceName": "mock", "steps": [login_step(), after_login]}]}
+    step = login_step()
+    if terminal == "press":
+        step["submit"]["methods"][-1] = {"method": "press", "arguments": [{"key": "Enter"}]}
+    recipe = {"services": [{"serviceName": "mock", "steps": [step, after_login]}]}
     with mock.patch.object(runner, "sync_playwright", return_value=nullcontext(None)), \
             mock.patch.object(runner, "_launch_browser"), \
             mock.patch.object(runner, "pause_loop") as pause:
@@ -534,6 +538,159 @@ def phased_login_step():
     second["submit"]["methods"][0]["arguments"] = [{"selector": "#verify"}]
     step["phases"] = [first, second]
     return step
+
+
+def input_triggered_phased_login_step():
+    """A two-phase login where each credential fill submits the phase."""
+    step = phased_login_step()
+    for index, phase in enumerate(step["phases"]):
+        phase["submit"] = phase["steps"].pop()
+        phase["submit"]["step"] = 22 + index
+    step["phases"][1]["submit"]["methods"][-1]["arguments"] = [{"value": "{{OTP}}"}]
+    return step
+
+
+@pytest.fixture
+def input_login(browser_ctx):
+    ctx = browser_ctx
+    submissions = []
+
+    def submitted(phase):
+        # A second connection proves the reservation was committed before
+        # the portal's input handler observes the credential submission.
+        connection = Database(ctx.db.path)
+        try:
+            task = connection.get_task(ctx.task["id"])
+            submissions.append((phase, task["login_failures"], task["login_pending_run_id"]))
+        finally:
+            connection.close()
+
+    ctx.page.expose_function("submitted", submitted)
+    ctx.page.set_content("""
+        <input id="password" type="password">
+        <input id="otp" type="password" hidden>
+        <div id="account" hidden>Account</div>
+        <script>
+        window.counts = [0, 0];
+        window.finalize = true;
+        window.acceptOTP = true;
+        const password = document.querySelector('#password');
+        const otp = document.querySelector('#otp');
+        const account = document.querySelector('#account');
+        password.addEventListener('input', async () => {
+            if (password.value === 'synthetic-password') {
+                counts[0]++;
+                await submitted('password');
+                otp.hidden = false;
+            }
+        });
+        otp.addEventListener('input', async () => {
+            if (otp.value === '123456') {
+                counts[1]++;
+                await submitted('otp');
+                if (window.acceptOTP && window.finalize) {
+                    // OTP acceptance still requires the final portal transition.
+                    setTimeout(() => { account.hidden = false; }, 50);
+                }
+            }
+        });
+        </script>
+    """)
+    ctx.bcs.api_url = "http://127.0.0.1:1"
+    ctx.bcs.vault_item_name = "synthetic"
+    ctx.bcs.otp_fallback = "stale-code"
+    with mock.patch.object(runner, "get_totp", return_value='{"data":{"data":"123456"}}') as otp:
+        yield ctx, submissions, otp
+
+
+@pytest.mark.parametrize("start_at_otp", [False, True])
+def test_input_triggered_login_submits_once_and_supports_direct_otp(
+        input_login, start_at_otp):
+    ctx, submissions, otp = input_login
+    if start_at_otp:
+        ctx.page.locator("#otp").evaluate("element => element.hidden = false")
+    step = input_triggered_phased_login_step()
+    recipe = {"services": [{"serviceName": "mock", "steps": [step]}]}
+    validate_login_recipe(recipe)
+    assert validate_recipe(yaml.safe_dump(recipe))[0]
+
+    runner._execute_login(ctx, step)
+
+    assert ctx.page.evaluate("counts") == [int(not start_at_otp), 1]
+    expected_phases = ["otp"] if start_at_otp else ["password", "otp"]
+    assert submissions == [(phase, 1, ctx.run_id) for phase in expected_phases]
+    otp.assert_called_once()
+    assert ctx.db.get_task(ctx.task["id"])["login_failures"] == 0
+    assert ctx.db.get_task(ctx.task["id"])["login_pending_run_id"] is None
+
+
+def test_input_triggered_login_existing_session_skips_all_input(input_login):
+    ctx, submissions, otp = input_login
+    ctx.db.update_task(ctx.task["id"], login_failures=1)
+    ctx.page.locator("#account").evaluate("element => element.hidden = false")
+    runner._execute_login(ctx, input_triggered_phased_login_step())
+    assert submissions == []
+    assert ctx.page.evaluate("counts") == [0, 0]
+    otp.assert_not_called()
+    assert ctx.db.get_task(ctx.task["id"])["login_failures"] == 0
+
+
+@pytest.mark.parametrize("failure", ["rejected", "not_finalized"])
+def test_input_triggered_login_resume_waits_for_final_proof_without_replay(input_login, failure):
+    ctx, submissions, otp = input_login
+    ctx.page.locator("#otp").evaluate("element => element.hidden = false")
+    ctx.page.evaluate("window.acceptOTP = false" if failure == "rejected"
+                      else "window.finalize = false")
+    pauses = []
+
+    def resume(*_):
+        task = ctx.db.get_task(ctx.task["id"])
+        assert task["login_failures"] == 1
+        assert task["login_pending_run_id"] is None
+        pauses.append(ctx.page.evaluate("counts.slice()"))
+        if len(pauses) == 2:
+            ctx.page.locator("#account").evaluate("element => element.hidden = false")
+        return "resume"
+
+    with mock.patch.object(runner, "pause_loop", side_effect=resume):
+        runner._execute_login(ctx, input_triggered_phased_login_step())
+    assert pauses == [[0, 1], [0, 1]]
+    assert submissions == [("otp", 1, ctx.run_id)]
+    otp.assert_called_once()
+    assert ctx.db.get_task(ctx.task["id"])["login_failures"] == 0
+
+
+@pytest.mark.parametrize("after_fill", [False, True])
+def test_input_triggered_login_interruption_is_durable_before_and_after_fill(input_login, after_fill):
+    ctx, submissions, otp = input_login
+    ctx.page.locator("#otp").evaluate("element => element.hidden = false")
+    ctx.page.evaluate("window.finalize = false")
+    step = input_triggered_phased_login_step()
+    step["methods"][0]["arguments"].append({"max_failures": 1})
+    execute = runner._execute_step
+
+    def interrupt(context, action, **kwargs):
+        assert context.db.get_task(context.task["id"])["login_pending_run_id"] == ctx.run_id
+        if after_fill:
+            execute(context, action, **kwargs)
+            ctx.page.wait_for_function("counts[1] === 1")
+        raise RunInterrupted("synthetic interruption")
+
+    with mock.patch.object(runner, "_execute_step", side_effect=interrupt):
+        with pytest.raises(RunInterrupted):
+            runner._execute_login(ctx, step)
+    task = ctx.db.get_task(ctx.task["id"])
+    assert task["login_failures"] == 1
+    assert task["login_pending_run_id"] == ctx.run_id
+    assert ctx.page.evaluate("counts") == [0, int(after_fill)]
+    assert submissions == ([("otp", 1, ctx.run_id)] if after_fill else [])
+    assert otp.call_count == int(after_fill)
+    # Simulate monitor recovery after the interrupted runner exits.
+    ctx.db.update_run(ctx.run_id, pid=98765)
+    Orchestrator(ctx.db)._finalize_run(ctx.task["id"], 98765, -9, [])
+    assert ctx.db.get_task(ctx.task["id"])["login_pending_run_id"] is None
+    assert ctx.db.get_task(ctx.task["id"])["login_locked"] == 1
+    assert not ctx.db.claim_task_run(ctx.task["id"])
 
 
 @pytest.mark.parametrize("failure", [None, "password", "otp"])

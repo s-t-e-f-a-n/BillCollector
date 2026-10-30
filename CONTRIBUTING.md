@@ -4,8 +4,8 @@ Thank you for your interest in contributing. There are two ways:
 
 - **Recipes** — the YAML browser automation for a web portal you use. The
   lowest barrier to entry, no code required: see
-  [Configure BillCollector](README.md#configuration) in the README, and share
-  your recipes.
+  [Configure BillCollector](README.md#configure-billcollector) in the README,
+  and share your recipes.
 - **Code** — bug fixes, features, test coverage, and tooling.
 
 ## How development works
@@ -62,6 +62,10 @@ shared interface (see [Shared interfaces](#shared-interfaces) below).
   for it: correct, properly licensed, defensible in review.
 
 ## Local development
+
+The [recipe author guide](doc/RECIPE_AUTHORING.md) includes a credential-free
+example and a focused Chromium check. See the [quick start](doc/QUICKSTART.md)
+and [symptom guide](doc/TROUBLESHOOTING.md) for daemon setup and diagnosis.
 
 - `bash install_local.sh playwright` sets up the Python environment and
   Chromium (see the README for debugging).

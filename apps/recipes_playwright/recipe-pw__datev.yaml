@@ -1,4 +1,4 @@
-$schema: /home/stefan/projects/BillCollector/apps/recipes_playwright/recipe-pw-schema.yaml
+$schema: recipe-pw-schema.yaml
 services:
 - serviceName: datev
   description: ''

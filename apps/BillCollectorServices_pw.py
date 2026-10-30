@@ -66,6 +66,10 @@ class DatabaseManager:
     def __init__(self, db_name):
         """Initialize the central tracking system."""
         self.db_name = db_name
+        # Create legacy storage only when opening it, never on helper import.
+        parent = os.path.dirname(db_name)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         self.conn = sqlite3.connect(self.db_name)
         self.cursor = self.conn.cursor()
 
@@ -281,7 +285,7 @@ def perform_actions(bcs):
                             if isinstance(entry, dict)
                         }
                         if nested and methods & {
-                            "click_until_absent", "download_all"
+                            "click_until_absent", "download_all", "replacement_calendar"
                         }:
                             raise StepAbortError(
                                 "bounded collection actions cannot be nested "
@@ -455,7 +459,7 @@ def process_step(bcs, step, collection_actions=None):
 
     if graceful and any(
         isinstance(entry, dict)
-        and entry.get("method") in {"click_until_absent", "download_all"}
+        and entry.get("method") in {"click_until_absent", "download_all", "replacement_calendar"}
         for entry in methods
     ):
         message = "bounded collection actions cannot be graceful"
@@ -488,7 +492,7 @@ def process_step(bcs, step, collection_actions=None):
                     "error": [failure_record("expect_download", category="download")]
                 })
             break
-        elif method_name in {"click_until_absent", "download_all"}:
+        elif method_name in {"click_until_absent", "download_all", "replacement_calendar"}:
             try:
                 collection.validate_terminal_action(
                     methods, method_index, method_name
@@ -503,7 +507,7 @@ def process_step(bcs, step, collection_actions=None):
                     raise ValueError(
                         f"{method_name} requires one options object"
                     )
-                if collection_actions is None:
+                if collection_actions is None or method_name not in collection_actions:
                     raise RuntimeError(
                         f"{method_name} is unavailable in this runner"
                     )

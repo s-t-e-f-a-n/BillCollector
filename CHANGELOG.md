@@ -17,6 +17,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   access. Errors identify the service and step without argument values. The
   agreed date-variable grammar and login `press("Enter")` form remain supported.
 
+- Opt-in daemon `replacement_calendar` action for bounded monthly
+  replacement-calendar traversal (issue #37). Months come from the run-start
+  date context (issue #26). The legacy batch runner refuses the action.
+
+- Input-triggered protected login submissions (issue #36): a login phase
+  `submit` chain may now end with `fill`, for portals that submit when a
+  password or OTP field is filled. The durable attempt is reserved before that
+  terminal fill, the fill runs once (resume only re-verifies), and the final
+  authenticated marker still proves success. No database, control-protocol, or
+  exit-code change.
+
 - Daemon runtime date variables and inline, recursive single-pass argument
   substitution (issue #26). Recipe save and run start share syntax validation.
   Tasks have an additive `date_window_days` setting (90 inclusive days by
@@ -141,6 +152,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   an operator resume of `download_all` skips the item keys already persisted
   for the step; a suggested filename already saved earlier in the run fails
   instead of being overwritten.
+- Contributor guides (issue #27, D02/D05/D07): `doc/QUICKSTART.md` (tested
+  daemon setup with a local first-check procedure), `doc/TROUBLESHOOTING.md`
+  (symptom guide), and `doc/RECIPE_AUTHORING.md` (recipe author guide with a
+  credential-free synthetic example,
+  `doc/examples/recipe-pw__synthetic.yaml`). An automated test
+  (`tests/test_doc_recipe.py`) runs the guide's recipe end-to-end against the
+  bundled mock portal so the documented steps stay verified.
 
 ### Changed
 
@@ -268,6 +286,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   only its own task's enabled state and scheduler registration (previously
   every switch read the last-created switch's value, so in a multi-task
   setup enabling one task could leave it disabled) (issue #27, F07).
+- Bundled recipe `$schema` references and the recipe generator now use the
+  recipe-relative `recipe-pw-schema.yaml` instead of a workstation-absolute
+  path (editor/contributor only; runtime recipe behavior is unchanged).
+
+- Runner import no longer creates the legacy `apps/db` directory (issue #43):
+  the directory is now created when the legacy database is first opened, so
+  an unwritable application tree no longer raises `PermissionError` at
+  import. Legacy first-use creation and the daemon's configured runtime
+  directories are unchanged.
 
 ## [v0.4] - 2026-10-02
 

@@ -13,8 +13,10 @@ from typing import Any, Literal, Union, get_args, get_origin, get_type_hints, is
 from playwright import sync_api
 from playwright.sync_api import Page
 
+from .collection import CollectionError
+
 _RESERVED = frozenset({'login', 'wait_user', 'expect_download',
-                       'click_until_absent', 'download_all'})
+                       'click_until_absent', 'download_all', 'replacement_calendar'})
 _UNTIL = (('role', 'get_by_role'), ('test_id', 'get_by_test_id'),
           ('placeholder', 'get_by_placeholder'), ('label', 'get_by_label'),
           ('text', 'get_by_text'), ('selector', 'locator'))
@@ -160,6 +162,10 @@ def validate_method_recipe(recipe):
                     if arguments:
                         raise ValueError('expect_download does not accept arguments')
                     continue
+                if name == 'replacement_calendar':
+                    from .calendar import validate_options
+                    options = arguments[0] if len(arguments) == 1 else None
+                    validate_options(options)
                 if name in _RESERVED:
                     continue
                 following, failures = set(), []
@@ -180,7 +186,7 @@ def validate_method_recipe(recipe):
                     raise ValueError(failures[0] if failures else
                                      'unknown public Playwright attribute')
                 owners = following
-            except ValueError as error:
+            except (ValueError, CollectionError) as error:
                 raise ValueError(f'{location}: {error}') from None
         for child in step.get('steps', []):
             visit(child, service)

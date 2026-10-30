@@ -6,7 +6,9 @@
 > 15/15 recipe validation, ruff clean, bandit baseline-identical, pypdf
 > 6.21.2 verified in venv; deployment-process validation justified skip
 > (no deploy-script change; pypdf via existing `Dockerfile:35` pip install)
-> user-confirmed 2026-10-30. Awaiting S6 documentation.
+> user-confirmed 2026-10-30. S6 documentation gate passed 2026-10-30 (doc set
+> confirmed as-is; the two S6 edits are docs-only). Awaiting S7
+> (commit + push).
 
 ## PR metadata
 
@@ -319,6 +321,36 @@ protected path and the stale PR #31 CHANGELOG line.
   pin resolves and the full suite + harness are green under it. No Docker
   build/canary/smoke on the dev host (no Docker). Re-validation required if
   the tree moves before the S7 promotion.
+
+## S6 execution record (2026-10-30)
+
+- **Gate:** user confirmed the S6 doc set **as-is**.
+- **CHANGELOG.md:** the S4-folded `### Added` entry re-verified on the dirty
+  tree — top of `## [Unreleased]`, newest-first, sanitized wording, public
+  issue ref only. No change.
+- **README.md** (maintainer-side, applied in S6): one sentence appended to
+  the Downloads bullet of the recipe-concept list — the opt-in
+  `notice_identity` step option switches a download step from byte-hash
+  deduplication to source-scoped identity plus a conservative PDF revision
+  digest, linking `doc/NOTICE_IDENTITY.md` (pattern: the #40
+  replacement-calendar pointer in the bounded-pagination bullet).
+- **doc/NOTICE_IDENTITY.md** (maintainer-side currency reframe, applied in
+  S6): the PR's fork-perspective header is stale post-integration — the
+  schema/recipe agreement is no longer pending (S3 gate, M1/M2) and the
+  notice path does build on the #33 pipeline (M3). Header note reframed to
+  "Issue #38 implementation … builds on the #33 staged-publication and
+  crash-recovery pipeline, which remains unchanged"; title "(fork contract)"
+  dropped; the "local fork extension … separate agreement" sentence removed
+  (the collector-owns-suppression / Paperless-owns-archive ownership wording
+  kept).
+- **CONTRIBUTING.md:** verified — no method list or contributor-rule change
+  required.
+- **Re-validation note (S7.0 prerequisite):** the two S6 edits touch
+  docs-only files (README.md, doc/NOTICE_IDENTITY.md). No code or
+  deployment-surface file changed after the S5 gate; no S5 check reads those
+  two files (`test_doc_recipe.py` reads only
+  `doc/examples/recipe-pw__synthetic.yaml`), so the S5 code checks and the
+  user-confirmed deployment-validation skip still cover the tree.
 
 ## Validation plan (S5, on the exact dev tree, from repo root, venv)
 

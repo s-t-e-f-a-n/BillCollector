@@ -19,12 +19,11 @@ disabling is the off switch.
 
 import math
 
-from apscheduler.triggers.cron import CronTrigger
 from nicegui import ui
 
 from .. import config
 from ..db import Database
-from ..scheduler import TaskScheduler
+from ..scheduler import TaskScheduler, cron_trigger
 
 # The cron a new task gets (locked decision 9).
 DEFAULT_CRON = "0 0 1 * *"
@@ -34,7 +33,7 @@ def _valid_cron(cron: str) -> bool:
     """True when the string parses as a 5-field crontab expression
     (the same parser APScheduler uses for the job trigger)."""
     try:
-        CronTrigger.from_crontab(cron)
+        cron_trigger(cron)
         return True
     except ValueError:
         return False

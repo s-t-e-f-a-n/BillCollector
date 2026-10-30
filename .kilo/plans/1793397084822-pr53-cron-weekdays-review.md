@@ -1,8 +1,9 @@
 # PR #53 review: crontab weekday numbering (issue #46)
 
-> Status: INTEGRATING (2026-10-30) — S3 gate passed (M1 confirmed as-is) +
-> S4 integration applied (3 files as-is from head `6b41040b` + M1 CHANGELOG
-> placement); tree dirty for S5; next S5 validation.
+> Status: VALIDATED (2026-10-30) — S5 validation all green on the exact dev
+> tree (PR tests 24 passed / 15 subtests, unit 651 passed, regression
+> VERDICT: PASS, ruff/bandit clean); deployment block recorded skip (not
+> deployment-relevant); awaiting the S5 user gate before S6.
 
 ## PR metadata
 
@@ -157,7 +158,8 @@ Block skipped; recorded here + user-confirmed at the S5 gate.
 
 ## Open questions
 
-- None. S3 gate passed 2026-10-30 (M1 confirmed as-is).
+- None. S3 gate passed 2026-10-30 (M1 confirmed as-is); S5 gate passed
+  2026-10-30 (validation results + deployment skip confirmed).
 
 ## Execution record
 
@@ -174,3 +176,22 @@ Block skipped; recorded here + user-confirmed at the S5 gate.
   text verbatim into the existing `### Fixed` subsection (prepended), the
   PR's duplicate `### Fixed`-above-`### Added` insertion dropped. Tree left
   dirty (4 files) for S5; no commit of the integrated content.
+- S5 (2026-10-30, "continue PR #53" session): preflight re-run green — head
+  still `6b41040b` via `git ls-remote`; dev tip `f2bb4ee` (= `origin/dev`);
+  dirty tree unchanged (3 code files verified byte-identical to
+  `refs/pr/53`, CHANGELOG shows the M1 placement). On the exact dev tree
+  (repo root, `apps/.venv`):
+  - PR tests: `pytest tests/test_bc_scheduler.py
+    tests/test_bc_ui_task_detail.py -q` → 24 passed, 15 subtests passed
+    (matches the PR's claim).
+  - Full unit: `pytest tests/ -q --tb=short` → 651 passed, 10 skipped, 68
+    subtests passed (dev baseline 647 + the 4 new tests).
+  - Full regression: `tests/run_regression.py --ini
+    tests/bc_regression.ini` → exit 0, VERDICT: PASS (7 scenarios / 8 PDFs,
+    all expectations matched).
+  - ruff (F821, E4/E7/E9) on the 3 changed code files → all checks passed.
+  - bandit on the 2 changed app files → no findings (nothing new beyond the
+    known baseline).
+  - Deployment validation: not deployment-relevant (see Deployment
+    validation section) — recorded skip, user-confirmed at the S5 gate.
+  - No scope adjustments needed; tree left dirty (4 files) for S6/S7.

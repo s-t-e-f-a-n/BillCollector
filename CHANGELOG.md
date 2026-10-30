@@ -233,6 +233,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Parse numeric cron weekdays with crontab numbering (0/7 Sunday, 1 Monday)
+  in both the task editor and scheduler (#46). Invalid stored schedules are
+  skipped with their task id. Ambiguous legacy forms `1/2`, `mon-5`, `01` and
+  `*/02` are rejected; use named weekdays before rolling back to an older
+  binary.
+
 - Keep residual daemon exception messages and tracebacks out of per-run logs
   and SQLite notes. Retain fixed method/category diagnostics for scan, OTP,
   screenshot, browser-launch and unexpected runner failures.

@@ -153,6 +153,35 @@ class PersistenceTests(SchedulerTestBase):
         asyncio.run(scheduler._task_job(task_id))
         self.assertEqual(self.calls, [task_id])
 
+    def test_start_drops_persisted_disabled_and_deleted_jobs_before_firing(self):
+        disabled = self.db.create_task("disabled", "u", enabled=True, cron="0 0 1 * *")
+        deleted = self.db.create_task("deleted", "u", enabled=True, cron="0 0 1 * *")
+        self._start_stop_cycle()
+        self.db.update_task(disabled, enabled=False)
+        self.db.conn.execute("DELETE FROM Task WHERE id=?", (deleted,))
+        # Simulate jobs that became due while the daemon was stopped.
+        self.db.conn.execute("UPDATE apscheduler_jobs SET next_run_time=0")
+        self.db.conn.commit()
+        calls = []
+
+        async def callback(task_id):
+            calls.append(task_id)
+
+        fresh = TaskScheduler(self.db, callback)
+
+        async def cycle():
+            fresh.start()
+            try:
+                await asyncio.sleep(0.01)
+                self.assertEqual(fresh.scheduler.get_jobs(), [])
+                self.assertEqual(self.db.conn.execute(
+                    "SELECT COUNT(*) FROM apscheduler_jobs").fetchone()[0], 0)
+                self.assertEqual(calls, [])
+            finally:
+                fresh.stop()
+
+        asyncio.run(cycle())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -384,6 +384,18 @@ Grounds:
   to `completed/`. Next in the batch-2 chain: **#54** (persistent job-store
   rebuild, #47) — its S1 pre-image check runs against the settled #53
   `scheduler.py`/`test_bc_scheduler.py` tree.
+- PR #54 S1+S2 done 2026-10-30 ("continue pr 54" session): review plan doc
+  `1793401881422-pr54-persistent-job-resync-review.md` — verdict approve with
+  maintainer changes (M1: same CHANGELOG `### Fixed`-placement fix as #53; the
+  PR's header lands above `### Added` and duplicates the existing `### Fixed`
+  subsection); head `7f6cb02` stable, branch point = orphaned public tip
+  `e83c8e2` (the 101-file GitHub "Files changed" view is a STRIP artifact,
+  real content 3 files +42/−4), both code hunks apply cleanly on the post-#53
+  dev tree (verified `git apply --check`, no 3way); issue #47 before-claim
+  verified on the pinned APScheduler 3.11.3 (`Float(25)` next_run_time); no
+  scheduler overlap with open #44/#45/#55/#56; deployment validation recorded
+  not deployment-relevant — Status: AWAITING-DECISION, S2 gate passed, S3
+  next.
 
 ## Explicitly not doing
 

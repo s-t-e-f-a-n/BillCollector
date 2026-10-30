@@ -11,6 +11,8 @@ import asyncio
 import sys
 import tempfile
 import unittest
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
@@ -156,3 +158,35 @@ class PersistenceTests(SchedulerTestBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CronWeekdayTests(unittest.TestCase):
+    def test_numeric_sunday_and_named_sunday_have_the_same_next_fire(self):
+        zone = ZoneInfo("Europe/Zurich")
+        start = datetime(2026, 10, 30, tzinfo=zone)
+        expected = datetime(2026, 11, 1, 4, 17, tzinfo=zone)
+        for day in ("0", "7", "sun", "0,7"):
+            with self.subTest(day=day):
+                trigger = scheduler.cron_trigger(f"17 4 * * {day}", zone)
+                self.assertEqual(trigger.get_next_fire_time(None, start), expected)
+
+    def test_numeric_ranges_lists_and_steps_follow_cron_numbering(self):
+        zone = ZoneInfo("UTC")
+        sunday = datetime(2026, 11, 1, tzinfo=zone)
+        for day, expected in (("1-5", 2), ("1,3,5", 2), ("0-6/2", 1), ("*/2", 1), ("6-7", 1), ("sun,1", 1)):
+            with self.subTest(day=day):
+                trigger = scheduler.cron_trigger(f"0 0 * * {day}", zone)
+                self.assertEqual(trigger.get_next_fire_time(None, sunday).day, expected)
+
+    def test_invalid_numeric_weekdays_are_rejected(self):
+        for day in ("8", "7-1", "1/2", "*/0", "1-5/0"):
+            with self.subTest(day=day), self.assertRaises(ValueError):
+                scheduler.cron_trigger(f"0 0 * * {day}")
+
+
+def test_ui_and_scheduler_share_numeric_weekday_validation():
+    from billcollector.ui.tasks import _valid_cron
+    for day in ('0', '7', 'sun', '1-5', '*/2'):
+        assert _valid_cron(f'17 4 * * {day}')
+    for day in ('8', '1/2', 'mon-5', '01', '*/02'):
+        assert not _valid_cron(f'17 4 * * {day}')

@@ -60,3 +60,13 @@ def test_unrecognized_launch_line_never_enters_public_evidence():
     assert record["message"] == "Browser launch failed; unrecognized details omitted"
     assert "private-" not in json.dumps(record)
     assert "token" not in json.dumps(record)
+
+
+@pytest.mark.parametrize("banner", ["Chromium sandboxing failed!", "No usable sandbox!"])
+def test_sandbox_banner_after_first_line_is_classified_without_log_text(banner):
+    record = launch_failure_record(RuntimeError(
+        "BrowserType.launch_persistent_context: Failed to launch the browser process.\n"
+        f"Browser logs:\n{banner}\n--proxy-server=SECRET_PASSWORD"))
+    assert record["message"] == "No usable browser sandbox"
+    assert "SECRET_PASSWORD" not in json.dumps(record)
+    assert "Browser logs" not in json.dumps(record)

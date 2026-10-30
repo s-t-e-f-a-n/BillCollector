@@ -96,16 +96,22 @@ def launch_failure_record(error):
 
     Browser messages can contain proxy credentials, command-line arguments and
     URLs. Unknown text and subsequent call-log lines are never retained.
+    Only known sandbox markers are recognized beyond the first line.
     """
     record = failure_record("launch_persistent_context", error)
     name = type(error).__name__
     record["error_type"] = name if _METHOD_RE.fullmatch(name) else "Error"
-    first_line = str(error).splitlines()[0].lower() if str(error) else ""
+    message = str(error).lower()
+    first_line = message.splitlines()[0] if message else ""
+    if "chromium sandboxing failed!" in message or "no usable sandbox!" in message:
+        record["message"] = "No usable browser sandbox"
+        return record
     reasons = (
         ("executable doesn't exist", "Browser executable does not exist"),
         ("executable does not exist", "Browser executable does not exist"),
         ("permission denied", "Browser launch permission denied"),
         ("no usable sandbox", "No usable browser sandbox"),
+        ("failed to launch the browser process", "Browser process failed to launch"),
         ("target page, context or browser has been closed", "Target page, context or browser has been closed"),
         ("timed out", "Browser launch timed out"),
         ("timeout", "Browser launch timed out"),

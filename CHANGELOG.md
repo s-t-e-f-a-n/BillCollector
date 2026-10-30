@@ -230,6 +230,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Helper imports preserve explicit `PLAYWRIGHT_BROWSERS_PATH`. Empty browser
+  cache variables fall back to `BC_BROWSER_DIR`, then the bundled directory.
+  With `BC_BROWSER_DIR` set, the legacy batch profile follows its `profile/`
+  subdirectory. Browser launch logs include the exception class and a fixed
+  recognized cause, including sandbox startup failures, without raw error text.
+
 - Keep residual daemon exception messages and tracebacks out of per-run logs
   and SQLite notes. Retain fixed method/category diagnostics for scan, OTP,
   screenshot, browser-launch and unexpected runner failures.

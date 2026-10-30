@@ -1,8 +1,9 @@
 # PR #54 review: rebuild persistent jobs before scheduler resume (issue #47)
 
-> Status: AWAITING-DECISION (2026-10-30) — S1+S2 done: verdict approve with
-> maintainer changes (M1, CHANGELOG placement); code/tests apply as-is. S2 gate
-> passed 2026-10-30 (verdict + doc-only commit confirmed); S3 proposal next.
+> Status: INTEGRATING (2026-10-30) — S1+S2 done: verdict approve with
+> maintainer changes (M1, CHANGELOG placement); code/tests apply as-is. S3 gate
+> passed + S4 integration applied (code hunks clean on dev, M1 CHANGELOG
+> Fixed-placement in place, tree dirty for S5).
 
 ## PR metadata
 
@@ -179,8 +180,8 @@ handling. Block skipped; recorded here + user-confirmed at the S5 gate.
 
 ## Open questions
 
-- None. S2 gate passed 2026-10-30 (verdict approve with M1 confirmed,
-  doc-only commit + push approved).
+- None. S3 gate passed 2026-10-30 (proposal confirmed as-is); S4 integration
+  applied, tree left dirty for S5 validation.
 
 ## Execution record
 
@@ -192,6 +193,19 @@ handling. Block skipped; recorded here + user-confirmed at the S5 gate.
   issue #47 before-claim verified against pinned APScheduler 3.11.3
   (`Float(25)` next_run_time);   cross-PR check: no scheduler overlap with
   #44/#45/#55/#56. Verdict: approve with M1. Plan doc created
-  (Status: AWAITING-DECISION); S2 gate passed — doc-only commit (plan doc +
-  README + sequencing) pushed to `origin/dev`; the commit hash is recorded in
-  the S3 entry.
+   (Status: AWAITING-DECISION); S2 gate passed — doc-only commit (plan doc +
+   README + sequencing) pushed to `origin/dev`; the commit hash is recorded in
+   the S3 entry.
+
+- S3+S4 (2026-10-30, "continue pr 54" session): S3 proposal presented (2 code
+  files as-is + M1 CHANGELOG Fixed-placement + 3 commits) and confirmed as-is.
+  S4 preflight: clean tree on `dev`; PR head unchanged (`7f6cb02f`, matches
+  local `refs/pr/54`); dev had moved only by the doc-only S2 commit
+  (`30839f4`, no code to the 3 files) so the pre-image checks still held.
+  Applied the 3-file delta as **hunks** (not full-file checkout — the PR head
+  files are based on the orphaned tip `e83c8e2` and lack the #53 weekday
+  content): `git apply` of `git diff e83c8e2..refs/pr/54 -- scheduler.py
+  test_bc_scheduler.py` → clean (scheduler +35/+2 offset, expected). M1
+  applied by hand: PR entry prepended as the first item of the existing
+  `### Fixed` subsection (line 234), no stray `### Fixed` above `### Added`.
+  Tree left dirty (3 files) for S5. Status: INTEGRATING.

@@ -9,6 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Resolve one exact full vault item name, then fetch credentials and fresh TOTP
+  by its validated id (#48). The pinned local HTTP transport preserves endpoint
+  queries while continuing to refuse queried base URLs and unsafe authorities.
+
 ### Added
 
 - Opt-in daemon `notice_identity` with source-scoped PDF revision tracking,

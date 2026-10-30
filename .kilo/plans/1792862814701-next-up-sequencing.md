@@ -376,6 +376,14 @@ Grounds:
   `e83c8e2`, single commit, 4 files — 3 as-is + 1 manual CHANGELOG; issue
   #46 before-claim verified on the pinned APScheduler 3.11.3; deployment
   validation recorded not deployment-relevant — Status: AWAITING-DECISION.
+- PR #53 DELIVERED 2026-10-30 (S3-S7 in follow-up sessions): dev commits
+  `9ccb1ff`/`44c693a`/`fa1ade5` (fix/test/doc); Gitea `main` `fa1ade5`
+  (ff-only from `74ba171`); GitHub `main` `a24668a` (mirrored from
+  `e83c8e2`); PR #53 closed without merge, issue #46 closed completed;
+  Discussion summary text recorded for manual web-UI post. Plan doc archived
+  to `completed/`. Next in the batch-2 chain: **#54** (persistent job-store
+  rebuild, #47) — its S1 pre-image check runs against the settled #53
+  `scheduler.py`/`test_bc_scheduler.py` tree.
 
 ## Explicitly not doing
 

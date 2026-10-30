@@ -1,10 +1,11 @@
 # PR #53 review: crontab weekday numbering (issue #46)
 
-> Status: VALIDATED (2026-10-30) — S5 validation all green on the exact dev
-> tree (PR tests 24 passed / 15 subtests, unit 651 passed, regression
-> VERDICT: PASS, ruff/bandit clean); deployment block recorded skip (not
-> deployment-relevant); S6 docs verified (CHANGELOG entry in place, no
-> README/CONTRIBUTING changes); awaiting the S6 user gate before S7.
+> Status: DELIVERED (2026-10-30) — S7 complete: dev commits `9ccb1ff` /
+> `44c693a` / `fa1ade5` (fix/test/doc), Gitea `main` `fa1ade5` (ff-only from
+> `74ba171`), GitHub `main` `a24668a` (mirrored from `e83c8e2`); PR #53 closed
+> without merge (comment 6535059059), issue #46 closed completed (comment
+> 6535067954); Discussion summary text recorded for manual web-UI post
+> (write API unavailable).
 
 ## PR metadata
 
@@ -160,7 +161,9 @@ Block skipped; recorded here + user-confirmed at the S5 gate.
 ## Open questions
 
 - None. S3 gate passed 2026-10-30 (M1 confirmed as-is); S5 gate passed
-  2026-10-30 (validation results + deployment skip confirmed).
+  2026-10-30 (validation results + deployment skip confirmed); S6 gate passed
+  2026-10-30 (doc state confirmed); S7 public texts confirmed 2026-10-30 (PR
+  close comment, issue #46 comment, Discussion summary).
 
 ## Execution record
 
@@ -205,3 +208,52 @@ Block skipped; recorded here + user-confirmed at the S5 gate.
   weekday numbering); no CONTRIBUTING change (no contributor-rule change);
   validation results + integration details already recorded (S4/S5 entries).
   Tree left dirty (4 files) for S7. Awaiting the S6 user gate.
+  - S6 gate passed (user confirmed the doc state).
+- S7 (2026-10-30, "continue PR #53" session): prerequisite re-checked — the
+  S5-validated code content is byte-identical on the promoted tree (only the
+  private plan-doc commit `e730206` moved since S5).
+  - **Commits (dev-commits, per-item confirmed):** `9ccb1ff` `fix: parse
+    numeric cron weekdays with crontab numbering in scheduler and UI (#46)`
+    (2 files, +43/−4); `44c693a` `test: cover crontab weekday numbering and
+    UI/scheduler parity (#46)` (1 file, +34); `fa1ade5` `doc: changelog —
+    crontab weekday numbering fix (#46)` (1 file, +6). Pushed `origin/dev`
+    `e730206..fa1ade5`.
+  - **Promotion (user-gated at the S6 gate):** Gitea `main` `74ba171` →
+    `fa1ade5` ff-only; pushed. No tag (no release decided). Verified
+    `git diff main dev` empty, tree clean.
+  - **Mirror:** `bash .private/sync_github.sh` → GitHub `main` `e83c8e2` →
+    `a24668a` (sanitize-by-amend). Public gate green: no `.kilo`/`.vscode`/
+    `.private`/`openwiki`/`AGENTS.md`/`.openwikiignore`; `.github` holds only
+    `ISSUE_TEMPLATE` (no `workflows/`); `cron_trigger` present in
+    `scheduler.py` on GitHub `main`.
+  - **PR #53 closed** (user confirmed the exact comment text): comment
+    6535059059 (2026-10-30T22:43:12Z), closed without merge
+    2026-10-30T22:43:23Z — content reached GitHub via the mirror.
+  - **Issue #46 closed** (user confirmed the exact comment text): comment
+    6535067954 (2026-10-30T22:43:51Z), closed completed
+    2026-10-30T22:43:51Z.
+  - **Discussion summary (S7.6):** GitHub Discussion write API unavailable
+    from this environment (2026-10-25 finding); user chose manual web-UI
+    posting — text recorded below.
+    > **Public update: crontab weekday numbering for cron schedules (issue
+    > #46, PR #53)**
+    >
+    > `main` now parses numeric cron weekdays with crontab numbering (0/7
+    > Sunday, 1 Monday) in both the task editor and the scheduler, contributed
+    > by @flowcool in PR #53. One shared `cron_trigger` parser validates
+    > editor input and builds the scheduler trigger; an invalid stored
+    > schedule now skips only that task (logged with its task id) instead of
+    > failing daemon start.
+    >
+    > Maintainer-side adaptation: the CHANGELOG entry was folded into the
+    > existing `Unreleased`/`Fixed` subsection (entry text verbatim).
+    >
+    > Validation on the promoted tree: 24 PR tests (15 subtests), 651 passed
+    > full unit suite, regression harness PASS (7 scenarios / 8 PDFs),
+    > ruff/bandit clean.
+    >
+    > User-facing note: stored numeric weekday schedules now fire on the day
+    > they intended (under the old parser they ran one day off); when rolling
+    > back to an older binary, use named weekdays.
+  - **Archive:** this plan doc moved to `completed/`; README + sequencing
+    cross-references updated.

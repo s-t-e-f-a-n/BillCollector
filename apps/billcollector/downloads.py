@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from . import config
+from . import config, notice
 from .consumers import CONSUMERS
 from .interrupt import RunInterrupted
 from .redaction import sanitize_url
@@ -184,12 +184,14 @@ def recover_downloads(db):
             _recover_locked(db, target)
 
 
-def track_download(download, run_id, task, db):
+def track_download(download, run_id, task, db, *, identity=None):
     """Stage one Playwright Download, commit intent, publish, then deliver.
 
     Existing same-task hashes retain an audit row without another publication.
-    Consumer failures remain pending and do not fail the recipe. Filesystem or
-    database errors propagate to the runner; recovery precedes any later save.
+    With a notice identity, a repeated source+revision pair retains an audit
+    row instead of republishing a metadata-only regeneration. Consumer
+    failures remain pending and do not fail the recipe. Filesystem or database
+    errors propagate to the runner; recovery precedes any later save.
     """
     target = Path(download_dir(db)).resolve()
     with _publication_lock(target):
@@ -197,6 +199,10 @@ def track_download(download, run_id, task, db):
         filename = str(download.suggested_filename)
         if filename in ("", ".", "..", ".billcollector") or Path(filename).name != filename:
             raise ValueError("Download filename must be a plain basename")
+        source_identity = None
+        if identity is not None:
+            # Unidentifiable sources fail before staging or publication.
+            source_identity = notice.source_digest(str(download.url), identity)
         root = _journal_root(target, db)
         root.mkdir(parents=True, exist_ok=True)
         entry = root / uuid4().hex
@@ -207,12 +213,20 @@ def track_download(download, run_id, task, db):
         with staged.open("rb") as stream:
             os.fsync(stream.fileno())
         sha = sha256_of(staged)
+        revision = None
+        if identity is not None:
+            revision = notice.revision_digest(staged)
         record = {
             "run_id": run_id, "task_id": task["id"],
             "url": sanitize_url(str(download.url)), "filename": filename,
             "size": staged.stat().st_size, "sha256": sha,
         }
-        existing = db.find_download_by_sha(task["id"], sha)
+        if identity is not None:
+            record["source_identity"] = source_identity
+            record["revision_sha256"] = revision
+            existing = db.find_notice_revision(task["id"], source_identity, revision)
+        else:
+            existing = db.find_download_by_sha(task["id"], sha)
         if existing is not None:
             record["saved_path"] = existing["saved_path"]
             db.insert_download(**record, duplicate_of_id=existing["id"])

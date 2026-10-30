@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   access. Errors identify the service and step without argument values. The
   agreed date-variable grammar and login `press("Enter")` form remain supported.
 
+- Opt-in daemon `notice_identity` with source-scoped PDF revision tracking,
+  nullable Download identity columns, and pinned pypdf. Original PDFs are kept.
+  (issue #38)
 - Opt-in daemon `replacement_calendar` action for bounded monthly
   replacement-calendar traversal (issue #37). Months come from the run-start
   date context (issue #26). The legacy batch runner refuses the action.

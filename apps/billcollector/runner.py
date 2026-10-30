@@ -517,14 +517,17 @@ def _collection_actions(ctx, step=None):
     def paginate(locator, options):
         return collection.click_until_absent(ctx.page, locator, options)
 
+    identity_kwargs = ({"identity": step["notice_identity"]}
+                       if step and "notice_identity" in step else {})
+
     def save_download(download):
         filename = str(download.suggested_filename)
-        if filename in collection_filenames:
+        if filename in collection_filenames and not identity_kwargs:
             raise collection.CollectionError(
                 "collection produced a duplicate suggested filename"
             )
         record = downloads.track_download(
-            download, ctx.run_id, ctx.task, ctx.db
+            download, ctx.run_id, ctx.task, ctx.db, **identity_kwargs
         )
         collection_filenames.add(filename)
         ctx.files_downloaded.append({
@@ -897,7 +900,10 @@ def _handle_download(ctx, step):
             for nested_step in sorted(step.get("steps", []), key=lambda x: x.get("step", 0)):
                 _execute_step(ctx, nested_step, parent_step=step_number)
         download = download_info.value
-        record = downloads.track_download(download, ctx.run_id, ctx.task, ctx.db)
+        identity_kwargs = ({"identity": step["notice_identity"]}
+                           if "notice_identity" in step else {})
+        record = downloads.track_download(
+            download, ctx.run_id, ctx.task, ctx.db, **identity_kwargs)
     except RunInterrupted:
         raise  # a shutdown signal is not a download error to pause on
     except StepAbortError:

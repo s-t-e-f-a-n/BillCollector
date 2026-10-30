@@ -329,3 +329,27 @@ def test_calendar_semantics_fail_with_secret_safe_coordinates(calendar_recipe, m
     assert data is None
     assert 'synthetic' in error and '17' in error and 'replacement_calendar' in error
     assert 'synthetic-secret' not in error
+
+
+def test_public_notice_identity_preserves_c3_method_validation():
+    recipe = document([
+        {'method': 'locator', 'arguments': [{'selector': 'a.notice'}]},
+        {'method': 'download_all', 'arguments': [{
+            'key_attribute': 'href', 'max_items': 2, 'timeout_ms': 5000,
+            'event_window_ms': 20}]},
+    ], notice_identity={'query_parameters': ['account', 'notice']})
+    ok, error, _ = validate_recipe(yaml.safe_dump(recipe))
+    assert ok, error
+    recipe['services'][0]['steps'][0]['methods'][0]['method'] = 'unknown_method'
+    ok, error, _ = validate_recipe(yaml.safe_dump(recipe))
+    assert not ok
+    assert 'unknown_method' in error
+    assert 'synthetic' in error and '17' in error
+
+
+def test_public_notice_semantic_validation_is_kept_with_c3():
+    recipe = document([{'method': 'goto', 'arguments': [{'url': 'https://synthetic.invalid'}]}],
+                      notice_identity={'query_parameters': ['account']})
+    ok, error, _ = validate_recipe(yaml.safe_dump(recipe))
+    assert not ok
+    assert 'notice identity contract' in error

@@ -1,10 +1,13 @@
 # PR #55 review: exact vault item identity before credential reads (issue #48)
 
-> Status: INTEGRATING (2026-10-31) — S3 proposal confirmed as-is by the user;
-> S4 applied: 5/6 files byte-identical to PR head `397b0b61` on dev
-> (4 byte-identical pre-images + 1 new-file clean add), M1 CHANGELOG entry
-> placed at the top of the existing `[Unreleased] → Fixed` section (author's
-> misplaced block dropped); tree left dirty for S5 validation.
+> Status: VALIDATED (2026-10-31) — S5 all green on the exact dev tree:
+> before/after proof (8/8 new tests fail pre-integration, pass after), PR
+> commands exact (130 passed/30 subtests; 18/14), full unit 675 passed/10
+> skipped/90 subtests, regression VERDICT: PASS exit 0 (7 scenarios/8 PDFs),
+> ruff clean, bandit zero-new on production files (test file: B101 asserts +
+> B105 synthetic only); deployment skip recorded + user-confirmed at the S5
+> gate. S6 docs pending gate (CHANGELOG M1 in tree + vault_transport.md
+> correction).
 
 ## PR metadata
 
@@ -199,10 +202,12 @@ Commits (dev-commits, one concern each, proposed in S7):
 
 ## Deployment validation
 
-Not deployment-relevant: no `Dockerfile`, `.dockerignore`,
-`BillCollector.sh`, `install_docker-image.sh`, `deploy_remote.sh`, INI key or
-`.env`-handling change (the change is pure Python inside the existing
-runtime). To be recorded with the S5 run; user confirmation at the S5 gate.
+**Recorded skip, user-confirmed at the S5 gate (2026-10-31).** Not
+deployment-relevant: no `Dockerfile`, `.dockerignore`, `BillCollector.sh`,
+`install_docker-image.sh`, `deploy_remote.sh`, INI key or `.env`-handling
+change (the change is pure Python inside the existing runtime). Validated tree
+basis for S7: dev `53bed6b` + the dirty integration (5 PR files + M1
+CHANGELOG); if the tree moves after S6, re-validate per the S7 prerequisite.
 
 ## Out of scope
 
@@ -248,3 +253,42 @@ runtime). To be recorded with the S5 run; user confirmation at the S5 gate.
   top of the existing `[Unreleased] → ### Fixed` section (above the #47
   entry). Working tree left dirty (5 code/test files + CHANGELOG) for S5.
   Status: INTEGRATING.
+- S5 (2026-10-31, same session): all checks green on the exact dev tree
+  (`53bed6b` + dirty integration), from repo root with the venv:
+  - Before/after proof: with the 3 production files stashed to base, the new
+    `test_bc_vault_exact.py` fails **8/8** (name-based resolution); with the
+    integration, all pass.
+  - PR unit tests (2 files): 30 passed, 30 subtests.
+  - PR-stated 4-file command (`test_vault_transport.py test_bc_vault_exact.py
+    test_bc_login.py test_bc_runner.py`): **130 passed, 30 subtests** — exact
+    match to the PR's stated evidence.
+  - PR-stated 2-file command (`test_vault_diagnostics.py
+    test_bc_vault_settings.py`): 18 passed, 14 subtests — exact match.
+  - Full unit suite: 675 passed, 10 skipped, 90 subtests (Δ +10 vs PR #56's
+    665 = exactly the 8 new exact-identity tests + 2 new transport tests).
+  - Full regression: `run_regression.py --ini tests/bc_regression.ini` →
+    exit 0, VERDICT: PASS (7 scenarios / 8 PDFs).
+  - ruff (F821, E4/E7/E9) on all 5 changed files: all checks passed.
+  - bandit per-file vs the pre-image: vault.py / vault_transport.py /
+    test_vault_transport.py 0 findings (unchanged); runner.py 1×B110
+    (pre-existing, identical to base); new test file 11×B101 (asserts) +
+    3×B105 (`synthetic-password`) — test-file baseline only, no secrets.
+    Production files: zero new.
+  - Deployment validation: **recorded skip** — not deployment-relevant (no
+    Dockerfile / .dockerignore / BillCollector.sh / install_docker-image.sh /
+    deploy_remote.sh / INI key / .env change; pure Python inside the existing
+    runtime).
+  S5 gate passed: user confirmed the deployment skip and proceeded
+  (2026-10-31). Status: VALIDATED.
+- S6 (2026-10-31, same session): CHANGELOG M1 entry stands as-is in the
+  `[Unreleased] → Fixed` section (sanitized, public-safe). No README or
+  CONTRIBUTING change: the operator-visible contract (`BW_API_URL`, item
+  naming, optional TOTP) is unchanged, only the internal resolution path
+  narrows. `doc/vault_transport.md` corrected (two edits, in tree, pending
+  the S6 gate): (a) the "URL credentials, query strings, fragments, HTTPS and
+  public targets are refused" line now distinguishes the base URL (still
+  refuses query strings) from request URLs (endpoint query preserved, e.g. the
+  item search query); (b) the stale "Exact item resolution and stable account
+  identity are separate work" + "The diagnostics fix in upstream PR #11 is
+  also needed" sentences (PR #11 already delivered; #48 now landed) replaced
+  with the exact-id resolution description. S6 gate pending.

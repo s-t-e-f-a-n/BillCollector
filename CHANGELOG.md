@@ -237,6 +237,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Resolve one exact full vault item name, then fetch credentials and fresh TOTP
+  by its validated id (#48). The pinned local HTTP transport preserves endpoint
+  queries while continuing to refuse queried base URLs and unsafe authorities.
+
 - Load the persistent scheduler job store while paused, rebuild it from Task,
   then resume (#47). Disabled or deleted tasks cannot fire stale overdue jobs.
 

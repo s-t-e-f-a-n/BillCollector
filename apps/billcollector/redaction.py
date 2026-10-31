@@ -89,3 +89,33 @@ def failure_record(method, error=None, category=None):
         if match:
             record["resolved_count"] = int(match.group(1))
     return record
+
+
+def launch_failure_record(error):
+    """Retain an allowlisted reason from the first launch-error line.
+
+    Browser messages can contain proxy credentials, command-line arguments and
+    URLs. Unknown text and subsequent call-log lines are never retained.
+    Only known sandbox markers are recognized beyond the first line.
+    """
+    record = failure_record("launch_persistent_context", error)
+    name = type(error).__name__
+    record["error_type"] = name if _METHOD_RE.fullmatch(name) else "Error"
+    message = str(error).lower()
+    first_line = message.splitlines()[0] if message else ""
+    if "chromium sandboxing failed!" in message or "no usable sandbox!" in message:
+        record["message"] = "No usable browser sandbox"
+        return record
+    reasons = (
+        ("executable doesn't exist", "Browser executable does not exist"),
+        ("executable does not exist", "Browser executable does not exist"),
+        ("permission denied", "Browser launch permission denied"),
+        ("no usable sandbox", "No usable browser sandbox"),
+        ("failed to launch the browser process", "Browser process failed to launch"),
+        ("target page, context or browser has been closed", "Target page, context or browser has been closed"),
+        ("timed out", "Browser launch timed out"),
+        ("timeout", "Browser launch timed out"),
+    )
+    record["message"] = next((reason for marker, reason in reasons if marker in first_line),
+                             "Browser launch failed; unrecognized details omitted")
+    return record

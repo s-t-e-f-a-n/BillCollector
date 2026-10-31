@@ -51,7 +51,7 @@ from .interrupt import RunInterrupted
 from .login import is_login, login_options, settle_attempt, validate_login_recipe
 from .pagestate import PageState
 from .pause import pause_loop
-from .redaction import failure_category, failure_record
+from .redaction import failure_category, failure_record, launch_failure_record
 from .variables import DateContext, expand_argument, validate_variable_recipe
 from .vault import (
     VAULT_MAX_ATTEMPTS,
@@ -966,7 +966,7 @@ def _run_recipe(ctx, recipe):
         except RunInterrupted:
             raise  # a shutdown signal is not a launch failure to abort on
         except Exception as e:
-            logger.error("Browser launch failed: %s", failure_record("launch_persistent_context", e))
+            logger.error("Browser launch failed: %s", launch_failure_record(e))
             return files_downloaded, True, None
         try:
             services = recipe.get("services", [])

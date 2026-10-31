@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""ntfy push notifications for pause events (decision 13).
+"""ntfy push notifications for pause, login lock and daemon run outcomes.
 
 Every pause pushes with a deep link to the session page
 (``<UI_BASE_URL>/runs/<run_id>``) so the operator can act from a phone
@@ -74,4 +74,49 @@ def notify_pause(db, run, task):
     except requests.exceptions.RequestException as e:
         # The exception can include the URL (and topic); keep the class name only.
         logger.warning(f"ntfy pause push failed: {type(e).__name__}")
+    return False
+
+
+_RUN_MESSAGES = {
+    "failure": "A collector run failed. Check the BillCollector dashboard.",
+    "interrupted": "A collector run was interrupted. Check the BillCollector dashboard.",
+    "needs_attention": "A collector run timed out waiting for attention. Check the BillCollector dashboard.",
+}
+
+
+def notify_run_result(db, result, *, dispatch=None):
+    """Best-effort daemon outcome push with a fixed, account-free payload.
+
+    Read Settings before dispatch: the worker receives only immutable strings,
+    never the SQLite connection. Successful and cancelled runs stay silent.
+    """
+    try:
+        message = _RUN_MESSAGES.get(result)
+        if message is None:
+            return False
+        topic = (db.get_setting("ntfy_topic") or "").strip()
+        if not topic:
+            return False
+        url = f"{_ntfy_host()}/{topic}"
+        if dispatch is not None:
+            return dispatch(_send_run_result, url, message)
+        return _send_run_result(url, message)
+    except Exception as e:
+        # Settings/dispatch failures must not affect finalization either.
+        logger.warning("ntfy run result push failed: %s", type(e).__name__)
+        return False
+
+
+def _send_run_result(url, message):
+    try:
+        response = requests.post(
+            url, data=message.encode("utf-8"),
+            headers={"Title": "BillCollector: run needs attention", "Priority": "4",
+                     "Tags": "warning"}, timeout=NTFY_TIMEOUT)
+        if response.status_code == 200:
+            return True
+        logger.warning("ntfy run result push failed: HTTP %s", response.status_code)
+    except Exception as e:
+        # Exception text can contain the endpoint or topic. Never log it.
+        logger.warning("ntfy run result push failed: %s", type(e).__name__)
     return False

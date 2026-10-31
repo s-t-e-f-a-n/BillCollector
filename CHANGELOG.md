@@ -233,6 +233,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Load the persistent scheduler job store while paused, rebuild it from Task,
+  then resume (#47). Disabled or deleted tasks cannot fire stale overdue jobs.
+
 - Parse numeric cron weekdays with crontab numbering (0/7 Sunday, 1 Monday)
   in both the task editor and scheduler (#46). Invalid stored schedules are
   skipped with their task id. Ambiguous legacy forms `1/2`, `mon-5`, `01` and

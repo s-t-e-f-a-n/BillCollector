@@ -1,10 +1,10 @@
 # PR #45 review: preserve explicit Playwright browser cache across imports
 
-> Status: AWAITING-DECISION (2026-10-31) — S1+S2 done: verdict approve with
-> M1 (CHANGELOG entry separator) only; all PR code and tests apply as-is from
-> head `93f71b2` (5 files byte-identical pre-images on `dev` + 1 clean-add
-> test file; full diff applies strictly). Head moved mid-S1 (author merged
-> current public main into the branch); reviewed head is the new `93f71b2`.
+> Status: INTEGRATING (2026-10-31) — S3+S4 done: proposal confirmed as-is;
+> all 6 files applied to the dev tree (5 byte-identical to head `93f71b2` +
+> CHANGELOG M1 manual resolution with the blank-line separator); tree dirty,
+> uncommitted, nothing staged. Verdict: approve with M1 (CHANGELOG entry
+> separator) only. S5 next (validation on the exact dirty tree).
 
 ## PR metadata
 
@@ -208,8 +208,10 @@ container runtime behavior are unchanged.
 
 ## Open questions
 
-- None as of S2: the verdict + plan await user review (AWAITING-DECISION
-  gate); S3 presents the exact proposal.
+- None as of S4: S5 runs on the exact dirty tree (focused + companion pytest,
+  full unit suite, full regression, ruff/bandit on the changed files); the
+  recorded deployment skip (not deployment-relevant) awaits user confirmation
+  at the S5 gate.
 
 ## Execution record
 
@@ -232,3 +234,20 @@ container runtime behavior are unchanged.
 - S2 (2026-10-31, same session): plan doc created (this file,
   AWAITING-DECISION); README + sequencing cross-references updated; doc-only
   commit to `origin/dev`. S3 next.
+- S3 (2026-10-31, "continue pr #45" session): the plan doc was stale — the
+  prior session (digest `ses_e6c5f8702ffeVE9AkJFxOHe0qQ`) had presented the
+  S3 proposal, the user answered "confirmed", S4 had applied all 6 files, and
+  the session ended during the dirty-tree verification before the doc update.
+  Proposal re-presented (5 files as-is from head + CHANGELOG M1; the 3 S7
+  commits) and the user re-confirmed it as-is.
+- S4 (2026-10-31, same session): preflight on the current tree — head stable
+  (`git ls-remote github refs/pull/45/head` = `93f71b29ca77818edf1e24a6ba8d90ed31b243e1`
+  = local `refs/pr/45` = the reviewed head), on `dev` = `origin/dev` =
+  `41c38b7`, nothing staged, no unpushed commits. Working tree re-verified
+  byte-identical to head `93f71b2` for `apps/billcollector/config.py`,
+  `apps/billcollector/redaction.py`, `apps/billcollector/runner.py`,
+  `apps/helpers/BillCollectorHelpers.py` and `tests/test_bc_browser_cache.py`;
+  `CHANGELOG.md` holds the PR entry at the top of `[Unreleased] → ### Fixed`
+  **with the blank-line separator before the #48 entry (M1 resolved)**; no
+  other dirty files. Tree left dirty (uncommitted) for S5. Status:
+  INTEGRATING.

@@ -521,10 +521,23 @@ Grounds:
   (Codex); synthetic markers only); cross-PR: only #44 open, CHANGELOG-only
   overlap. Verdict: approve with M1 (CHANGELOG entry separator — the PR head
   omits the blank line before the #48 entry); deployment assessed not
-  deployment-relevant (Python env-var precedence only; Docker `ENV
-  PLAYWRIGHT_BROWSERS_PATH=/apps/browser` stays non-empty and wins; skip to be
-  user-confirmed at the S5 gate) — Status: AWAITING-DECISION, S2 gate pending
-  (user review of verdict + plan), S3 next.
+   deployment-relevant (Python env-var precedence only; Docker `ENV
+   PLAYWRIGHT_BROWSERS_PATH=/apps/browser` stays non-empty and wins; skip to be
+   user-confirmed at the S5 gate) — Status: AWAITING-DECISION, S2 gate pending
+   (user review of verdict + plan), S3 next.
+- PR #45 S3+S4 done 2026-10-31 ("continue pr #45" session): the prior session
+  had already run S2 gate (user "confirmed") → S3 (exact proposal presented,
+  user "confirmed") → S4 (5 files applied from head byte-identical, M1
+  CHANGELOG separator resolved, dirty tree) and died during the dirty-tree
+  verification before the doc update, leaving the plan doc stale at
+  AWAITING-DECISION; the plan doc was reconciled. S4 preflight re-verified on
+  the current tree: head stable (`ls-remote` = local `refs/pr/45` = reviewed
+  `93f71b2`), on `dev` = `origin/dev` = `41c38b7`, nothing staged, no unpushed
+  commits; 5 code/test files byte-identical to head, CHANGELOG holds the PR
+  entry at the top of `[Unreleased] → ### Fixed` with the M1 blank-line
+  separator before the #48 entry, no other dirty files; tree left dirty for
+  S5 — Status: INTEGRATING, S5 next (validation on the exact dirty tree;
+  recorded deployment skip to be user-confirmed at the S5 gate).
 
 ## Explicitly not doing
 

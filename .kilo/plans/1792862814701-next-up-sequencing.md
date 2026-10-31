@@ -480,8 +480,26 @@ Grounds:
   `19c4164` (clean apply) + the new `tests/test_bc_vault_exact.py` a clean
   add, only `CHANGELOG.md` manual; overlap with open #44/#45 limited to
   `runner.py` (different area) + CHANGELOG; deployment validation recorded
-  not deployment-relevant — Status: AWAITING-DECISION, S2 gate pending
-  (user review of verdict + plan), S3 next.
+   not deployment-relevant — Status: AWAITING-DECISION, S2 gate pending
+   (user review of verdict + plan), S3 next.
+- PR #55 S3-S7 done 2026-10-31 ("coninud pr 55" session): DELIVERED — S3
+  proposal confirmed as-is (5 files as-is from head `397b0b6` + M1 CHANGELOG
+  Fixed-placement); S4 applied (4 modified files byte-identical to the PR
+  delta, new test file a clean add, M1 entry relocated to the existing
+  `[Unreleased] → Fixed` section); S5 all green on the exact dev tree
+  (before/after 8/8 fail-then-pass, PR commands 130/30 + 18/14 exact, full
+  unit 675/90 subtests, regression VERDICT PASS 7 scenarios/8 PDFs, ruff
+  clean, bandit zero-new on production; deployment skip recorded +
+  user-confirmed); S6 docs confirmed (CHANGELOG M1 stands + vault_transport.md
+  corrected). S7: dev commits `f4f1a05`/`79d22b1`/`22da847` (fix/test/doc)
+  pushed to `origin/dev`; ff-only promoted to Gitea `main` `2bf53d8` →
+  `22da847`; GitHub `main` `4265ddb` → `3c950d7` (sanitize-by-amend, public
+  gate green: no private paths at the tip, the #48 CHANGELOG entry present);
+  PR #55 closed without merge (comment 6548516895, 2026-10-31T20:07:57Z),
+  issue #48 closed completed (comment 6548524119, 2026-10-31T20:08:35Z);
+  Discussion summary recorded for manual web-UI post (write API unavailable).
+  Plan doc archived to `completed/`. Batch-2 chain now at **#45** (browser cache
+  precedence, no issue) — its S1 runs against the settled `22da847` tree.
 
 ## Explicitly not doing
 

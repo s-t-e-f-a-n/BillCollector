@@ -1,13 +1,15 @@
 # PR #55 review: exact vault item identity before credential reads (issue #48)
 
-> Status: VALIDATED (2026-10-31) — S5 all green on the exact dev tree:
-> before/after proof (8/8 new tests fail pre-integration, pass after), PR
-> commands exact (130 passed/30 subtests; 18/14), full unit 675 passed/10
-> skipped/90 subtests, regression VERDICT: PASS exit 0 (7 scenarios/8 PDFs),
-> ruff clean, bandit zero-new on production files (test file: B101 asserts +
-> B105 synthetic only); deployment skip recorded + user-confirmed at the S5
-> gate; S6 docs confirmed (CHANGELOG M1 stands + vault_transport.md
-> correction, no README/CONTRIBUTING change). S7 next.
+> Status: DELIVERED (2026-10-31) — S7 complete: 3 dev commits (code/test/doc)
+> pushed to origin/dev `22da847`; ff-only promoted to Gitea main `22da847`;
+> mirrored to GitHub main `3c950d7` (sanitized, STRIP-clean, integrated content
+> verified present). PR #55 closed without merge (comment 6548516895,
+> closed_at 2026-10-31T20:07:57Z); issue #48 closed as completed (comment
+> 6548524119, closed_at 2026-10-31T20:08:35Z). GitHub Discussion summary
+> drafted but NOT posted (Discussions API 404 in this environment) — user to
+> post in the web UI. Deployment skip unchanged: the tree move since S5 was
+> doc-only (plan commits + S6 doc edit) and the production content was
+> re-verified byte-identical to the S5-validated tree.
 
 ## PR metadata
 
@@ -208,7 +210,10 @@ deployment-relevant: no `Dockerfile`, `.dockerignore`, `BillCollector.sh`,
 `install_docker-image.sh`, `deploy_remote.sh`, INI key or `.env`-handling
 change (the change is pure Python inside the existing runtime). Validated tree
 basis for S7: dev `53bed6b` + the dirty integration (5 PR files + M1
-CHANGELOG); if the tree moves after S6, re-validate per the S7 prerequisite.
+CHANGELOG). At S7 the tip had moved to `22da847` but only via doc-only commits
+(plan records + the S6 `doc/vault_transport.md` edit); all 5 code/test files
+were re-verified blob-identical to the PR head `397b0b61` that S5 validated, so
+the pure-Python / not-deployment-relevant verdict and the skip stand.
 
 ## Out of scope
 
@@ -219,9 +224,9 @@ CHANGELOG); if the tree moves after S6, re-validate per the S7 prerequisite.
 
 ## Open questions
 
-- None: S3 confirmed, S4 applied, S5 validated (deployment skip
-  user-confirmed), S6 docs confirmed. S7 (commit + push, promote, mirror,
-  close) is the only remaining stage.
+- None: all stages S1-S7 complete. The only outstanding item is the GitHub
+  Discussion summary, which cannot be posted from this environment (Discussions
+  API 404); the user posts it in the web UI.
 
 ## Execution record
 
@@ -298,3 +303,21 @@ CHANGELOG); if the tree moves after S6, re-validate per the S7 prerequisite.
   doc — the doc commit now covers CHANGELOG.md + doc/vault_transport.md),
   push origin/dev, ff-only promote to main, sync_github.sh mirror, PR +
   issue close comments per the publication routine.
+- S7 (2026-10-31, "coninud pr 55" session): delivered. Preflight: on `dev`
+  (tip `22da847` = origin/dev, doc-only plan commits atop the validated
+  `53bed6b`), PR head still `397b0b61`; all 5 code/test files re-verified
+  blob-identical to the PR head; CHANGELOG M1 in place; the tree move since S5
+  was doc-only → deployment skip re-confirmed. dev-commits: 3 commits created
+  and pushed (`f4f1a05` fix, `79d22b1` test, `22da847` doc). Promote: ff-only
+  `2bf53d8..22da847` to Gitea main, pushed; `git diff main dev` empty. Mirror:
+  `sync_github.sh` (no tag) → GitHub main `3c950d7` (sanitized tip); public gate
+  passed (hash differs from Gitea main; root + `.github` STRIP-clean — no
+  `.kilo`/`.vscode`/`.private`/`openwiki`/`AGENTS.md`/`.openwikiignore`/
+  `workflows/`; integrated content present incl. `test_bc_vault_exact.py`,
+  `vault.py`, `runner.py`, `vault_transport.py`, `test_vault_transport.py`,
+  `doc/vault_transport.md`, CHANGELOG entry at top of `[Unreleased] → Fixed`).
+  Close: PR #55 comment 6548516895 posted + closed without merge
+  (closed_at 2026-10-31T20:07:57Z); issue #48 comment 6548524119 posted +
+  closed as completed (closed_at 2026-10-31T20:08:35Z). GitHub Discussion
+  summary drafted but NOT posted (Discussions API 404 in this environment);
+  user to post in the web UI. Status: DELIVERED.

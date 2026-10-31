@@ -21,12 +21,13 @@ class VaultTransportError(ValueError):
     """Invalid API configuration or an unsafe response; do not retry it."""
 
 
-def pinned_api_urls(url):
-    """Return all vetted numeric local targets and the original Host header."""
+def pinned_api_urls(url, *, allow_query=True):
+    """Vet the HTTP authority, preserving the request path and query when pinning."""
     try:
         parsed = urlsplit(url)
         if (parsed.scheme != "http" or not parsed.hostname or parsed.username is not None
-                or parsed.password is not None or parsed.query or parsed.fragment):
+                or parsed.password is not None or parsed.fragment
+                or (parsed.query and not allow_query)):
             raise ValueError("invalid API URL")
         port = parsed.port if parsed.port is not None else 80
         if port == 0:
@@ -51,10 +52,10 @@ def pinned_api_urls(url):
 
 
 def pinned_api_url(url, attempts=3, backoff=2):
-    """Validate preflight DNS with the caller's request retry policy."""
+    """Validate a query-free base API URL with the caller's DNS retry policy."""
     for attempt in range(1, attempts + 1):
         try:
-            targets, host = pinned_api_urls(url)
+            targets, host = pinned_api_urls(url, allow_query=False)
             return targets[0], host
         except requests.exceptions.ConnectionError:
             if attempt == attempts:

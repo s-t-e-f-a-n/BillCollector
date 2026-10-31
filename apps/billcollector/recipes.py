@@ -23,6 +23,7 @@ import yaml
 
 from . import config
 from .login import validate_login_recipe
+from .notice import validate_notice_recipe
 from .variables import validate_variable_recipe
 
 
@@ -56,6 +57,10 @@ def validate_recipe(text: str, schema_path=None) -> tuple:
         validate_variable_recipe(data)
     except ValueError as e:
         return False, f"invalid variable contract: {e}", None
+    try:
+        validate_notice_recipe(data)
+    except ValueError as e:
+        return False, f"invalid notice identity contract: {e}", None
     return True, None, data
 
 

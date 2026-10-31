@@ -453,10 +453,13 @@ async def test_slow_login_notification_keeps_daemon_loop_responsive(db, path):
                 await shutdown
             else:
                 await orch.shutdown()
+        # The finalize and orphan paths also send the terminal run
+        # notification (issue #49) alongside the login lock one.
+        expected_posts = 2 if path in ("finalize", "orphan") else 1
         assert finished.is_set()
-        assert len(worker_threads) == 1
-        assert worker_threads[0] != loop_thread
-        post.assert_called_once()
+        assert len(worker_threads) == expected_posts
+        assert all(t != loop_thread for t in worker_threads)
+        assert post.call_count == expected_posts
         assert not orch._notifications
 
 

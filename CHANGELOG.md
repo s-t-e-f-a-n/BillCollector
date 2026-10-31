@@ -11,6 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Terminal daemon run notifications: account-free failure, interruption and
+  attention notices through the existing opt-in ntfy topic. Successful and
+  cancelled runs stay silent, delivery is best-effort, and the monitor sends
+  each terminal notice once. (issue #49)
+- Opt-in daemon `notice_identity` with source-scoped PDF revision tracking,
+  nullable Download identity columns, and pinned pypdf. Original PDFs are kept.
+  (issue #38)
 - Opt-in daemon `replacement_calendar` action for bounded monthly
   replacement-calendar traversal (issue #37). Months come from the run-start
   date context (issue #26). The legacy batch runner refuses the action.
@@ -235,6 +242,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   With `BC_BROWSER_DIR` set, the legacy batch profile follows its `profile/`
   subdirectory. Browser launch logs include the exception class and a fixed
   recognized cause, including sandbox startup failures, without raw error text.
+- Resolve one exact full vault item name, then fetch credentials and fresh TOTP
+  by its validated id (#48). The pinned local HTTP transport preserves endpoint
+  queries while continuing to refuse queried base URLs and unsafe authorities.
+
+- Load the persistent scheduler job store while paused, rebuild it from Task,
+  then resume (#47). Disabled or deleted tasks cannot fire stale overdue jobs.
+
+- Parse numeric cron weekdays with crontab numbering (0/7 Sunday, 1 Monday)
+  in both the task editor and scheduler (#46). Invalid stored schedules are
+  skipped with their task id. Ambiguous legacy forms `1/2`, `mon-5`, `01` and
+  `*/02` are rejected; use named weekdays before rolling back to an older
+  binary.
 
 - Keep residual daemon exception messages and tracebacks out of per-run logs
   and SQLite notes. Retain fixed method/category diagnostics for scan, OTP,

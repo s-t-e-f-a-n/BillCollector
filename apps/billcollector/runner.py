@@ -166,7 +166,8 @@ def _fresh_otp(bcs):
     run-start credential when the item has no TOTP or the fetch fails.
     """
     try:
-        totp_item = get_totp(f"{bcs.api_url}/object/totp/{bcs.vault_item_name}")
+        item = getattr(bcs, "vault_item_id", None) or bcs.vault_item_name
+        totp_item = get_totp(f"{bcs.api_url}/object/totp/{item}")
     except VaultAPIError as e:
         logger.warning("OTP re-fetch failed (%s); using run-start credential",
                        failure_record("get_totp", e))
@@ -207,6 +208,7 @@ class _RunContext:
         # Extra attributes used by _fresh_otp at substitution time.
         self.bcs.api_url = api_url
         self.bcs.vault_item_name = f"{task['service']} {task['user']}".strip()
+        self.bcs.vault_item_id = credentials.get("item_id")
         self.bcs.otp_fallback = credentials["otp"]
         # Pause state (C5): the pause loop and the Copilot context handler
         # read these off the context.
@@ -515,14 +517,17 @@ def _collection_actions(ctx, step=None):
     def paginate(locator, options):
         return collection.click_until_absent(ctx.page, locator, options)
 
+    identity_kwargs = ({"identity": step["notice_identity"]}
+                       if step and "notice_identity" in step else {})
+
     def save_download(download):
         filename = str(download.suggested_filename)
-        if filename in collection_filenames:
+        if filename in collection_filenames and not identity_kwargs:
             raise collection.CollectionError(
                 "collection produced a duplicate suggested filename"
             )
         record = downloads.track_download(
-            download, ctx.run_id, ctx.task, ctx.db
+            download, ctx.run_id, ctx.task, ctx.db, **identity_kwargs
         )
         collection_filenames.add(filename)
         ctx.files_downloaded.append({
@@ -920,7 +925,10 @@ def _handle_download(ctx, step):
             for nested_step in sorted(step.get("steps", []), key=lambda x: x.get("step", 0)):
                 _execute_step(ctx, nested_step, parent_step=step_number)
         download = download_info.value
-        record = downloads.track_download(download, ctx.run_id, ctx.task, ctx.db)
+        identity_kwargs = ({"identity": step["notice_identity"]}
+                           if "notice_identity" in step else {})
+        record = downloads.track_download(
+            download, ctx.run_id, ctx.task, ctx.db, **identity_kwargs)
     except RunInterrupted:
         raise  # a shutdown signal is not a download error to pause on
     except StepAbortError:

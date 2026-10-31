@@ -1,14 +1,11 @@
 # PR #54 review: rebuild persistent jobs before scheduler resume (issue #47)
 
-> Status: VALIDATED (2026-10-31) — S6 docs confirmed: CHANGELOG M1 entry in
-> place under [Unreleased] Fixed (sanitized, references #47 only), no README/
-> CONTRIBUTING changes (README:233 wording stays accurate, no rule changes).
-> S5 validation green on the exact dev tree: PR module 14 passed / 15 subtests,
-> before/after proof (new test fails on pre-integration scheduler), full unit
-> 652/10 skipped/68 subtests, regression VERDICT: PASS (7 scenarios / 8 PDFs),
-> ruff + bandit clean vs baseline, deployment block recorded-skip (not
-> deployment-relevant). S5 + S6 gates passed 2026-10-31; ready for S7
-> (commit + push).
+> Status: DELIVERED (2026-10-31) — S7 complete: dev commits `f68a663` /
+> `f163369` / `a75861f` (fix/test/doc), Gitea `main` `a75861f` (ff-only from
+> `fa1ade5`), GitHub `main` `ebf20bb` (mirrored from `a75861f`); PR #54 closed
+> without merge (comment 6540230969, 2026-10-31T06:45:07Z), issue #47 closed
+> completed (comment 6540231280, 2026-10-31T06:45:09Z); Discussion summary
+> text recorded for manual web-UI post (write API unavailable).
 
 ## PR metadata
 
@@ -185,12 +182,11 @@ handling. Block skipped; recorded here + user-confirmed at the S5 gate.
 
 ## Open questions
 
-- None. S3 gate passed 2026-10-30 (proposal confirmed as-is); S4 integration
-  applied; S5 validation green + S5 gate passed 2026-10-31 (validation results
-  confirmed incl. the recorded deployment skip); S6 docs confirmed + S6 gate
-  passed 2026-10-31 (CHANGELOG entry as the only public artifact; no README/
-  CONTRIBUTING changes); next: S7 commit + push (Gitea dev → main promotion →
-  GitHub mirror → PR close).
+- None. All gates passed: S3 (2026-10-30, proposal confirmed as-is), S5
+  (2026-10-31, validation results incl. the recorded deployment skip), S6
+  (2026-10-31, CHANGELOG entry as the only public artifact, no README/
+  CONTRIBUTING changes), S7 (2026-10-31, 3 commits as-is, promotion, mirror,
+  public texts). Delivered 2026-10-31; plan doc archived to `completed/`.
 
 ## Execution record
 
@@ -259,3 +255,54 @@ handling. Block skipped; recorded here + user-confirmed at the S5 gate.
   - CONTRIBUTING: no contributor-rule change → no edit.
   S6 gate passed 2026-10-31 (user confirmed the documentation). Tree still
   dirty (3 integration files) for S7. Status: VALIDATED.
+
+- S7 (2026-10-31, "continue pr 54" session): prerequisite re-checked — the
+  S5-validated content unchanged on the dev tree (dirty 3 files byte-
+  identical to the S5 diffstat; only the S6 doc-only commit `e61f2df` moved
+  since S5; dev == origin/dev; deployment recorded-skip still covers the
+  promoted tree).
+  - **Commits (dev-commits, all 3 + push confirmed):** `f68a663` `fix:
+    rebuild persistent scheduler jobs from Task before resume (#47)`
+    (scheduler.py, +8/−4); `f163369` `test: cover start() dropping persisted
+    disabled and deleted jobs (#47)` (test, +29); `a75861f` `doc: changelog —
+    persistent scheduler job rebuild fix (#47)` (CHANGELOG, +3). Pushed
+    `origin/dev` `e61f2df..a75861f`.
+  - **Promotion (user-gated):** Gitea `main` `fa1ade5` → `a75861f` ff-only;
+    pushed. No tag (no release decided). Verified `git diff main dev` empty,
+    status clean.
+  - **Mirror:** `bash .private/sync_github.sh` → GitHub `main` `a24668a` →
+    `ebf20bb` (sanitize-by-amend). Public gate green: no `.kilo`/`.vscode`/
+    `.private`/`openwiki`/`AGENTS.md`/`.openwikiignore` at the tip; `.github`
+    holds only `ISSUE_TEMPLATE` (no `workflows/`); the `start()`/`resync()`
+    fix present in `scheduler.py` on GitHub `main`.
+  - **PR #54 closed** (user confirmed the exact comment text): comment
+    6540230969 (2026-10-31T06:45:06Z), closed without merge
+    2026-10-31T06:45:07Z — the content reached GitHub via the mirror.
+  - **Issue #47 closed** (user confirmed the exact comment text): comment
+    6540231280 (2026-10-31T06:45:08Z), closed completed
+    2026-10-31T06:45:09Z.
+  - **Discussion summary (S7.6):** GitHub Discussion write API unavailable
+    from this environment (2026-10-25 finding); user chose manual web-UI
+    posting — text recorded below.
+    > **Public update: persistent scheduler job-store rebuild at startup
+    > (issue #47, PR #54)**
+    >
+    > `main` now starts the scheduler paused, rebuilds the job table from the
+    > Task table while the persistent job store is loaded, and only then
+    > resumes — contributed by @flowcool in PR #54. `resync()` now uses
+    > `remove_all_jobs()`, which also clears the persistent store; a failed
+    > rebuild shuts the scheduler down before the error propagates.
+    >
+    > Maintainer-side adaptation: the CHANGELOG entry was folded into the
+    > existing `Unreleased`/`Fixed` subsection (entry text verbatim).
+    >
+    > Validation on the promoted tree: 14 scheduler-module tests (15
+    > subtests), 652 passed full unit suite, regression harness PASS (7
+    > scenarios / 8 PDFs), ruff/bandit clean.
+    >
+    > User-facing note: after a daemon restart, jobs the persistent job store
+    > still held for disabled or deleted tasks no longer fire (previously
+    > they could fire if their next run was due while the daemon was
+    > stopped).
+  - **Archive:** this plan doc moved to `completed/`; README + sequencing
+    cross-references updated.

@@ -414,6 +414,16 @@ Grounds:
   Status: VALIDATED, S6 gate passed, S7 next (commit + push: Gitea dev →
   main promotion → GitHub mirror → PR close + issue #47 closure + Discussion
   summary).
+- PR #54 S7 complete 2026-10-31 ("continue pr 54" session): DELIVERED —
+  commits `f68a663`/`f163369`/`a75861f` (fix/test/doc) pushed to `origin/dev`;
+  Gitea `main` `fa1ade5` → `a75861f` (ff-only, user-gated, no tag); GitHub
+  `main` `a24668a` → `ebf20bb` (sanitize-by-amend, public gate green: no
+  private paths at the tip, fix present); PR #54 closed without merge
+  (comment 6540230969, 2026-10-31T06:45:07Z), issue #47 closed completed
+  (comment 6540231280, 2026-10-31T06:45:09Z); Discussion summary text
+  recorded for manual web-UI post (write API unavailable). Plan doc archived
+  to `completed/`. Next in the batch-2 chain: **#56** (terminal ntfy
+  failures, #49) — its S1 runs against the settled `a75861f` tree.
 
 ## Explicitly not doing
 

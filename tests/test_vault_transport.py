@@ -1,4 +1,4 @@
-"""Synthetic vault transport checks: all DNS and HTTP operations are mocked."""
+"""Synthetic vault transport checks with mocked DNS and loopback HTTP fixtures."""
 
 import importlib
 from contextlib import nullcontext
@@ -40,6 +40,13 @@ class VaultTransportTests(unittest.TestCase):
                 self.assertEqual(host, "bw.local")
                 resolve.assert_called_once_with("bw.local", 80, type=socket.SOCK_STREAM)
 
+    def test_list_search_query_is_preserved_in_every_pinned_target(self):
+        suffix = "/list/object/items?search=CC%20Genevois%26%23%2F%3F"
+        with patch.object(transport.socket, "getaddrinfo", return_value=dns("127.0.0.1", "::1")):
+            targets, host = transport.pinned_api_urls(f"http://bw.local:8087{suffix}")
+        self.assertEqual(targets, [f"http://127.0.0.1:8087{suffix}", f"http://[::1]:8087{suffix}"])
+        self.assertEqual(host, "bw.local:8087")
+
     def test_public_mixed_empty_and_link_local_answers_are_rejected(self):
         for answers in (dns("8.8.8.8"), dns("127.0.0.1", "8.8.8.8"), [], dns("169.254.169.254")):
             with self.subTest(answers=answers), \
@@ -51,12 +58,25 @@ class VaultTransportTests(unittest.TestCase):
 
     def test_unsafe_url_forms_are_rejected_before_dns(self):
         for url in (None, "https://bw.local/status", "http://user:password@bw.local/",
-                    "http://bw.local:0/", "http://bw.local:99999/", "http://bw.local/?token=synthetic",
+                    "http://bw.local:0/", "http://bw.local:99999/", "http://@bw.local/",
+                    "http://user@bw.local/", "http://bw.local:invalid/",
+                    "http://bw.local/?token=synthetic",
                     "http://bw.local/#synthetic", "file:///synthetic", "not-a-url"):
             with self.subTest(url=url), patch.object(transport.socket, "getaddrinfo") as resolve:
                 with self.assertRaises(transport.VaultTransportError):
                     transport.pinned_api_url(url)
                 resolve.assert_not_called()
+
+    def test_request_query_does_not_bypass_authority_or_fragment_checks(self):
+        for url in ("https://bw.local/list?search=x", "http://user@bw.local/list?search=x",
+                    "http://bw.local:0/list?search=x", "http://bw.local/list?search=x#fragment"):
+            with self.subTest(url=url), patch.object(transport.socket, "getaddrinfo") as resolve:
+                with self.assertRaises(transport.VaultTransportError):
+                    transport.pinned_api_urls(url)
+                resolve.assert_not_called()
+        with patch.object(transport.socket, "getaddrinfo", return_value=dns("8.8.8.8")):
+            with self.assertRaises(transport.VaultTransportError):
+                transport.pinned_api_urls("http://public.invalid/list?search=x")
 
     def test_dns_failure_is_a_bounded_configuration_error(self):
         with patch.object(transport.socket, "getaddrinfo", side_effect=OSError("SYNTHETIC_PRIVATE_MARKER")):

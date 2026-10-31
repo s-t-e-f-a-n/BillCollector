@@ -27,7 +27,7 @@ DISPLAY_DIR = DATA_DIR / "displays"
 RUN_DIR = DATA_DIR / "runs"
 
 # Browser + downloads. Per-task profiles are never auto-deleted (decision 9).
-BROWSER_DIR = _path("BC_BROWSER_DIR", APP_DIR / "browser")
+BROWSER_DIR = Path(os.environ.get("BC_BROWSER_DIR") or APP_DIR / "browser")
 PROFILE_ROOT = _path("BC_PROFILE_ROOT", BROWSER_DIR / "profiles")
 DOWNLOAD_DIR = _path("BC_DOWNLOAD_DIR", APP_DIR / "Downloads")
 
@@ -40,7 +40,8 @@ RECIPE_PREFIX = "recipe-pw__"
 INI_FILES = (APP_DIR / "bc_default.ini", APP_DIR / "bc_test.ini")
 
 # Point Playwright at the repo-local browser build before it is imported.
-os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(BROWSER_DIR))
+if not os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(BROWSER_DIR)
 
 # Defaults. Runtime-overridable via the Settings table (db.get_setting).
 # Values are strings to match the TEXT Settings table; parse at the call site.

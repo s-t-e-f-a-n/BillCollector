@@ -455,9 +455,20 @@ Grounds:
   README section `### Pause notifications (ntfy)` → `### Notifications (ntfy)`
   (TOC anchor, opt-in sentence extended to terminal run outcomes, new
   terminal-notices paragraph, both `NTFY_HOST` descriptions); CONTRIBUTING
-  unchanged — S6 gate passed (user confirmed as-is) — Status: VALIDATED, S7
-  next (dev-commits proposal, push `origin/dev`, ff-only promotion, GitHub
-  mirror, close PR #56 + issue #49).
+   unchanged — S6 gate passed (user confirmed as-is) — Status: VALIDATED, S7
+   next (dev-commits proposal, push `origin/dev`, ff-only promotion, GitHub
+   mirror, close PR #56 + issue #49).
+- PR #56 S7 complete 2026-10-31 (follow-up "continue pr 56" session):
+  DELIVERED — commits `da01d5b`/`32140f7`/`2bf53d8` (feat/test/doc) pushed to
+  `origin/dev`; Gitea `main` `a75861f` → `2bf53d8` (ff-only, user-gated, no
+  tag); GitHub `main` `ebf20bb` → `4265ddb` (sanitize-by-amend, public gate
+  green: no private paths at the tip, the #49 CHANGELOG entry present); PR
+  #56 closed without merge (comment 6544710707, 2026-10-31T14:29:39Z), issue
+  #49 closed completed (comment 6544711134, 2026-10-31T14:29:42Z); Discussion
+  summary text recorded in the review doc for manual web-UI post (write API
+  unavailable). Plan doc archived to `completed/` (this session). Next in the
+  batch-2 chain: **#55** (exact vault item identity, #48) — its S1 runs
+  against the settled `2bf53d8` tree.
 
 ## Explicitly not doing
 

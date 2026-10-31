@@ -1,14 +1,11 @@
 # PR #56 review: terminal daemon failures through opt-in ntfy (issue #49)
 
-> Status: VALIDATED (2026-10-31) — S5 green on the exact dev tree: before/after
-> proof (21 new tests fail on the pre-integration code, all 49 pass after), PR
-> unit 49 OK / 15 subtests, full unit 665 passed / 10 skipped / 83 subtests
-> (after the M2 test adaptation), regression VERDICT: PASS (7 scenarios / 8
-> PDFs, exit 0), ruff clean, bandit 0 findings on the changed app files;
-> deployment validation recorded skip (not deployment-relevant), S5 gate
-> passed; S6 docs confirmed (CHANGELOG M1 entry stands under [Unreleased]
-> Added, sanitized; README ntfy section renamed + extended), S6 gate passed;
-> ready for S7.
+> Status: DELIVERED (2026-10-31) — S7 complete: dev commits `da01d5b` /
+> `32140f7` / `2bf53d8` (feat/test/doc), Gitea `main` `2bf53d8` (ff-only from
+> `a75861f`), GitHub `main` `4265ddb` (mirrored from `2bf53d8`); PR #56 closed
+> without merge (comment 6544710707, 2026-10-31T14:29:39Z), issue #49 closed
+> completed (comment 6544711134, 2026-10-31T14:29:42Z); Discussion summary
+> text recorded below for manual web-UI post (write API unavailable).
 
 ## PR metadata
 
@@ -221,4 +218,106 @@ Validated tree: dev `a96fabe` + the 5-file integration (working tree).
 
 ## Open questions
 
-None at S2.
+- None. All gates passed: S3 (2026-10-30, proposal confirmed as-is), S5
+  (2026-10-31, validation results incl. the recorded deployment skip), S6
+  (2026-10-31, CHANGELOG + README docs confirmed), S7 (2026-10-31, 3 commits
+  as proposed, promotion, mirror, public texts). Delivered 2026-10-31; plan
+  doc archived to `completed/`.
+
+## Execution record
+
+- S1+S2 (2026-10-30): fresh S1 review (PR #54 had just been DELIVERED). Head
+  fetched to `refs/pr/56` (`95b11de6...`); merge-base analysis untangled the
+  orphaned-tip base (`e83c8e2`, not an ancestor of GitHub `main` `ebf20bb`);
+  real content = 5 files +215/−1 against `e83c8e2` (the 103-file GitHub diff
+  is an orphaned-tip STRIP artifact). Pre-image vs Gitea `dev` `497dbdb`:
+  4/5 byte-identical (clean hunks), CHANGELOG diverged (manual M1). Code review
+  per call site (notify.py `notify_run_result` + `_send_run_result`;
+  orchestrator.py 3 `_finalize_run`/orphan call sites; single-owner
+  no-double-send; `shutdown()` gathers the notifications). Verdict: approve
+  with M1 (CHANGELOG placement). Plan doc created (AWAITING-DECISION); S2 gate
+  passed — doc-only commit pushed to `origin/dev`.
+
+- S3 (2026-10-30): proposal (2 code files + 2 test files as-is from head, M1
+  CHANGELOG `Unreleased → Added` placement, 3 commits) confirmed as-is.
+
+- S4 (2026-10-30): preflight green (clean tree, head unchanged `95b11de6`, dev
+  doc-only since S3). Applied the 5-file delta (4 as-is from head + M1
+  hand-placed) on `dev`; tree left dirty for S5. Status: INTEGRATING.
+
+- S5 (2026-10-31): on the exact dev tree (repo root, `apps/.venv`):
+  - Before/after proof: PR code stashed (new tests kept) → the 21 new
+    notification tests fail (no terminal path); after → 49 OK. The PR's
+    49-passed / 15-subtests claim reproduces.
+  - Full unit (first run): 2 failed, 663 passed — `test_bc_login.py::
+    test_slow_login_notification_keeps_daemon_loop_responsive[finalize|orphan]`
+    pinned one `requests.post`/path; M2 applied (path-dependent count) →
+    re-run: 665 passed, 10 skipped, 83 subtests.
+  - Regression: VERDICT: PASS (7 scenarios / 8 PDFs, exit 0).
+  - ruff on all 5 changed files: clean; bandit on the changed app files: 0
+    findings.
+  - Deployment validation: not deployment-relevant (no Dockerfile /
+    .dockerignore / BillCollector.sh / install_docker-image.sh /
+    deploy_remote.sh / INI keys / .env handling; NTFY_HOST + ntfy_topic
+    pre-date the PR) — recorded skip, user-confirmed at the S5 gate.
+  S5 gate passed 2026-10-31. Status: VALIDATED.
+
+- S6 (2026-10-31): CHANGELOG M1 entry confirmed as the first item of
+  `[Unreleased] → Added` (sanitized); README "Pause notifications (ntfy)" →
+  "Notifications (ntfy)" (TOC + body) with the terminal-notice sentence and the
+  two `NTFY_HOST` descriptions updated; CONTRIBUTING unchanged. S6 gate passed.
+  Status: VALIDATED.
+
+- S7 (2026-10-31): prerequisite re-checked — S5-validated content unchanged on
+  the dev tree (the 5 code/test files byte-identical to the S5 diffstat; only
+  the S5/S6 doc-only plan commit `e3844d4` + the S6 README doc moved since S5;
+  dev == origin/dev; deployment recorded-skip still covers the promoted tree).
+  - **Commits (dev-commits, 3 confirmed + push):** `da01d5b` `feat: notify
+    terminal daemon run failures through the opt-in ntfy topic (#49)`
+    (notify.py + orchestrator.py); `32140f7` `test: cover terminal run
+    notifications and adapt the slow-login post-count expectations (#49)`
+    (test_bc_notify.py, test_bc_orchestrator.py from head + test_bc_login.py
+    M2); `2bf53d8` `doc: changelog + README — terminal run notifications (#49)`
+    (CHANGELOG M1 + README). Pushed `origin/dev` `e3844d4..2bf53d8`.
+  - **Promotion (user-gated):** Gitea `main` `a75861f` → `2bf53d8` ff-only
+    (carries the 3 integration commits + 3 doc-only plan commits; the plan
+    docs are STRIP'd from the mirror); pushed. No tag (no release). Verified
+    `git diff main dev` empty, status clean.
+  - **Mirror:** `bash .private/sync_github.sh` → GitHub `main` `ebf20bb` →
+    `4265ddb` (sanitize-by-amend). Public gate green: no `.kilo`/`.vscode`/
+    `.private`/`openwiki`/`AGENTS.md`/`.openwikiignore` at the tip; `.github`
+    holds only `ISSUE_TEMPLATE` (no `workflows/`); the #49 CHANGELOG entry
+    present on GitHub `main`.
+  - **PR #56 closed** (user confirmed the exact comment text): comment
+    6544710707 (2026-10-31T14:29:39Z), closed without merge
+    2026-10-31T14:29:40Z — the content reached GitHub via the mirror.
+  - **Issue #49 closed** (user confirmed the exact comment text): comment
+    6544711134 (2026-10-31T14:29:42Z), closed completed
+    2026-10-31T14:29:42Z.
+  - **Discussion summary (S7.6):** GitHub Discussion write API unavailable
+    from this environment (2026-10-25 finding); user chose manual web-UI
+    posting — text recorded below.
+    > **Public update: terminal daemon run notifications (issue #49, PR #56)**
+    >
+    > `main` now sends a fixed, account-free push for each terminal daemon run
+    > outcome — failure, interruption (including a run the daemon reclaims at
+    > startup), and attention timeout — through the existing opt-in ntfy topic;
+    > successful and cancelled runs stay silent. Contributed by @flowcool in
+    > PR #56. A failed push never changes the run outcome (best-effort by
+    > design).
+    >
+    > Maintainer-side adaptations: the CHANGELOG entry was placed under
+    > `Unreleased/Added` (the PR shipped it as a top-level section);
+    > `tests/test_bc_login.py`'s slow-login post-count expectation was made
+    > path-dependent (the `finalize`/`orphan` paths now also send the terminal
+    > notice); the README ntfy section was renamed to "Notifications (ntfy)"
+    > and extended.
+    >
+    > Validation on the promoted tree: 49 notification tests (15 subtests), 665
+    > passed full unit suite, regression PASS (7 scenarios / 8 PDFs),
+    > ruff/bandit clean.
+    >
+    > User-facing note: this only pushes if you have set an ntfy topic in
+    > Settings; a fresh install sends nothing.
+  - **Archive:** this plan doc moved to `completed/`; README + sequencing
+    cross-references updated.

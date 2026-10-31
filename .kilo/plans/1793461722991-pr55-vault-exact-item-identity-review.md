@@ -6,8 +6,8 @@
 > skipped/90 subtests, regression VERDICT: PASS exit 0 (7 scenarios/8 PDFs),
 > ruff clean, bandit zero-new on production files (test file: B101 asserts +
 > B105 synthetic only); deployment skip recorded + user-confirmed at the S5
-> gate. S6 docs pending gate (CHANGELOG M1 in tree + vault_transport.md
-> correction).
+> gate; S6 docs confirmed (CHANGELOG M1 stands + vault_transport.md
+> correction, no README/CONTRIBUTING change). S7 next.
 
 ## PR metadata
 
@@ -177,8 +177,9 @@ Commits (dev-commits, one concern each, proposed in S7):
    vault.py + runner.py + vault_transport.py
 2. `test: cover exact vault item identity and the query-preserving transport
    pin (#48)` — test_bc_vault_exact.py + test_vault_transport.py
-3. `doc: changelog — exact vault item identity (#48)` — CHANGELOG.md (M1
-   placement)
+3. `doc: changelog + vault transport doc — exact vault item identity (#48)`
+   — CHANGELOG.md (M1 placement) + doc/vault_transport.md (S6 correction:
+   base/request query distinction, exact-id resolution description)
 
 ## Validation plan (S5, on the exact dev tree, `apps/.venv/bin/python`)
 
@@ -218,8 +219,9 @@ CHANGELOG); if the tree moves after S6, re-validate per the S7 prerequisite.
 
 ## Open questions
 
-- None at S2: the S3 proposal follows (5 files as-is from head, M1 CHANGELOG
-  placement, 3 commits).
+- None: S3 confirmed, S4 applied, S5 validated (deployment skip
+  user-confirmed), S6 docs confirmed. S7 (commit + push, promote, mirror,
+  close) is the only remaining stage.
 
 ## Execution record
 
@@ -291,4 +293,8 @@ CHANGELOG); if the tree moves after S6, re-validate per the S7 prerequisite.
   item search query); (b) the stale "Exact item resolution and stable account
   identity are separate work" + "The diagnostics fix in upstream PR #11 is
   also needed" sentences (PR #11 already delivered; #48 now landed) replaced
-  with the exact-id resolution description. S6 gate pending.
+  with the exact-id resolution description. S6 gate passed: user confirmed
+  the docs (2026-10-31). S7 next: dev-commits (3 commits: code / test /
+  doc — the doc commit now covers CHANGELOG.md + doc/vault_transport.md),
+  push origin/dev, ff-only promote to main, sync_github.sh mirror, PR +
+  issue close comments per the publication routine.

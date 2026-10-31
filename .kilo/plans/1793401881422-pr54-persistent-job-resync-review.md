@@ -1,9 +1,11 @@
 # PR #54 review: rebuild persistent jobs before scheduler resume (issue #47)
 
-> Status: INTEGRATING (2026-10-30) — S1+S2 done: verdict approve with
-> maintainer changes (M1, CHANGELOG placement); code/tests apply as-is. S3 gate
-> passed + S4 integration applied (code hunks clean on dev, M1 CHANGELOG
-> Fixed-placement in place, tree dirty for S5).
+> Status: VALIDATED (2026-10-31) — S5 validation green on the exact dev tree:
+> PR module 14 passed / 15 subtests, before/after proof (new test fails on
+> pre-integration scheduler), full unit 652/10 skipped/68 subtests, regression
+> VERDICT: PASS (7 scenarios / 8 PDFs), ruff + bandit clean vs baseline,
+> deployment block recorded-skip (not deployment-relevant). S5 gate passed
+> 2026-10-31; ready for S6.
 
 ## PR metadata
 
@@ -181,7 +183,8 @@ handling. Block skipped; recorded here + user-confirmed at the S5 gate.
 ## Open questions
 
 - None. S3 gate passed 2026-10-30 (proposal confirmed as-is); S4 integration
-  applied, tree left dirty for S5 validation.
+  applied; S5 validation green + S5 gate passed 2026-10-31 (validation results
+  confirmed incl. the recorded deployment skip); next: S6 documentation.
 
 ## Execution record
 
@@ -207,5 +210,33 @@ handling. Block skipped; recorded here + user-confirmed at the S5 gate.
   content): `git apply` of `git diff e83c8e2..refs/pr/54 -- scheduler.py
   test_bc_scheduler.py` → clean (scheduler +35/+2 offset, expected). M1
   applied by hand: PR entry prepended as the first item of the existing
-  `### Fixed` subsection (line 234), no stray `### Fixed` above `### Added`.
-  Tree left dirty (3 files) for S5. Status: INTEGRATING.
+   `### Fixed` subsection (line 234), no stray `### Fixed` above `### Added`.
+   Tree left dirty (3 files) for S5. Status: INTEGRATING.
+
+- S5 (2026-10-31, "continue pr 54" session): preflight re-run green — head
+  still `7f6cb02f` via `git ls-remote github refs/pull/54/head`; dev tip
+  `fb82e95` (= `origin/dev`, doc-only since S4); dirty tree unchanged (3
+  files: scheduler.py +12/−4, test +29, CHANGELOG +3). On the exact dev tree
+  (repo root, `apps/.venv`):
+  - PR module: `pytest tests/test_bc_scheduler.py -q` → 14 passed, 15 subtests
+    passed (the PR's 10 tests + the 4 #53 weekday tests already on dev; the
+    PR's "10 passed" claim was against the head file).
+  - Before/after proof: scratch worktree at `fb82e95` (pre-integration code)
+    with only the PR's test hunk applied → the new test fails as expected
+    (`AssertionError` — 2 stale jobs `task-1`/`task-2` survive `start()`);
+    scratch worktree removed. Proves the fix, not just the test.
+  - Full unit: `pytest tests/ -q --tb=short` → 652 passed, 10 skipped, 68
+    subtests passed (dev baseline 651 + the 1 new test).
+  - Full regression: `tests/run_regression.py --ini tests/bc_regression.ini`
+    → exit 0, VERDICT: PASS (7 scenarios / 8 PDFs, all expectations matched).
+  - ruff (F821, E4/E7/E9) on both code files → all checks passed; bandit →
+    only the 2 pre-existing B101 asserts in the #53 weekday tests
+    (`test_bc_scheduler.py:219/221`, not in the PR-added lines); nothing new
+    beyond the known baseline.
+  - Deployment validation: not deployment-relevant (no Dockerfile /
+    .dockerignore / BillCollector.sh / install_docker-image.sh /
+    deploy_remote.sh / INI keys / .env handling) — recorded skip,
+    user-confirmed at the S5 gate.
+  - No scope adjustments needed; tree left dirty (3 files) for S6/S7.
+    S5 gate passed 2026-10-31 (user confirmed the validation results incl.
+    the recorded deployment skip). Status: VALIDATED.

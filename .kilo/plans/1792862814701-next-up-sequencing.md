@@ -396,6 +396,16 @@ Grounds:
   scheduler overlap with open #44/#45/#55/#56; deployment validation recorded
   not deployment-relevant — Status: AWAITING-DECISION, S2 gate passed, S3
   next.
+- PR #54 S3-S5 done 2026-10-31 ("continue pr 54" session): S3 proposal
+  confirmed as-is (2 code files as-is + M1 CHANGELOG Fixed-placement); S4
+  integration applied as hunks on dev (`git apply` of
+  `git diff e83c8e2..refs/pr/54` for scheduler.py + test — clean; M1 by
+  hand), tree left dirty for S5; S5 validation green on the exact dev tree —
+  PR module 14 passed / 15 subtests, before/after proof (new test fails on
+  the pre-integration `scheduler.py`: 2 stale jobs survive `start()`), full
+  unit 652 / 10 skipped / 68 subtests, regression VERDICT: PASS (7 scenarios
+  / 8 PDFs), ruff + bandit clean vs baseline; deployment skip recorded (not
+  deployment-relevant) — Status: VALIDATED, S5 gate passed, S6 next.
 
 ## Explicitly not doing
 

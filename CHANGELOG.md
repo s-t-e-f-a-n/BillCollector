@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Terminal daemon run notifications: account-free failure, interruption and
+  attention notices through the existing opt-in ntfy topic. Successful and
+  cancelled runs stay silent, delivery is best-effort, and the monitor sends
+  each terminal notice once. (issue #49)
 - Opt-in daemon `notice_identity` with source-scoped PDF revision tracking,
   nullable Download identity columns, and pinned pypdf. Original PDFs are kept.
   (issue #38)

@@ -17,7 +17,7 @@ Compose service includes a pinned seccomp profile. See
     - [Vault of Secrets](#vault-of-secrets)
     - [Enabling DNS and HTTPS with Let's Encrypt certs](#enabling-dns-and-https-with-lets-encrypt-certs)
   - [Installing the Daemon](#installing-the-daemon)
-  - [Pause notifications (ntfy)](#pause-notifications-ntfy)
+  - [Notifications (ntfy)](#notifications-ntfy)
 - [Daemon Mode](#daemon-mode)
   - [Environment Variables](#environment-variables)
   - [Container Semantics](#container-semantics)
@@ -192,7 +192,7 @@ Now that we have done a good job installing all the prerequisites, we are focusi
 
    and set `BW_API_URL` to the HTTP URL of your local `bw serve` API (e.g., `http://<local-ip>:8087`; it must resolve only to loopback/private addresses, HTTPS is refused). See [Vaultwarden and Bitwarden](#vaultwarden-and-bitwarden).
 
-4. Optionally, create a root `.env` with the compose variables - all of them have defaults, the file is optional: `TZ` (daemon calendar dates and cron schedules, default `UTC`), `BC_UI_PORT` (published UI port, default `8766`), `NTFY_HOST` (push server for pause notifications, default `https://ntfy.sh`), `NTFY_BASE_URL` (LAN-absolute deep links, with the bundled ntfy), `APP_UID`/`APP_GID` (container user).
+4. Optionally, create a root `.env` with the compose variables - all of them have defaults, the file is optional: `TZ` (daemon calendar dates and cron schedules, default `UTC`), `BC_UI_PORT` (published UI port, default `8766`), `NTFY_HOST` (push server for the ntfy notifications, default `https://ntfy.sh`), `NTFY_BASE_URL` (LAN-absolute deep links, with the bundled ntfy), `APP_UID`/`APP_GID` (container user).
 
    Set `TZ=Europe/Zurich`, for example, to use local dates and schedules.
    Compose reads `TZ` from the shell first, then the root `.env`; an unset
@@ -217,9 +217,11 @@ Now that we have done a good job installing all the prerequisites, we are focusi
 
 8. Collect your first document: on the **Dashboard** press **Run now** for an enabled task - watch the run live (session page, noVNC tab) until it reaches `success`; the document appears on the Downloads page and in the consumer folder. Every step is driven from the browser, no shell access to the daemon needed.
 
-### Pause notifications (ntfy)
+### Notifications (ntfy)
 
-A fresh installation sends no notifications: the `ntfy topic` setting starts empty, and a paused run (or a blocked login) only pushes when you set a topic. To opt in, open **Settings** and set an **ntfy topic** - choose your own topic name, it is the install-specific destination the pushes are sent to.
+A fresh installation sends no notifications: the `ntfy topic` setting starts empty, and a paused run, a blocked login, or a terminal run outcome only pushes when you set a topic. To opt in, open **Settings** and set an **ntfy topic** - choose your own topic name, it is the install-specific destination the pushes are sent to.
+
+Terminal run notices are fixed and account-free: a failed, interrupted, or attention-timeout run sends one push each (including a run the daemon reclaims at startup), while successful and cancelled runs stay silent. Delivery is best-effort - a failed push never changes the run outcome.
 
 The push server defaults to the public [ntfy.sh](https://ntfy.sh). To run your own push server in the same stack instead:
 
@@ -240,7 +242,7 @@ On the first start (while the task list is still empty), the `[Playwright]` sect
 - `BW_API_HOST=127.0.0.1:8087` (optional): Host header for a `bw serve` in another container
 - `BC_UI_HOST`: daemon UI bind host (default `127.0.0.1`; set `0.0.0.0` inside the container)
 - `BC_UI_PASSWORD` (optional): seeds the UI password hash on the first start (a hash set via the UI is never overwritten)
-- `NTFY_HOST`: push server for the pause notifications (default `https://ntfy.sh`)
+- `NTFY_HOST`: push server for the ntfy notifications (default `https://ntfy.sh`)
 - `BC_CHROMIUM_ARGS=--disable-software-rasterizer`: dev-host launch workaround only; leave unset for stock behavior
 - `VAULT_HOST` is no longer used, see [doc/vault_transport.md](doc/vault_transport.md)
 

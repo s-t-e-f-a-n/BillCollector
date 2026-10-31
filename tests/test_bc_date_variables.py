@@ -55,7 +55,7 @@ FIXED = datetime.fromisoformat('2026-10-24T10:00:00+00:00')
 
 def recipe_for(value):
     return {'services': [{'serviceName': 'synthetic', 'steps': [
-        {'step': 1, 'methods': [{'method': 'fill', 'arguments': [{'value': value}]}]}
+        {'step': 1, 'methods': [{'method': 'fill', 'arguments': [{'value': value}, {'selector': '#field'}]}]}
     ]}]}
 
 
@@ -201,7 +201,7 @@ def test_nested_arguments_single_pass_and_secret_absent_from_records(caplog):
         def evaluate(self, script):
             return []
 
-        def fill(self, value):
+        def fill(self, value, selector):
             received.append(value)
 
     bcs = SimpleNamespace(service='synthetic', page=Page(), pwd=secret,
@@ -279,9 +279,9 @@ def test_stable_runner_context_recovery_and_restart(tmp_path, monkeypatch, caplo
     clock[0] = FIXED
     assert runner.run_task(task) == 1
     assert observed == [
-        [{'value': '2026-01-01 2026-10-24 2026-10-17'}],
-        [{'value': '2026-07-27 2026-10-24 2026-10-17'}],
-        [{'value': '2026-07-27 2026-10-24 2026-10-17'}],
+        [{'value': '2026-01-01 2026-10-24 2026-10-17'}, {'selector': '#field'}],
+        [{'value': '2026-07-27 2026-10-24 2026-10-17'}, {'selector': '#field'}],
+        [{'value': '2026-07-27 2026-10-24 2026-10-17'}, {'selector': '#field'}],
     ]
     after = dict(db.get_task(task))
     assert after['date_window_days'] == before['date_window_days']

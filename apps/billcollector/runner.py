@@ -41,7 +41,7 @@ import sqlite3
 import sys
 from datetime import datetime
 
-from helpers import CheckRecipe, ServiceObj, VARIABLE_MAP
+from helpers import ServiceObj, VARIABLE_MAP
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -49,9 +49,11 @@ from . import collection, config, display, downloads
 from .db import Database, now
 from .interrupt import RunInterrupted
 from .login import is_login, login_options, settle_attempt, validate_login_recipe
+from .methods import locator_arguments
 from .pagestate import PageState
 from .pause import pause_loop
 from .redaction import failure_category, failure_record
+from .recipes import load_recipe
 from .variables import DateContext, expand_argument, validate_variable_recipe
 from .vault import (
     VAULT_MAX_ATTEMPTS,
@@ -714,35 +716,10 @@ def _wait_user_args(step, method):
     return prompt, until
 
 
-# The until-locator mapping (C5.5): the first key present in the until dict
-# selects the Playwright locator method; the whole dict is passed through as
-# keyword arguments (same shape as the recipe's locator methods, e.g.
-# {"role": "link", "name": "My account"}).
-_UNTIL_LOCATOR_KEYS = (
-    ("role", "get_by_role"),
-    ("test_id", "get_by_test_id"),
-    ("placeholder", "get_by_placeholder"),
-    ("label", "get_by_label"),
-    ("text", "get_by_text"),
-    ("selector", "locator"),
-)
-
-
 def _locator_for(page, until):
-    """Build a Playwright locator from a wait_user ``until`` dict.
-
-    Raises ValueError when the dict does not map to a known locator method -
-    a recipe authoring error that must surface before the operator is asked."""
-    if not isinstance(until, dict):
-        raise ValueError(f"wait_user 'until' must be a locator dict, got: {until!r}")
-    for key, method_name in _UNTIL_LOCATOR_KEYS:
-        if key in until:
-            method = getattr(page, method_name, None)
-            if method is None:
-                raise ValueError(f"no {method_name!r} locator method on the page")
-            return method(**until)
-    raise ValueError(
-        f"wait_user 'until' has no recognized locator key: {sorted(until)}")
+    """Build a locator with the same C3 mapping used at validation time."""
+    name, kwargs = locator_arguments(until)
+    return getattr(page, name)(**kwargs)
 
 
 def _execute_wait_user_step(ctx, step, method):
@@ -1061,9 +1038,9 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
             return 1
 
         recipe_file = task["recipe_file"] or str(config.recipe_path_for(task["service"]))
-        recipe = CheckRecipe(recipe_file, str(config.RECIPE_SCHEMA))
-        if recipe is None:
-            print(f"runner: recipe {recipe_file} not found or invalid", file=sys.stderr)
+        ok, error, _text, recipe = load_recipe(recipe_file)
+        if not ok:
+            print(f"runner: {error}", file=sys.stderr)
             return 1
         try:
             validate_login_recipe(recipe)

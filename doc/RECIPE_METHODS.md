@@ -75,18 +75,20 @@ design: a locator chain such as `get_by_role` -> `first` -> `filter` ->
 `get_by_label` -> `click` is valid, and new Playwright API added by a
 version bump stays supported automatically.
 
-Five method names are **reserved**: the runner intercepts them before
+Six method names are **reserved**: the runner intercepts them before
 Playwright dispatch and they are never passed to the browser API:
 `login`, `wait_user`, `expect_download`, `click_until_absent`,
-`download_all`. Their exact contracts are in section 3.
+`download_all`, `replacement_calendar`. Their exact contracts are in section 3
+and [Replacement calendars](REPLACEMENT_CALENDARS.md). C3 validates calendar
+options with the same offline validator used by calendar execution.
 
-A method name that is neither reserved nor a public attribute of the
-chain object's type fails at execution with `Method '<name>' not found
-on <type>`. Validation (F08) must reject such names **before** vault
-and browser access, deriving the allowlist by introspecting the pinned
-Playwright package (not a hand-maintained list), so intentionally
-supported Playwright calls are never rejected. Re-derive when the pin
-changes.
+Validation (F08) rejects unknown attributes before vault and browser access.
+It derives the public surface, signatures and argument types from the installed
+pinned Playwright package. Re-derive the surface when the pin changes.
+Primitive and collection results can end a chain. Their Python methods cannot
+continue a recipe chain. A return annotated `Any` has no known static type;
+validation permits public Playwright continuations, while execution still checks
+the actual runtime result.
 
 Methods the shipped recipes actually use (compatibility baseline,
 section 5): `click`, `close`, `fill`, `first`, `goto`, `locator`,
@@ -124,8 +126,9 @@ Structure: the step carries either the single-phase shorthand
 submit, success}`; the last phase's `success` must equal the login
 `success`; `phases` cannot mix with top-level `steps`/`submit`).
 Preparation steps are locator chains ending in `fill`; `submit` is a
-locator chain ending in `click` or `press` (argument `key: Enter`, or
-the positional single-argument form `"Enter"`). The non-terminal
+locator chain ending in `click`, `press` (argument `key: Enter`, or
+the positional single-argument form `"Enter"`), or `fill` for input-triggered
+submission (issue #36). The non-terminal
 methods of these chains are restricted to the locator set
 (`login.py::LOCATORS`): `locator`, `get_by_role`, `get_by_text`,
 `get_by_label`, `get_by_test_id`, `get_by_placeholder`,
@@ -266,8 +269,8 @@ lists and dictionaries; dictionary keys are unchanged.
 ## 5. Validation requirements (F08)
 
 Gate: the daemon runner already validates the recipe before display
-allocation, vault preflight and browser launch (`CheckRecipe` schema
-check + `validate_login_recipe` in `runner.py::_run_task`); the UI
+allocation, vault preflight and browser launch (the shared `load_recipe` /
+`validate_recipe` gate in `runner.py::_run_task`); the UI
 validates on load and on save (`apps/billcollector/recipes.py`). The
 hardening lands in these same gates (`validate_recipe` / the schema /
 `validate_login_recipe`), so a rejected recipe never reaches vault or
@@ -284,7 +287,7 @@ multi-per-recipe `login`, `submit`/`phases` outside a login block, the
 login locator-chain terminal rules, and all section-3 `login`
 argument violations.
 
-F08 must additionally reject, before vault/browser access:
+F08 also rejects, before vault/browser access:
 
 - a `method` name that is not a reserved name (section 3) and not a
   public attribute of the chain object's type in the pinned Playwright
@@ -293,7 +296,7 @@ F08 must additionally reject, before vault/browser access:
   locator set;
 - `wait_user` argument violations: unknown argument names, and an
   `until` that is not a locator dict or has no recognized locator key
-  (today silently ignored or failing only at execution);
+  (including unsupported locator arguments);
 - unsupported variables (any `{{...}}` sequence other than section 4,
   including one embedded in a longer string).
 
@@ -302,7 +305,11 @@ and the step (`step` number) - plus the method name where applicable -
 so an operator or contributor can fix the recipe from the message
 alone.
 
-Compatibility: the hardening must keep validating, unchanged, the seven
+The offline recipe doctor can read a method-invalid recipe for repair. Its
+proposed output, editor saves and runner starts use full validation. Errors
+include recipe coordinates and fixed categories without argument values.
+
+Compatibility: the hardening keeps validating, unchanged, the seven
 shipped provider recipes (`1und1`, `buhl`, `datev`,
 `freenet_mobilfunk`, `kabeldeutschland`, `nuernberger`, `winsim`), the
 eight test recipes (`test*`), and the doc/SAFE_LOGIN.md candidate

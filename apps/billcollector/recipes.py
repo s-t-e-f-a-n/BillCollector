@@ -23,20 +23,45 @@ import yaml
 
 from . import config
 from .login import validate_login_recipe
+from .methods import validate_method_recipe
 from .notice import validate_notice_recipe
 from .variables import validate_variable_recipe
 
 
-def validate_recipe(text: str, schema_path=None) -> tuple:
+def _error_location(data, path):
+    """Show structural coordinates and recipe identifiers, never argument data."""
+    parts = list(path)
+    labels = []
+    node = data
+    for part in [*parts, None]:
+        if isinstance(node, dict):
+            for key, label, expected in (('serviceName', 'service', str),
+                                         ('step', 'step', int), ('method', 'method', str)):
+                if key in node:
+                    value = node[key] if type(node[key]) is expected else '<invalid>'
+                    labels.append(f'{label} {value}')
+        if part is None:
+            break
+        try:
+            node = node[part]
+        except (TypeError, KeyError, IndexError):
+            break
+    return ', '.join(labels + ['/'.join(map(str, parts)) or '<root>'])
+
+
+def validate_recipe(text: str, schema_path=None, *, check_methods=True) -> tuple:
     """Parse the YAML ``text`` and validate it against the schema.
 
     Returns ``(ok, error, data)``; a broken YAML document or a schema
     violation is a result with structured error text, never an
-    exception."""
+    exception. ``check_methods=False`` permits the offline doctor to read an
+    invalid method chain for repair; saves and runs always use the full gate."""
     try:
         data = yaml.safe_load(text)
     except yaml.YAMLError as e:
-        return False, f"invalid YAML: {str(e).strip()}", None
+        mark = getattr(e, "problem_mark", None)
+        location = f" at line {mark.line + 1}, column {mark.column + 1}" if mark else ""
+        return False, f"invalid YAML{location}", None
     try:
         with open(schema_path or config.RECIPE_SCHEMA, encoding="utf-8") as f:
             schema = yaml.safe_load(f)
@@ -47,7 +72,9 @@ def validate_recipe(text: str, schema_path=None) -> tuple:
         return False, f"cannot load schema: {e}", None
     if errors:
         return False, "; ".join(
-            f"{'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}"
+            f"{_error_location(data, e.absolute_path)}: "
+            f"must satisfy {e.validator}"
+            + (f" {e.validator_value}" if e.validator in {"type", "required", "enum", "const"} else "")
             for e in errors), None
     try:
         validate_login_recipe(data)
@@ -58,13 +85,18 @@ def validate_recipe(text: str, schema_path=None) -> tuple:
     except ValueError as e:
         return False, f"invalid variable contract: {e}", None
     try:
+        if check_methods:
+            validate_method_recipe(data)
+    except ValueError as e:
+        return False, f"invalid method contract: {e}", None
+    try:
         validate_notice_recipe(data)
     except ValueError as e:
         return False, f"invalid notice identity contract: {e}", None
     return True, None, data
 
 
-def load_recipe(path) -> tuple:
+def load_recipe(path, *, check_methods=True) -> tuple:
     """Load a recipe file: ``(ok, error, text, data)``.
 
     ``text`` is the raw file content (None when the file cannot be
@@ -75,7 +107,7 @@ def load_recipe(path) -> tuple:
         text = path.read_text(encoding="utf-8")
     except OSError as e:
         return False, f"cannot read recipe: {e}", None, None
-    ok, error, data = validate_recipe(text)
+    ok, error, data = validate_recipe(text, check_methods=check_methods)
     if not ok:
         return False, error, text, None
     return True, None, text, data

@@ -147,7 +147,7 @@ def test_pending_delivery_recovers_at_runner_start_before_any_portal(tracking):
     # An invalid recipe prevents display/vault/browser setup. Recovery does not
     # require a working portal or a successful subsequent recipe.
     with patch.object(runner, "Database", lambda: Database(db.path)), \
-            patch.object(runner, "CheckRecipe", return_value=None), \
+            patch.object(runner, "load_recipe", return_value=(False, "invalid synthetic recipe", None, None)), \
             patch.object(runner, "_vault_preflight") as vault, \
             patch.object(downloads, "CONSUMERS", [calls.append]):
         assert runner.run_task(task["id"]) == 1
@@ -360,7 +360,7 @@ def test_runner_sqlite_recovery_failure_stops_before_portal_and_closes_db(
     raw_connection = connection.conn
     with patch.object(runner, "Database", return_value=connection), \
             patch.object(downloads, "recover_downloads", side_effect=error_type("synthetic-secret")), \
-            patch.object(runner, "CheckRecipe") as recipe, \
+            patch.object(runner, "load_recipe") as recipe, \
             patch.object(runner.display, "allocate_display") as display, \
             patch.object(runner, "_vault_preflight") as vault:
         assert runner.run_task(task["id"]) == 1

@@ -500,6 +500,31 @@ Grounds:
   Discussion summary recorded for manual web-UI post (write API unavailable).
   Plan doc archived to `completed/`. Batch-2 chain now at **#45** (browser cache
   precedence, no issue) — its S1 runs against the settled `22da847` tree.
+- PR #45 S1+S2 done 2026-10-31 ("continue pr #45" session): fresh S1 (no plan
+  doc existed); head moved mid-S1 — first fetched `5589c70` (2 fix commits atop
+  the orphaned public tip `f26b2a9`, 103-file dirty diff = STRIP artifact,
+  `mergeable_state: unknown`), the author then pushed `93f71b2` "Align browser
+  cache contribution with current public main" (a merge of current public main
+  `3c950d7` into the branch); re-fetched + reviewed `93f71b2`: mergeable clean,
+  real content 6 files +115/−6. Pre-image vs dev `eebb902`: 5/6 files
+  byte-identical to base + new test file a clean add; full diff applies
+  strictly (`git apply --check`). Both claimed bugs verified in the pre-change
+  code (helpers import unconditionally clobbered `PLAYWRIGHT_BROWSERS_PATH`
+  with the hardcoded `apps/browser`; empty `BC_BROWSER_DIR` → `Path(".")` cwd
+  and empty `PLAYWRIGHT_BROWSERS_PATH` survived `setdefault`); fix pins the
+  precedence non-empty `PLAYWRIGHT_BROWSERS_PATH` > non-empty `BC_BROWSER_DIR`
+  > `apps/browser` for both import orders (18 subprocess cases) + additive
+  `launch_failure_record` (allowlisted fixed reasons, sandbox banners beyond
+  line 1, no raw text; 22 cases total). Legacy `InitBrowser` raw launch-error
+  log (`BillCollectorServices_pw.py:21-22`) flagged as out-of-scope residual.
+  Process check PASS (no issue ref — fix, no shared interface; AI disclosed
+  (Codex); synthetic markers only); cross-PR: only #44 open, CHANGELOG-only
+  overlap. Verdict: approve with M1 (CHANGELOG entry separator — the PR head
+  omits the blank line before the #48 entry); deployment assessed not
+  deployment-relevant (Python env-var precedence only; Docker `ENV
+  PLAYWRIGHT_BROWSERS_PATH=/apps/browser` stays non-empty and wins; skip to be
+  user-confirmed at the S5 gate) — Status: AWAITING-DECISION, S2 gate pending
+  (user review of verdict + plan), S3 next.
 
 ## Explicitly not doing
 

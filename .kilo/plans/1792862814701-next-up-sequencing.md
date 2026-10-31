@@ -538,6 +538,26 @@ Grounds:
   separator before the #48 entry, no other dirty files; tree left dirty for
   S5 — Status: INTEGRATING, S5 next (validation on the exact dirty tree;
   recorded deployment skip to be user-confirmed at the S5 gate).
+- PR #45 S5+S6 done 2026-10-31 (same "continue pr #45" session): S5 validated
+  on the exact dirty tree (dev `03c9123` + 6 uncommitted PR files, head
+  re-verified `93f71b2`) — focused 22/22 passed; companion 38 passed + 9
+  subtests; full suite 697 passed / 10 skipped / 90 subtests (exact +22 over
+  the recorded #55 S5 baseline 675/10/90, no other test changes since
+  `eebb902`); regression exit 0 VERDICT: PASS (7 pairs / 8 expected
+  downloads, expected-failing pairs abort as expected); ruff (F821, E4/E7/E9)
+  0 new (6 findings in the helpers debug-keyboard-listener block identical in
+  the pre-change file); bandit 0 new in production (config.py B105 +
+  runner.py:1008 B110 pre-existing; test file B101×17/B404/B603 synthetic,
+  test-only). Deployment: recorded skip USER-CONFIRMED at the S5 gate (not
+  deployment-relevant — env-var precedence only; the Docker image's non-empty
+  `ENV PLAYWRIGHT_BROWSERS_PATH=/apps/browser` always wins, no `BC_BROWSER_DIR`
+  in the Dockerfile). S6 docs confirmed: CHANGELOG `[Unreleased] → Fixed`
+  entry stands as applied (sanitized, M1 separator, no issue ref); README
+  documents neither `BC_BROWSER_DIR` nor `PLAYWRIGHT_BROWSERS_PATH` (nothing
+  stale); no CONTRIBUTING change — Status: VALIDATED, S7 next (the 3 planned
+  commits → Gitea `dev` → ff-only `main` → GitHub mirror → PR close; the
+  per-public-update Discussion summary is recorded for manual web-UI post,
+  write API unavailable).
 
 ## Explicitly not doing
 

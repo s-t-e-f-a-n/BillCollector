@@ -1,10 +1,11 @@
 # PR #45 review: preserve explicit Playwright browser cache across imports
 
-> Status: INTEGRATING (2026-10-31) — S3+S4 done: proposal confirmed as-is;
-> all 6 files applied to the dev tree (5 byte-identical to head `93f71b2` +
-> CHANGELOG M1 manual resolution with the blank-line separator); tree dirty,
-> uncommitted, nothing staged. Verdict: approve with M1 (CHANGELOG entry
-> separator) only. S5 next (validation on the exact dirty tree).
+> Status: VALIDATED (2026-10-31) — S3–S6 done: proposal confirmed as-is; 6
+> files applied (5 byte-identical to head `93f71b2` + CHANGELOG M1); full S5
+> validation green on the exact dirty tree (22/22 focused, 697/10/90 full
+> suite = baseline 675 + 22, regression PASS exit 0, ruff/bandit 0 new);
+> deployment skip user-confirmed (not deployment-relevant); docs confirmed.
+> S7 next (commit + push: Gitea first, then GitHub mirror, PR close).
 
 ## PR metadata
 
@@ -191,8 +192,8 @@ own two fix commits):
 
 ## Deployment validation
 
-**Assessed: not deployment-relevant → recorded skip, to be user-confirmed at
-the S5 gate.** No `Dockerfile`, `.dockerignore`, `BillCollector.sh`,
+**Assessed: not deployment-relevant → recorded skip. USER-CONFIRMED at the
+S5 gate (2026-10-31).** No `Dockerfile`, `.dockerignore`, `BillCollector.sh`,
 `install_docker-image.sh` or `deploy_remote.sh` change; no INI-key or `.env`-
 handling change. The change is Python-level env-var precedence (an explicit
 non-empty `PLAYWRIGHT_BROWSERS_PATH` always wins — including the Docker
@@ -208,10 +209,12 @@ container runtime behavior are unchanged.
 
 ## Open questions
 
-- None as of S4: S5 runs on the exact dirty tree (focused + companion pytest,
-  full unit suite, full regression, ruff/bandit on the changed files); the
-  recorded deployment skip (not deployment-relevant) awaits user confirmation
-  at the S5 gate.
+- None as of S6: S7 commits the validated content to `dev` (the 3 planned
+  commits), ff-only promotes to Gitea `main`, mirrors to GitHub, then closes
+  the PR (comment + close, user-confirmed text) and posts the per-public-
+  update summary (GitHub Discussion write API is unavailable from this
+  environment — the summary is drafted, user-confirmed, and recorded for
+  manual web-UI post, per the #55 delivery).
 
 ## Execution record
 
@@ -251,3 +254,32 @@ container runtime behavior are unchanged.
   **with the blank-line separator before the #48 entry (M1 resolved)**; no
   other dirty files. Tree left dirty (uncommitted) for S5. Status:
   INTEGRATING.
+- S5 (2026-10-31, same session): validated on the exact dirty tree (`dev`
+  `03c9123` + the 6 uncommitted PR files; head re-verified `93f71b2`):
+  - Focused: `pytest tests/test_bc_browser_cache.py -v` → 22/22 passed
+    (13.0s).
+  - Companion: `+ tests/test_bc_redaction.py -q` → 38 passed, 9 subtests
+    (18.4s).
+  - Full suite: `pytest tests/ -q` → 697 passed, 10 skipped, 90 subtests
+    (8m20s) — exact +22 over the recorded #55 S5 baseline 675/10/90; no other
+    test changes on `dev` since `eebb902` (only the new PR file).
+  - Regression: `run_regression.py --ini tests/bc_regression.ini` → exit 0,
+    VERDICT: PASS (7 pairs / 8 expected downloads; badlogin/empty/dlfail
+    abort as expected — exit semantics preserved).
+  - ruff (F821, E4/E7/E9) on the changed files: 0 new — the 6 findings in
+    `BillCollectorHelpers.py` (E712×2 + E701×4, debug-keyboard-listener block)
+    are identical in the pre-change file; the PR hunk (lines 29–33) is clean.
+  - bandit on the changed files: 0 new in production — config.py B105
+    (empty-string password default; pre-existing, +1 line shift from the
+    added hunk) and runner.py:1008 B110 (try/except/pass; pre-existing,
+    unchanged); test file: B101×17 + B404 (subprocess import) + B603 (fixed
+    argv, no shell) — synthetic markers, test-only.
+  - Deployment: recorded skip USER-CONFIRMED at the S5 gate (not
+    deployment-relevant; Docker image behavior unchanged).
+  S5 gate passed. Status: VALIDATED.
+- S6 (2026-10-31, same session): docs confirmed (gate pre-confirmed with
+  S5) — the CHANGELOG `[Unreleased] → ### Fixed` entry stands as applied in
+  S4 (sanitized PR wording, M1 blank-line separator, no issue ref); README
+  checked (documents neither `BC_BROWSER_DIR` nor
+  `PLAYWRIGHT_BROWSERS_PATH` — nothing stale to update); no CONTRIBUTING
+  change (no contributor-rule change). S6 gate passed. S7 next.

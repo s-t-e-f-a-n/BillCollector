@@ -403,9 +403,17 @@ Grounds:
   hand), tree left dirty for S5; S5 validation green on the exact dev tree —
   PR module 14 passed / 15 subtests, before/after proof (new test fails on
   the pre-integration `scheduler.py`: 2 stale jobs survive `start()`), full
-  unit 652 / 10 skipped / 68 subtests, regression VERDICT: PASS (7 scenarios
-  / 8 PDFs), ruff + bandit clean vs baseline; deployment skip recorded (not
-  deployment-relevant) — Status: VALIDATED, S5 gate passed, S6 next.
+   unit 652 / 10 skipped / 68 subtests, regression VERDICT: PASS (7 scenarios
+   / 8 PDFs), ruff + bandit clean vs baseline; deployment skip recorded (not
+   deployment-relevant) — Status: VALIDATED, S5 gate passed, S6 next.
+- PR #54 S6 done 2026-10-31 ("continue pr 54" session): documentation
+  confirmed — the CHANGELOG M1 entry stands as the first item of
+  `[Unreleased]` → `### Fixed` (sanitized, references #47 only); no README
+  change (line 233 already documents the Task-table-is-authoritative rebuild
+  behavior the fix makes true); no CONTRIBUTING change (no rule change) —
+  Status: VALIDATED, S6 gate passed, S7 next (commit + push: Gitea dev →
+  main promotion → GitHub mirror → PR close + issue #47 closure + Discussion
+  summary).
 
 ## Explicitly not doing
 

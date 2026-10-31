@@ -1,11 +1,14 @@
 # PR #54 review: rebuild persistent jobs before scheduler resume (issue #47)
 
-> Status: VALIDATED (2026-10-31) — S5 validation green on the exact dev tree:
-> PR module 14 passed / 15 subtests, before/after proof (new test fails on
-> pre-integration scheduler), full unit 652/10 skipped/68 subtests, regression
-> VERDICT: PASS (7 scenarios / 8 PDFs), ruff + bandit clean vs baseline,
-> deployment block recorded-skip (not deployment-relevant). S5 gate passed
-> 2026-10-31; ready for S6.
+> Status: VALIDATED (2026-10-31) — S6 docs confirmed: CHANGELOG M1 entry in
+> place under [Unreleased] Fixed (sanitized, references #47 only), no README/
+> CONTRIBUTING changes (README:233 wording stays accurate, no rule changes).
+> S5 validation green on the exact dev tree: PR module 14 passed / 15 subtests,
+> before/after proof (new test fails on pre-integration scheduler), full unit
+> 652/10 skipped/68 subtests, regression VERDICT: PASS (7 scenarios / 8 PDFs),
+> ruff + bandit clean vs baseline, deployment block recorded-skip (not
+> deployment-relevant). S5 + S6 gates passed 2026-10-31; ready for S7
+> (commit + push).
 
 ## PR metadata
 
@@ -184,7 +187,10 @@ handling. Block skipped; recorded here + user-confirmed at the S5 gate.
 
 - None. S3 gate passed 2026-10-30 (proposal confirmed as-is); S4 integration
   applied; S5 validation green + S5 gate passed 2026-10-31 (validation results
-  confirmed incl. the recorded deployment skip); next: S6 documentation.
+  confirmed incl. the recorded deployment skip); S6 docs confirmed + S6 gate
+  passed 2026-10-31 (CHANGELOG entry as the only public artifact; no README/
+  CONTRIBUTING changes); next: S7 commit + push (Gitea dev → main promotion →
+  GitHub mirror → PR close).
 
 ## Execution record
 
@@ -237,6 +243,19 @@ handling. Block skipped; recorded here + user-confirmed at the S5 gate.
     .dockerignore / BillCollector.sh / install_docker-image.sh /
     deploy_remote.sh / INI keys / .env handling) — recorded skip,
     user-confirmed at the S5 gate.
-  - No scope adjustments needed; tree left dirty (3 files) for S6/S7.
-    S5 gate passed 2026-10-31 (user confirmed the validation results incl.
-    the recorded deployment skip). Status: VALIDATED.
+   - No scope adjustments needed; tree left dirty (3 files) for S6/S7.
+     S5 gate passed 2026-10-31 (user confirmed the validation results incl.
+     the recorded deployment skip). Status: VALIDATED.
+
+- S6 (2026-10-31, "continue pr 54" session): documentation checked and
+  confirmed.
+  - CHANGELOG: the M1 entry stands as the first item of `## [Unreleased]` →
+    `### Fixed` (line 236), sanitized and public-safe (references #47 only,
+    no private paths); wording unchanged from the S3-confirmed proposal.
+  - README: line 233 already documents "the Task table in the database is the
+    source of truth, and the daemon rebuilds its scheduler jobs from it on
+    every start" — the fix makes that statement true; no user-visible behavior
+    or setup change → no README edit.
+  - CONTRIBUTING: no contributor-rule change → no edit.
+  S6 gate passed 2026-10-31 (user confirmed the documentation). Tree still
+  dirty (3 integration files) for S7. Status: VALIDATED.

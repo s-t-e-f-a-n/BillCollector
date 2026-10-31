@@ -1,8 +1,14 @@
 # PR #56 review: terminal daemon failures through opt-in ntfy (issue #49)
 
-> Status: AWAITING-DECISION (2026-10-31) — S1+S2 review complete; verdict
-> approve with one maintainer change (M1, CHANGELOG placement); 4 of 5 files
-> apply byte-identical from head, tree clean on dev `497dbdb`.
+> Status: VALIDATED (2026-10-31) — S5 green on the exact dev tree: before/after
+> proof (21 new tests fail on the pre-integration code, all 49 pass after), PR
+> unit 49 OK / 15 subtests, full unit 665 passed / 10 skipped / 83 subtests
+> (after the M2 test adaptation), regression VERDICT: PASS (7 scenarios / 8
+> PDFs, exit 0), ruff clean, bandit 0 findings on the changed app files;
+> deployment validation recorded skip (not deployment-relevant), S5 gate
+> passed; S6 docs confirmed (CHANGELOG M1 entry stands under [Unreleased]
+> Added, sanitized; README ntfy section renamed + extended), S6 gate passed;
+> ready for S7.
 
 ## PR metadata
 
@@ -29,8 +35,9 @@
 
 ## Verdict
 
-**Approve with maintainer changes** — one placement fix (M1, CHANGELOG
-structure); all code and tests apply as-is from head (byte-identical
+**Approve with maintainer changes** — M1 (CHANGELOG structure) and M2
+(`tests/test_bc_login.py` post-count adaptation, discovered by the S5 full
+unit suite); all PR code and tests apply as-is from head (byte-identical
 pre-images on `dev`).
 
 ## Verified facts
@@ -141,32 +148,70 @@ pre-images on `dev`).
 | `tests/test_bc_notify.py` | apply from head | pre-image byte-identical to dev |
 | `tests/test_bc_orchestrator.py` | apply from head | pre-image byte-identical to dev |
 | `CHANGELOG.md` | **manual (M1)** | drop the author's top-level `## Terminal run notifications (#49)` section; add under `## [Unreleased] → ### Added` in the house style: `- Terminal daemon run notifications: account-free failure, interruption and attention notices through the existing opt-in ntfy topic. Successful and cancelled runs stay silent, delivery is best-effort, and the monitor sends each terminal notice once. (issue #49)` |
+| `tests/test_bc_login.py` | **manual (M2)** | S5 discovery: `test_slow_login_notification_keeps_daemon_loop_responsive` pinned exactly one `requests.post` per path; the `finalize` and `orphan` paths now legitimately send the terminal run notification in addition to the login lock one. Adapted the tail assertions to a path-dependent count (`expected_posts = 2 if path in ("finalize", "orphan") else 1`), the worker-thread check to all workers off-loop, and the call-count assert to match. The loop-responsiveness intent is unchanged for every send. |
 
 Commits (dev-commits, one concern each, proposed in S7):
 1. `feat: notify terminal daemon run failures through the opt-in ntfy topic (#49)` — notify.py + orchestrator.py
-2. `test: cover terminal run notifications (once-only, redaction, silent paths) (#49)` — both test files
+2. `test: cover terminal run notifications and adapt the slow-login post-count expectations (#49)` — test_bc_notify.py, test_bc_orchestrator.py (from head) + test_bc_login.py (M2)
 3. `doc: changelog — terminal run notifications (#49)` — CHANGELOG.md (M1 placement)
 
 ## Validation plan (S5, on the exact dev tree, `apps/.venv/bin/python`)
 
-1. Before/after proof: `tests.test_bc_notify.NotifyRunResultTests` and
-   `tests.test_bc_orchestrator.RunNotificationTests` fail on the
-   pre-integration tree, pass after (PR's stated evidence:
-   `python -m pytest tests/test_bc_notify.py tests/test_bc_orchestrator.py -q`
-   → 49 passed, 15 subtests; unittest equivalent expected).
+1. Before/after proof: the new `NotifyRunResultTests` / `RunNotificationTests`
+   fail on the pre-integration tree, pass after (PR's stated evidence: 49
+   passed, 15 subtests).
 2. PR unit tests: `apps/.venv/bin/python -m unittest
-   tests.test_bc_notify tests.test_bc_orchestrator -v` → all OK, 15 subtests.
-3. Full regression: `apps/.venv/bin/python tests/run_regression.py --ini
+   tests.test_bc_notify tests.test_bc_orchestrator -v` → all OK.
+3. Full unit suite: `apps/.venv/bin/python -m pytest tests/ -q` → all pass.
+4. Full regression: `apps/.venv/bin/python tests/run_regression.py --ini
    tests/bc_regression.ini` → exit 0, VERDICT: PASS (7 scenarios / 8 PDFs).
-4. `ruff` (F821, E4/E7/E9) + `bandit` on the changed files → nothing new
-   beyond the known baseline (B608 dynamic SQL table names, B104 UI bind).
+5. `ruff` + `bandit` on the changed files → nothing new beyond the known
+   baseline.
+
+### S5 results (2026-10-31, tree = dev `a96fabe` + the 5-file integration)
+
+1. Before-proof: with the PR code files stashed (new tests kept), `unittest
+   tests.test_bc_notify tests.test_bc_orchestrator` → 49 run, FAILED
+   (failures=8, errors=13) — exactly the 21 new notification tests fail
+   (`notify_run_result` absent / no terminal sends); the pre-existing 28 pass.
+   After: the same command → 49 OK. The PR's 49-passed / 15-subtests claim
+   reproduces.
+2. Full unit suite (first run): 2 failed, 663 passed, 10 skipped, 83
+   subtests — `test_bc_login.py::test_slow_login_notification_keeps_daemon_
+   loop_responsive[finalize|orphan]` pinned exactly one `requests.post` per
+   path (the PR's scoped evidence never ran that module). M2 applied →
+   re-run: **665 passed, 10 skipped, 83 subtests**.
+3. Regression: VERDICT: PASS — 7/7 pairs matched (3× success, 1 graceful,
+   1 badlogin failure, 1 empty failure, 1 dlfail failure), 8 expected PDFs,
+   exit 0.
+4. `ruff check` (repo ruff.toml) on all 5 changed files: all checks passed.
+   `bandit` on the changed app files (notify.py, orchestrator.py): 0 findings
+   (same as the base versions); the test-file findings are the pre-existing
+   `assert` baseline, unchanged.
 
 ## Deployment validation
 
 Not deployment-relevant: no `Dockerfile`, `.dockerignore`, `BillCollector.sh`,
 `install_docker-image.sh`, `deploy_remote.sh`, INI key or `.env`-handling
 change (the `NTFY_HOST` env var and `ntfy_topic` setting pre-date this PR).
-Recorded skip; user confirmation recorded at the S5 gate.
+Recorded skip on 2026-10-31 (S5); user confirmation at the S5 gate.
+Validated tree: dev `a96fabe` + the 5-file integration (working tree).
+
+## S6 documentation (2026-10-31)
+
+- `CHANGELOG.md`: the M1 entry (first item of `[Unreleased] → ### Added`,
+  house style, `(issue #49)`) stands as placed in S4 — sanitized, no private
+  paths or hosts.
+- `README.md` (user-visible behavior changed — a new class of pushes):
+  section `### Pause notifications (ntfy)` → `### Notifications (ntfy)`
+  (TOC anchor included); the opt-in sentence now covers "a paused run, a
+  blocked login, or a terminal run outcome"; one new sentence documents the
+  terminal notices (fixed account-free messages, which outcomes send,
+  success/cancelled silent, best-effort); both `NTFY_HOST` descriptions now
+  read "push server for the ntfy notifications".
+- `CONTRIBUTING.md`: no change (no contributor-rule change).
+- S6 gate: user confirmed the docs as-is on 2026-10-31; status VALIDATED,
+  ready for S7 (code/test/doc commits per the plan above, Gitea first).
 
 ## Out of scope
 

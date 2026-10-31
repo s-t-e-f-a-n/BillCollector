@@ -436,6 +436,28 @@ Grounds:
   besides CHANGELOG; deployment validation recorded not deployment-relevant —
   Status: AWAITING-DECISION, S2 gate pending (user review of verdict + plan),
   S3 next.
+- PR #56 S3-S5 done 2026-10-31 (same session): S2 gate passed (verdict
+  confirmed, doc commit `a96fabe` pushed); S3 proposal confirmed as-is; S4
+  applied on dev (4 files byte-identical from head `95b11de` + M1 CHANGELOG
+  `[Unreleased] → ### Added` first entry, tree left dirty); S5 green on the
+  exact dev tree — before/after proof (21 new tests fail pre-integration,
+  49 OK after), full unit 665 passed / 10 skipped / 83 subtests, regression
+  VERDICT: PASS (7 scenarios / 8 PDFs, exit 0), ruff clean, bandit 0 new on
+  app files; deployment recorded skip (not deployment-relevant) — S5 found one
+  extra maintainer change, M2: `tests/test_bc_login.py`
+  `test_slow_login_notification_keeps_daemon_loop_responsive` pinned one
+  `requests.post` per path, but the `finalize`/`orphan` paths now also send
+  the terminal run notification (the PR's scoped evidence never ran that
+  module); adapted to path-dependent post counts (2/2/1/1) — S5 gate passed
+  (same session); Status: VALIDATED, S6 next.
+- PR #56 S6 done 2026-10-31 (next session): S6 docs in tree — CHANGELOG M1
+  entry stands under `[Unreleased] → ### Added` (sanitized, first item);
+  README section `### Pause notifications (ntfy)` → `### Notifications (ntfy)`
+  (TOC anchor, opt-in sentence extended to terminal run outcomes, new
+  terminal-notices paragraph, both `NTFY_HOST` descriptions); CONTRIBUTING
+  unchanged — S6 gate passed (user confirmed as-is) — Status: VALIDATED, S7
+  next (dev-commits proposal, push `origin/dev`, ff-only promotion, GitHub
+  mirror, close PR #56 + issue #49).
 
 ## Explicitly not doing
 

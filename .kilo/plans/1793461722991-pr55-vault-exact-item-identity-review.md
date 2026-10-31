@@ -1,9 +1,10 @@
 # PR #55 review: exact vault item identity before credential reads (issue #48)
 
-> Status: AWAITING-DECISION (2026-10-31) — S1+S2 complete: verdict approve
-> with one maintainer change (M1 CHANGELOG placement); 5/6 files clean
-> pre-images on dev `19c4164` (4 byte-identical + 1 new-file clean add); S3
-> proposal next.
+> Status: INTEGRATING (2026-10-31) — S3 proposal confirmed as-is by the user;
+> S4 applied: 5/6 files byte-identical to PR head `397b0b61` on dev
+> (4 byte-identical pre-images + 1 new-file clean add), M1 CHANGELOG entry
+> placed at the top of the existing `[Unreleased] → Fixed` section (author's
+> misplaced block dropped); tree left dirty for S5 validation.
 
 ## PR metadata
 
@@ -234,3 +235,16 @@ runtime). To be recorded with the S5 run; user confirmation at the S5 gate.
 - S2 (2026-10-31, same session): plan doc created (this file,
   AWAITING-DECISION); README + sequencing cross-references updated; doc-only
   commit pushed to `origin/dev`. S3 next.
+- S3 (2026-10-31, "continue pr 55" session): proposal presented (5 files
+  as-is from head, M1 CHANGELOG placement, 3 commits); user confirmed as-is.
+- S4 (2026-10-31, same session): preflight re-verified (dev = origin/dev =
+  `53bed6b` doc-only atop the reviewed `19c4164`; PR head still `397b0b61`;
+  4 files byte-identical to the PR base, new test file absent). Applied the
+  5 files from `refs/pr/55` to the worktree (worktree-only, index untouched)
+  and verified byte-identity: the 4 modified files share the PR delta's
+  patch-id `034ddf9b...`, the new file's blob hash `f5995304...` matches the
+  head. M1 applied: the author's misplaced `### Fixed` block (before
+  `### Added`) was NOT taken; the identical entry text was inserted at the
+  top of the existing `[Unreleased] → ### Fixed` section (above the #47
+  entry). Working tree left dirty (5 code/test files + CHANGELOG) for S5.
+  Status: INTEGRATING.

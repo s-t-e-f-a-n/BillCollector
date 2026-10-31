@@ -166,7 +166,8 @@ def _fresh_otp(bcs):
     run-start credential when the item has no TOTP or the fetch fails.
     """
     try:
-        totp_item = get_totp(f"{bcs.api_url}/object/totp/{bcs.vault_item_name}")
+        item = getattr(bcs, "vault_item_id", None) or bcs.vault_item_name
+        totp_item = get_totp(f"{bcs.api_url}/object/totp/{item}")
     except VaultAPIError as e:
         logger.warning("OTP re-fetch failed (%s); using run-start credential",
                        failure_record("get_totp", e))
@@ -207,6 +208,7 @@ class _RunContext:
         # Extra attributes used by _fresh_otp at substitution time.
         self.bcs.api_url = api_url
         self.bcs.vault_item_name = f"{task['service']} {task['user']}".strip()
+        self.bcs.vault_item_id = credentials.get("item_id")
         self.bcs.otp_fallback = credentials["otp"]
         # Pause state (C5): the pause loop and the Copilot context handler
         # read these off the context.

@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Opt-in `download_all` option `unpack: pdf` validates a bounded ZIP with one
+  safe regular PDF member and saves its unchanged bytes. Default downloads
+  remain unchanged. The calendar action does not support this option. (issue #50)
+
 - Daemon recipe validation checks the installed Playwright method chains,
   argument names and types, properties, and reserved `wait_user` options (C3,
   issue #27). UI save and run start use the same gate before vault or browser

@@ -108,7 +108,8 @@ The PDF stream is bounded too. The extracted bytes pass unchanged to the normal
 save path, hash deduplication and optional notice identity. A rejected archive
 saves no record and does not mark its collection key complete. Earlier saved
 items remain saved. Without this option, downloads keep their current behavior.
-These same options are used by `replacement_calendar.download_options`.
+The `unpack` option applies only to `download_all`. It is not supported in
+`replacement_calendar.download_options`.
 
 Collection actions cannot be graceful, nested under `expect_download`, or placed
 in login phases. They use bounded, single-attempt execution. Later failure does

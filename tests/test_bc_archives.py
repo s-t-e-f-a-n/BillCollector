@@ -213,6 +213,33 @@ class ArchiveTests(unittest.TestCase):
                     with self.assertRaises(collection.CollectionError):
                         collection.download_all(None, None, None, None, options)
 
+    def test_calendar_schema_and_validator_reject_unpack(self):
+        import jsonschema
+        import yaml
+        from billcollector import calendar, config
+
+        options = {name: "synthetic" for name in (
+            "account_id", "account_selector", "year_selector", "month_selector",
+            "previous_selector", "item_selector", "empty_selector", "ready_selector",
+        )}
+        options.update(max_months=1, download_options={
+            "key_attribute": "data-key", "max_items": 1,
+            "timeout_ms": 1000, "event_window_ms": 10,
+        })
+        recipe = {"services": [{"serviceName": "synthetic", "steps": [{"step": 1,
+                  "methods": [{"method": "locator", "arguments": [{"selector": "#calendar"}]},
+                              {"method": "replacement_calendar", "arguments": [options]}]}]}]}
+        schema = yaml.safe_load(Path(config.RECIPE_SCHEMA).read_text())
+        validator = jsonschema.Draft7Validator(schema)
+        self.assertTrue(validator.is_valid(recipe))
+        self.assertTrue(recipes.validate_recipe(yaml.safe_dump(recipe))[0])
+        calendar.validate_options(options)
+        options["download_options"]["unpack"] = "pdf"
+        self.assertFalse(validator.is_valid(recipe))
+        self.assertFalse(recipes.validate_recipe(yaml.safe_dump(recipe))[0])
+        with self.assertRaisesRegex(collection.CollectionError, "calendar download options"):
+            calendar.validate_options(options)
+
     def test_collection_rejection_preserves_completed_items_and_retry(self):
         valid = self.root / "valid.zip"
         valid.write_bytes(make_zip([("a.pdf", PDF)]))

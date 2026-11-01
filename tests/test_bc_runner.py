@@ -427,6 +427,35 @@ class RunTaskOutcomeTests(unittest.TestCase):
         self.assertFalse(history.exists())
         self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
 
+    def test_aborted_run_with_a_committed_row_finalizes_partial(self):
+        # A download row committed on the run's run_id (inserted directly;
+        # the launch failure aborts the run before the step loop) makes the
+        # collection outcome partial and the result failure (C4, issue #24).
+        self.db.insert_download(run_id=1, task_id=self.task_id,
+                                url="http://127.0.0.1:8787/doc.pdf",
+                                filename="doc.pdf", size=100,
+                                sha256="0" * 64,
+                                saved_path=str(self.tmp / "downloads" / "doc.pdf"))
+        with mock.patch.object(runner, "load_recipe",
+                               return_value=(True, None, None, self.RECIPE)), \
+                mock.patch.object(runner, "_vault_preflight",
+                                  return_value={"user": "u1",
+                                                "password": "p",
+                                                "otp": "o"}), \
+                mock.patch.object(runner, "sync_playwright",
+                                  return_value=_FakePlaywrightManager()), \
+                mock.patch.object(runner, "_launch_browser",
+                                  side_effect=RuntimeError("launch failed")), \
+                mock.patch.object(display, "start_display_stack",
+                                  return_value=[]):
+            exit_code = runner.run_task(self.task_id)
+        self.assertEqual(exit_code, 1)
+        run = self.db.get_run(1)
+        self.assertEqual(run["result"], "failure")
+        self.assertEqual(run["collection_outcome"], "partial")
+        self.assertIsNotNone(run["date_from"])
+        self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
+
 
 class RunInterruptedTests(unittest.TestCase):
     """C7.5: a shutdown signal (SIGTERM from the daemon, Ctrl+C standalone)
@@ -539,6 +568,41 @@ class RunInterruptedTests(unittest.TestCase):
         # (if the pause had started before the signal) is removed.
         self.assertFalse((config.DISPLAY_DIR / ":99.lock").exists())
         self.assertFalse(pause.control_sock_path(1).exists())
+
+    def test_sigterm_with_a_committed_row_ends_interrupted_partial(self):
+        # A download row committed on the run's run_id before the signal
+        # makes the collection outcome partial while the result stays
+        # interrupted (C4, issue #24): the finalization re-lists the
+        # run's committed rows.
+        self.db.set_setting("pause_deadline_seconds", "30")
+
+        def insert_row_then_term():
+            deadline = time.time() + 30
+            while time.time() < deadline:
+                if self.db.list_runs(self.task_id):
+                    self.db.insert_download(run_id=1, task_id=self.task_id,
+                                            url="http://127.0.0.1:8787/doc.pdf",
+                                            filename="doc.pdf", size=100,
+                                            sha256="0" * 64,
+                                            saved_path=str(self.tmp
+                                                           / "downloads"
+                                                           / "doc.pdf"))
+                    os.kill(os.getpid(), signal.SIGTERM)
+                    return
+                time.sleep(0.02)
+
+        thread = threading.Thread(target=insert_row_then_term)
+        thread.start()
+        try:
+            exit_code = self._run_task()
+        finally:
+            thread.join(timeout=30)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(exit_code, 1)
+        run = self.db.get_run(1)
+        self.assertEqual(run["result"], "interrupted")
+        self.assertEqual(run["collection_outcome"], "partial")
+        self.assertIsNotNone(run["date_from"])
 
 
 class _LaunchDisplayManager:
@@ -714,6 +778,24 @@ class DisplayLifecycleTests(unittest.TestCase):
             self._run_task()
         write.assert_not_called()
         start.assert_called_once_with(99, rfb_auth_file=None)
+
+    def test_completed_run_without_downloads_finalizes_failed(self):
+        # The goto recipe completes without downloading anything and without
+        # an empty proof: the run ends failure with outcome failed, and the
+        # row records the collection outcome and the window start (C4,
+        # issue #24).
+        with mock.patch.object(display, "start_display_stack",
+                               return_value=[]):
+            exit_code = self._run_task()
+        self.assertEqual(exit_code, 1)
+        run = self.db.get_run(1)
+        self.assertEqual(run["result"], "failure")
+        self.assertEqual(run["collection_outcome"], "failed")
+        expected_from = runner.DateContext.capture(
+            self.db.get_task(self.task_id)["date_window_days"], None
+        ).date_from.isoformat()
+        self.assertEqual(run["date_from"], expected_from)
+        self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
 
 
 class _UntilLocator:

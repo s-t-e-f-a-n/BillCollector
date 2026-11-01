@@ -216,6 +216,8 @@ class _RunContext:
         self.files_downloaded = []
         self.collection_filenames = set()
         self.collection_completed_keys = {}
+        self.collection_actions_ran = 0
+        self.collection_actions_proven = 0
         self.context = None
         self.page = None
         self.bcs = ServiceObj(
@@ -1087,6 +1089,10 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
 
         result = "failure"
         files = []
+        completed = False
+        pause_outcome = None
+        rows = []
+        empty_proven = False
         # The effective vault API values (Settings win over env) are exported
         # into the process environment before any vault call, so the vault
         # transport's BW_API_HOST read and the run context's TOTP re-fetch
@@ -1096,6 +1102,7 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
         os.environ["BW_API_HOST"] = api_host
         children = None
         run_id = None
+        ctx = None
         try:
             # The row records this process' pid so the orchestrator (C7.2)
             # can match the spawned subprocess to the row it created, and
@@ -1114,8 +1121,15 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
                 ctx = _RunContext(task, run_id, db, debug, credentials, api_url)
                 ctx.bcs.date_context = dates
                 files, aborted, pause_outcome = _run_recipe(ctx, recipe)
+                completed = not aborted
                 rows = db.list_downloads(run_id=run_id)
-                result = run_result(not aborted, rows, False, pause_outcome)
+                # The empty proof holds when at least one collection action
+                # ran and every started download_all completed empty under
+                # allow_empty (0/0 - no actions - is no proof).
+                ran = ctx.collection_actions_ran
+                proven = ctx.collection_actions_proven
+                empty_proven = ran > 0 and ran == proven
+                result = run_result(completed, rows, empty_proven, pause_outcome)
             except RunInterrupted:
                 # A shutdown signal (SIGTERM/SIGINT) reached the run: the
                 # teardown below reaps the display stack and finalizes the
@@ -1142,16 +1156,24 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
                 # leaves the row open.
                 if children is not None:
                     display.stop_display_stack(children)
-                # The run row always ends with a terminal result, even when
-                # the vault preflight or an unexpected error stopped the
-                # run before the step loop ran.
-                db.update_run(run_id, result=result, ended_at=now())
-                settle_attempt(db, task_id, run_id)
-                # A finished run releases the task: the 'waiting' status
-                # set by a pause is terminal here (resume, cancel and
-                # timeout all end the run), so the task goes back to idle
-                # and the scheduler's row lock can claim it again.
-                db.release_task_run(task_id)
+                if run_id is not None:
+                    # An interrupted run may have committed download rows
+                    # before the signal landed: refresh the committed rows
+                    # at finalization so the outcome always reflects them.
+                    rows = db.list_downloads(run_id=run_id)
+                    # The run row always ends with a terminal result, even
+                    # when the vault preflight or an unexpected error stopped
+                    # the run before the step loop ran.
+                    db.update_run(run_id, result=result, ended_at=now(),
+                                  collection_outcome=derive_outcome(
+                                      completed, rows, empty_proven),
+                                  date_from=dates.date_from.isoformat())
+                    settle_attempt(db, task_id, run_id)
+                    # A finished run releases the task: the 'waiting' status
+                    # set by a pause is terminal here (resume, cancel and
+                    # timeout all end the run), so the task goes back to idle
+                    # and the scheduler's row lock can claim it again.
+                    db.release_task_run(task_id)
         finally:
             # The claim is released with the run, so a finished (or
             # interrupted) run never leaks a display - even when the

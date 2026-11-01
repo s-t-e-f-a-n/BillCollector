@@ -22,7 +22,8 @@ agreement (see "Implementation plan").
 ## Status
 
 - 2026-11-01: created (DRAFT — user review pending).
-- 2026-11-01: C4+C8 design posted to issue #24 for agreement (comment 6561111249, 2026-11-01T17:06:07Z) — awaiting confirmation; implementation follows agreement in the planned order (Delivery A: C4, then Delivery B: C8), after which issue #24 closes and the #52 archive-receipt interface proposal is posted.
+- 2026-11-01: C4+C8 design posted to issue #24 for agreement (comment 6561111249, 2026-11-01T17:06:07Z).
+- 2026-11-01: flowcool's 10-point confirmation request (comment 6561526987, 2026-11-01T17:41:21Z) answered (comment 6561636558, 2026-11-01T17:51:08Z): C4 points 1–5 and C8 points 6–8, 10 confirmed as posted; point 9 clarified — no daemon-level manual reconciliation state (automatic at-least-once retry on the agreed task+sha256 key; reconcile-before-resend is the ingestion-consumer responsibility in the #52 interface). Contract agreed per plan (user, 2026-11-01); implementation follows in the planned order (Delivery A: C4, then Delivery B: C8), after which issue #24 closes and the #52 archive-receipt interface proposal is posted.
 
 ## Verified context (dev `f11cb30` / public `main` `4a9bffc`, 2026-11-01)
 

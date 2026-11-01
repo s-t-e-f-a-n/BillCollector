@@ -24,6 +24,8 @@ agreement (see "Implementation plan").
 - 2026-11-01: created (DRAFT — user review pending).
 - 2026-11-01: C4+C8 design posted to issue #24 for agreement (comment 6561111249, 2026-11-01T17:06:07Z).
 - 2026-11-01: flowcool's 10-point confirmation request (comment 6561526987, 2026-11-01T17:41:21Z) answered (comment 6561636558, 2026-11-01T17:51:08Z): C4 points 1–5 and C8 points 6–8, 10 confirmed as posted; point 9 clarified — no daemon-level manual reconciliation state (automatic at-least-once retry on the agreed task+sha256 key; reconcile-before-resend is the ingestion-consumer responsibility in the #52 interface). Contract agreed per plan (user, 2026-11-01); implementation follows in the planned order (Delivery A: C4, then Delivery B: C8), after which issue #24 closes and the #52 archive-receipt interface proposal is posted.
+- 2026-11-01: implementation plan chunked into session-sized units (A1–A7, B1–B6; one chunk per coding session, one commit each) after repeated context-limit overflows in coding sessions; Delivery A starts with A1.
+- 2026-11-01: A1 landed — `Run.collection_outcome` + `Run.date_from` schema + `_migrate` (db.py); 3 migration tests in test_bc_db.py (19 passed). A2 next.
 
 ## Verified context (dev `f11cb30` / public `main` `4a9bffc`, 2026-11-01)
 
@@ -364,25 +366,289 @@ without it.
   only on non-`delivered` rows; the retry confirmation text states the
   at-least-once keying.
 
-## Implementation plan (after agreement)
+## Implementation plan (chunked — 2026-11-01)
 
-Two deliveries, each via the dev-commits cycle (per-item user confirmation) +
-ff-only promotion + GitHub mirror, in this order:
+Session-sized chunks, written after repeated context-limit overflows in
+coding sessions. The design sections above stay the contract; the chunk
+specs below are self-contained — a coding session reads **only** its chunk
+plus the chunk's "read" list, never the whole design or the repo.
 
-1. **Delivery A — C4**: `Run.collection_outcome` + `Run.date_from` (schema +
-   migration), outcome derivation at run finalization, `run_result` mapping,
-   `allow_empty` option (schema + `collection.py` + runner adapter + contract
-   docs), notification outcome + window, UI run-outcome display, README /
-   CHANGELOG, the C4 test set above.
-2. **Delivery B — C8**: `failed` state + `delivery_attempts`, recovery retry
-   extension, manual-retry daemon action (subprocess), UI Delivery column +
-   retry action, failed-transition notification, `doc/DOWNLOAD_RECOVERY.md`
-   extension (state machine + F10 statement) + README pointer, the C8 test set
-   above.
+### Session protocol (every chunk)
 
-Then: close issue #24 as delivered (its 2026-11-01 comment states it stays
-open until the state exposure lands), and post the drafted #52
-archive-receipt interface proposal to #52 for agreement.
+- **One chunk per coding session** (exactly one; never two).
+- Read only: this chunk's spec + its "read" list (paths with line anchors).
+  No repo exploration, no re-deriving the design, no reading other chunks.
+- Edit only the chunk's "edit" list. A needed change outside it stops the
+  session (report it; do not expand scope).
+- End state: the chunk's verify command green, a one-line entry appended to
+  the Status section (same commit), committed via the dev-commits cycle
+  (per-item user confirmation).
+- Resume after a mid-chunk context overflow: re-read the chunk spec and run
+  `git diff` — progress is at most one file deep.
+- Verify from the repo root:
+  `PYTHONPATH=apps apps/.venv/bin/python -m pytest tests/<file> -x -q`.
+- Delivery gate: after A7 and after B6 the **full** unit suite
+  (`... python -m pytest tests/ -x -q`) must be green, then ff-only
+  promotion + GitHub mirror per the release cycle (one per delivery).
+
+### Delivery A — C4 (7 chunks)
+
+**A1 — Run schema: `collection_outcome` + `date_from`**
+- Edit: `apps/billcollector/db.py`. SCHEMA Run table (48-64): add
+  `collection_outcome TEXT` and `date_from TEXT` after `notes TEXT`.
+  `_migrate()` (115-158): add both as `TEXT` for pre-existing DBs in the
+  existing PRAGMA table_info pattern (idempotent, no backfill).
+- Read: db.py 48-64, 110-158, 345-381.
+- Test: `tests/test_bc_db.py` — a fresh DB has both columns; a legacy DB
+  (created without them) picks them up on open; idempotent on re-open
+  (follow the file's existing migration-test pattern).
+- Commit: `feat: add Run.collection_outcome and Run.date_from with migration (C4, issue #24)`
+
+**A2 — Outcome derivation + result mapping (pure)**
+- Edit: `apps/billcollector/runner.py`. Replace `run_result` (139-157):
+  - `derive_outcome(completed, rows, empty_proven)`: `not completed` →
+    `"partial" if rows else "failed"`; else any row with
+    `duplicate_of_id is None` → `"new_documents"`; else rows present →
+    `"duplicates_only"`; else `empty_proven` → `"proved_empty"`; else
+    `"failed"`. `rows` = this run's committed Download rows (dicts).
+  - `run_result(completed, rows, empty_proven, pause_outcome=None)`: pause
+    `"cancel"` → `"cancelled"`, `"timeout"` → `"needs_attention"` (terminal
+    in itself, unchanged); else `"success"` iff the outcome is one of the
+    three healthy values, else `"failure"`. Exit-code mechanism untouched
+    (0 only for `success`, runner.py 1140-1144).
+- Read: runner.py 100-160, 931-988 (abort/interrupt semantics);
+  `tests/test_bc_runner.py:49-70` (the run_result tests to replace).
+- Test: `tests/test_bc_runner.py` — replace the run_result unit tests with
+  the full derivation table (all five outcomes × completed/aborted,
+  rows/no rows, empty_proven, both pause outcomes). Pure dicts, no DB.
+- Commit: `feat: collection-outcome derivation and run result mapping (C4, issue #24)`
+
+**A3 — Finalization wiring + `date_from` capture**
+- Edit: `apps/billcollector/runner.py` `_run_task` (1012-1153).
+  - Init next to `result = "failure"` (1069): `completed = False`,
+    `pause_outcome = None`, `rows = []`; next to `children = None` (1078):
+    `ctx = None` (unbound when the display stack or vault preflight fails
+    before 1095).
+  - `_RunContext.__init__` (188-219): add `self.collection_actions_ran = 0`
+    and `self.collection_actions_proven = 0` (A4 increments them;
+    `empty_proven = ran > 0 and ran == proven`, 0/0 when `ctx is None`).
+  - Normal path (1097-1098): `files, aborted, pause_outcome =
+    _run_recipe(ctx, recipe)`; `completed = not aborted`;
+    `rows = db.list_downloads(run_id=run_id)` (exists, db.py:451);
+    `result = run_result(completed, rows, <empty_proven>, pause_outcome)`.
+  - Finalization `finally` (1119-1134): when `run_id` is not None, extend
+    the row write (1128) with `collection_outcome=derive_outcome(completed,
+    rows, <empty_proven>)` and `date_from=dates.date_from.isoformat()`
+    (`dates` = the DateContext captured at 1052, always bound when a run
+    row exists). Exception paths (vault/display/unexpected, 1105-1118) keep
+    their `result = "failure"` and the RunInterrupted path (1099-1104) keeps
+    `"interrupted"`; with `completed = False` and no rows the outcome is
+    `failed` — matching the contract.
+- Read: runner.py 188-220, 988-1153; db.py 451-458.
+- Test: `tests/test_bc_runner.py` — extend the existing `_run_task` harness
+  classes (the 339/461/583-style fixtures): the finalized Run row carries
+  `collection_outcome` + `date_from`; completed no-download no-proof run →
+  `failure` + `failed`; aborted run with a row inserted on the run's
+  `run_id` → `failure` + `partial`; interrupted run with a committed row →
+  `interrupted` + `partial`.
+- Commit: `feat: finalize runs with collection outcome and window start (C4, issue #24)`
+
+**A4 — `allow_empty` option + empty-proof tracking**
+- Edit: `apps/billcollector/collection.py`.
+  - `_validate_snapshot` (187-198): new keyword `allow_empty=False`; the
+    empty listing raises `CollectionError` only when the option is off.
+  - `download_all` (347-460): add `allow_empty` to the options names set
+    (357-362), read it (bool), pass it to `_validate_snapshot`, and return
+    `[]` early on an empty snapshot with the option on.
+- Edit: `apps/billcollector/runner.py` `_collection_actions.download`
+  (542-550): count every started `download_all` call
+  (`ctx.collection_actions_ran += 1`) and every completed empty result
+  under `allow_empty` (`ctx.collection_actions_proven += 1`). A raised
+  (graceful-failed) action counts as ran, never proven — it prevents
+  `proved_empty`, as contracted. `click_until_absent` is not counted.
+- Read: collection.py 182-233, 347-460; runner.py 501-569.
+- Test: `tests/test_bc_collection.py` — empty snapshot + `allow_empty` →
+  `[]` without error; empty without the option → `CollectionError`
+  unchanged; non-empty with the option → unchanged behavior.
+  `tests/test_bc_runner.py` — proof-flag counting via the existing harness
+  (or a focused adapter test with a fake ctx).
+- Commit: `feat: opt-in download_all allow_empty with run empty-proof (C4, issue #24)`
+
+**A5 — Terminal notification: outcome + window**
+- Edit: `apps/billcollector/notify.py`.
+  - `notify_run_result(db, result, *, outcome=None, date_from=None,
+    dispatch=None)` (87-107): append the outcome to the message when
+    known — base message + ` Outcome: <outcome>` + (when `date_from` known)
+    ` (window from <date_from>)`, e.g. `A collector run failed. Check the
+    BillCollector dashboard. Outcome: partial (window from 2026-07-04)`.
+  - Add `"success": "A collector run finished successfully."` to
+    `_RUN_MESSAGES`: per the #24 agreement (public comment 6561111249,
+    confirmed 2026-11-01) successful runs are now notified with the
+    outcome — a deliberate change from "success stays silent"; update the
+    docstring. `cancelled` stays silent.
+- Edit: `apps/billcollector/orchestrator.py`: the monitor finalization call
+  (533-534) passes `outcome=row["collection_outcome"],
+  date_from=row["date_from"]` (both None on orchestrator-finalized crash
+  paths — the message then carries no outcome suffix). The other call sites
+  (215, 497) are left without the suffix.
+- Read: notify.py (whole, 122 lines); orchestrator.py 485-534;
+  `tests/test_bc_notify.py`.
+- Test: `tests/test_bc_notify.py` — success now sends (was silent);
+  outcome/window suffix on success and failure; no suffix when unknown;
+  cancelled still silent.
+- Commit: `feat: terminal run notification carries outcome and window (C4, issue #24)`
+
+**A6 — UI run-outcome display**
+- Edit: `apps/billcollector/ui/dashboard.py` — the last-run cell (133-137):
+  append the outcome when set (e.g. `2026-10-01 06:00 · success ·
+  proved_empty`); pre-existing rows (`collection_outcome` NULL) render
+  exactly as today.
+- Edit: `apps/billcollector/ui/task_detail.py` — the run-history header
+  (318-322): same addition; include `r["collection_outcome"]` in the
+  rebuild signature (312).
+- Read: dashboard.py 125-215; task_detail.py 300-330; the existing
+  assertions in `tests/test_bc_ui_dashboard.py` /
+  `tests/test_bc_ui_task_detail.py`.
+- Test: both UI test files — a run row with an outcome renders it; a
+  NULL-outcome row is unchanged.
+- Commit: `feat: show run collection outcome in dashboard and run history (C4, issue #24)`
+
+**A7 — C4 docs + CHANGELOG + plan status**
+- Edit: `doc/RECIPE_METHODS.md` (the `download_all` section, 196-217): an
+  `allow_empty` row in the options table (boolean, default false, not
+  required) + one semantics sentence (an empty listing completes with zero
+  records and proves the window empty for the run outcome; without the
+  option the fail-closed error is unchanged).
+- Edit: README (the run-result/downloads semantics section — locate by
+  grep), CHANGELOG.md (unreleased entry: two-axis result semantics,
+  `allow_empty`, notification change, UI, additive schema).
+  `tests/test_doc_recipe.py` constrains the recipe docs — run it and keep
+  it green.
+- Edit: this doc — Status entries as the chunks landed.
+- Verify: `pytest tests/test_doc_recipe.py -x -q`, then the **full** suite
+  (delivery gate).
+- Commit: `doc: C4 contract docs — allow_empty, run outcomes, changelog (issue #24)`
+
+### Delivery B — C8 (6 chunks)
+
+**B1 — `Download.delivery_attempts` schema + migration**
+- Edit: `apps/billcollector/db.py`. SCHEMA Download table (74-89): add
+  `delivery_attempts INTEGER`. `_migrate()` (146-155): add it to the
+  Download column loop.
+- Read: db.py 74-94, 115-158, 415-432.
+- Test: `tests/test_bc_db.py` — fresh DB + legacy-DB migration (existing
+  pattern).
+- Commit: `feat: add Download.delivery_attempts column with migration (C8, issue #24)`
+
+**B2 — `_deliver`: `failed` transition, attempt count, first-failure notification**
+- Edit: `apps/billcollector/downloads.py` `_deliver` (71-91).
+  - A published-file checksum mismatch (79-80) no longer raises: it is a
+    delivery failure like a consumer exception (stop the consumer loop, do
+    not run the remaining consumers).
+  - On any failure: increment the attempt, set state to `failed` (a new
+    `Download.state` value — no schema change), and send the notification
+    **only when the row's previous state was not already `failed`**
+    (first transition; run-time delivery and startup recovery share this
+    path, so a retry of a `failed` row notifies no further).
+  - On success: increment the attempt, set `consumed` (as today).
+  - Duplicate rows are still never delivered (72-73).
+- Edit: `apps/billcollector/db.py`: `increment_download_attempts(id)`
+  (NULL-safe: `COALESCE(delivery_attempts, 0) + 1`).
+- Edit: `apps/billcollector/notify.py`: `notify_delivery_failed(db, row)` —
+  best-effort ntfy (the runner/recovery subprocesses send directly, as the
+  pause push does from the runner): `delivery failed: <service> <user>
+  <filename> (attempt N)`; no URLs or secrets; task looked up via
+  `db.get_task(row["task_id"])`.
+- Read: downloads.py 71-91, 109-126; notify.py 80-122 (the pattern to
+  copy); db.py 415-432.
+- Test: `tests/test_bc_downloads.py` — failing consumer → row `failed`,
+  `delivery_attempts` = 1, exactly one notification (fake dispatch);
+  checksum mismatch → `failed` (no raise); successful consumer → `consumed`
+  with attempt 1; duplicate row → untouched.
+- Commit: `feat: failed delivery state with attempt count and first-failure notification (C8, issue #24)`
+
+**B3 — Startup recovery retries `failed` rows**
+- Edit: `apps/billcollector/downloads.py` `_recover_locked` (157-168):
+  deliver rows whose state is `published` **or** `failed` (same code path,
+  same idempotency key, no retry cap); the journal-cleanup condition is
+  unchanged (a row still `failed` keeps its journal for the next retry).
+- Read: downloads.py 128-184 (the recovery loop + target selection —
+  `failed` rows already select their target, 178-181).
+- Test: `tests/test_bc_downloads_recovery.py` — a `failed` row with a
+  still-failing consumer stays `failed` with the attempt incremented; a
+  `failed` row with a fixed consumer (patch `CONSUMERS`) becomes `consumed`
+  and its journal is cleaned; the existing `staged`/`published` cases still
+  pass.
+- Commit: `feat: startup recovery retries failed delivery rows (C8, issue #24)`
+
+**B4 — Manual retry: `downloads.__main__ --retry` + orchestrator action**
+- Edit: `apps/billcollector/downloads.py`.
+  - `retry_delivery(db, download_id) -> bool`: fetch the row (new
+    `db.get_download(id)` helper); refuse missing or duplicate rows; take
+    the output-dir publication lock for the row's target; `staged` rows are
+    published first; then `_deliver` on the re-read row; return True iff
+    the row ends `consumed`.
+  - `__main__` (291-301): a `--retry <id>` mode next to the existing
+    recovery entry (`python -m billcollector.downloads <db> --retry <id>`;
+    exit 0 only on delivery).
+- Edit: `apps/billcollector/orchestrator.py`:
+  `async def retry_delivery(self, download_id) -> tuple[bool, str | None]`
+  — spawns the same subprocess via `asyncio.create_subprocess_exec`
+  (consumers stay out of the UI process, as today), bounded by the
+  `download_recovery_timeout_seconds` setting; returns success + a
+  sanitized error (never the child's raw stderr).
+- Read: downloads.py 54-91, 262-301; orchestrator.py 120-160, 378-410
+  (the spawn pattern).
+- Test: `tests/test_bc_downloads.py` — `retry_delivery`: `failed` row +
+  working consumer → `consumed`; `published` row → `consumed`;
+  `consumed`/duplicate row → refused (no consumer call).
+- Commit: `feat: manual delivery retry in the runner subprocess (C8, issue #24)`
+
+**B5 — UI: Delivery column + retry action**
+- Edit: `apps/billcollector/ui/downloads.py`.
+  - `build_download_rows` (60-82): new `delivery` field mapping the four
+    exposed states (staged → `downloaded`, published → `pending delivery`,
+    consumed → `delivered`, failed → `failed delivery (N)` with the attempt
+    count, `—` when NULL) + a hidden `retryable` flag
+    (`state != "consumed"` and not a duplicate).
+  - COLUMNS (22-30): a Delivery column before `date`.
+  - The page: a per-row **Retry delivery** button (the existing body-slot
+    pattern) shown only on retryable rows; a confirmation dialog states
+    delivery is at-least-once, keyed on task + sha256; on confirm call
+    `await orchestrator.retry_delivery(row["id"])`, notify the outcome,
+    rebuild the rows. Signature becomes `register_downloads(db,
+    orchestrator)`.
+- Edit: `apps/billcollector/ui/app.py` (173): pass the orchestrator. The
+  task-detail downloads section shares the builder and gains the same
+  column/action with no extra work.
+- Read: ui/downloads.py (whole, 110 lines); ui/app.py 154-175;
+  `tests/test_bc_ui_task_detail.py` (the shared-builder test pattern).
+- Test: the row builder renders all four states + the attempt count;
+  `retryable` only on non-`delivered` non-duplicate rows; the page
+  registers with the orchestrator (existing UI-test pattern).
+- Commit: `feat: downloads UI delivery states and retry action (C8, issue #24)`
+
+**B6 — C8 docs + CHANGELOG + plan status**
+- Edit: `doc/DOWNLOAD_RECOVERY.md` — add: the state machine (staged →
+  published → consumed, plus the `failed` branch with its two retry
+  paths), the retry semantics (at-least-once, keyed on task + sha256, no
+  cap), and the F10 statement (this doc's "F10 statement" section, as
+  contract text).
+- Edit: README (the downloads section → pointer at
+  `doc/DOWNLOAD_RECOVERY.md`), CHANGELOG.md, this doc's Status.
+- Verify: the **full** unit suite (delivery gate).
+- Commit: `doc: delivery state machine, retry semantics and F10 statement (C8, issue #24)`
+
+### After the deliveries
+
+1. Promote each delivery: ff-only dev → Gitea main + sanitized GitHub
+   mirror (the release cycle), one per delivery, after its full-suite gate.
+2. Close issue #24 as delivered (its 2026-11-01 comment states it stays
+   open until the state exposure lands), with the close comment per the
+   routine.
+3. Draft the #52 archive-receipt interface proposal against the landed
+   delivery states and post it to #52 for agreement — a drafting session,
+   not a coding chunk (the draft shape is in "Public post drafts" below).
 
 ## Public post drafts (sanitized; user-confirmed before posting)
 

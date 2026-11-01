@@ -5,8 +5,9 @@
 > entry); S5 all green: new module 57 passed, focused author set 311 passed
 > / 1 skipped / 57 subtests (author's exact-head numbers), regression
 > VERDICT: PASS (7 scenarios / 8 PDFs, exit 0), ruff F821+E4/E7/E9 clean,
-> bandit only the pre-existing B110; deployment skip user-confirmed. Next:
-> S6 documentation.
+> bandit only the pre-existing B110; deployment skip user-confirmed; S6 docs
+> user-confirmed (README method-chain validation touch-up, CHANGELOG as-is,
+> no CONTRIBUTING change). Next: S7 commit + push.
 
 ## PR metadata
 
@@ -300,7 +301,27 @@ S5 result (2026-11-01, on dev `83804b5` + the dirty S4 tree, repo root,
 - bandit on the changed app files → 1 Low: B110 try/except/pass at
   `runner.py:985`; verified pre-existing (bare `except Exception:` present
   in both the dev pre-PR blob `e69374e` at line 1008 and the PR-head blob
-  `2b59124` at line 985) — nothing new beyond the recorded baseline.
+   `2b59124` at line 985) — nothing new beyond the recorded baseline.
+
+S6 result (2026-11-01, user-confirmed as-is):
+
+- CHANGELOG: the C3 `## [Unreleased] → ### Added` entry stands as applied in
+  S4 (verbatim from head `0b9a57f5`, sanitized — no Gitea host, NAS details,
+  or private paths; public issue #27 reference only).
+- README: 3 maintainer-side edits (user-visible validation gate changed;
+  PR author shipped no README change): the recipe-editor bullet (Web UI
+  section) and the daemon-editor bullet (recipe concept section) now say
+  "schema and method-chain validation"; the schema bullet gains the daemon
+  method-chain sentence (installed-Playwright check of method names,
+  argument names and types, properties, reserved `wait_user` options;
+  unknown methods and unsupported variables rejected before vault or
+  browser access; service/step coordinates without argument values; link to
+  `doc/RECIPE_METHODS.md`). The `BillCollectorCheckRecipe.py` tip stays
+  unchanged — the legacy batch path still uses `CheckRecipe` (Verified fact
+  6), so the README statement remains accurate.
+- CONTRIBUTING: no change (no contributor-rule change).
+- The README edits are part of the integrated content and ship in the S7
+  doc commit; the working tree stays dirty until S7.
 
 ## Out of scope
 
@@ -313,4 +334,6 @@ S5 result (2026-11-01, on dev `83804b5` + the dirty S4 tree, repo root,
 ## Open questions
 
 None. S3 confirmed as-is by the user; S5 validated 2026-11-01 with the
-deployment skip user-confirmed. Next stage: S6 documentation.
+deployment skip user-confirmed (2026-11-01T13:16:36Z); S6 docs
+user-confirmed 2026-11-01. Next stage: S7 commit + push (dev-commits gate,
+Gitea-first promotion, GitHub mirror, PR close per the publication routine).

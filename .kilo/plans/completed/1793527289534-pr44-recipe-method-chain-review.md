@@ -1,13 +1,13 @@
 # PR #44 review: validate daemon recipe method chains before runtime access (C3)
 
-> Status: VALIDATED (2026-11-01) — S3 confirmed as-is; S4 done (16 files
-> byte-for-byte from head `0b9a57f5`, runner.py 3-way merge, CHANGELOG C3
-> entry); S5 all green: new module 57 passed, focused author set 311 passed
-> / 1 skipped / 57 subtests (author's exact-head numbers), regression
-> VERDICT: PASS (7 scenarios / 8 PDFs, exit 0), ruff F821+E4/E7/E9 clean,
-> bandit only the pre-existing B110; deployment skip user-confirmed; S6 docs
-> user-confirmed (README method-chain validation touch-up, CHANGELOG as-is,
-> no CONTRIBUTING change). Next: S7 commit + push.
+> Status: DELIVERED (2026-11-01) — S7 complete: 3 dev commits
+> `58d7a4b`/`df634cc`/`26377b0` pushed to `origin/dev`; ff-only promoted to
+> Gitea `main` `26377b0`; mirrored to GitHub `main` `4a9bffc` (sanitized,
+> STRIP-clean, integrated content verified present). PR #44 closed without
+> merge (comment 6559487293, closed_at 2026-11-01T14:46:10Z); no related
+> issues (the PR references none). GitHub Discussion summary user-confirmed
+> but NOT posted (Discussions API 404 in this environment) — user to post in
+> the web UI (exact text recorded in the S7 result section).
 
 ## PR metadata
 
@@ -323,17 +323,84 @@ S6 result (2026-11-01, user-confirmed as-is):
 - The README edits are part of the integrated content and ship in the S7
   doc commit; the working tree stays dirty until S7.
 
+S7 result (2026-11-01, "continue pr #44" sessions):
+
+- S7.1: the 3 planned commits on `dev` — `58d7a4b` (feat: validator +
+  shared-gate wiring + schema `press`/`Enter` form; 7 app files),
+  `df634cc` (test: new 355-line 57-case module + focused author-set
+  updates; 9 test files), `26377b0` (doc: `doc/RECIPE_METHODS.md`
+  contract, README validation note, CHANGELOG C3 entry) — user-confirmed
+  per the dev-commits gate, pushed to `origin/dev`.
+- S7.2: Gitea `main` ff-only `96871d1..26377b0` + push (no tag, not a
+  release).
+- S7.3: mirror → GitHub `main` `4a9bffc` (`sync_github.sh`); public gate
+  green — tree diff vs Gitea `main` `26377b0` is exactly the 102 stripped
+  `openwiki/` files, no private paths at the tip, integrated C3 content
+  present (`methods.py`, `test_bc_method_validation.py`,
+  `doc/RECIPE_METHODS.md`, CHANGELOG C3 entry at top of `[Unreleased] →
+  Added`).
+- S7.4: PR #44 closed without merge — comment `6559487293` posted
+  2026-11-01T14:45:57Z (mirror flow explained, public commit links
+  `58d7a4b`/`df634cc`/`4a9bffc`, maintainer adaptations, validation
+  summary, non-blocking notes), closed_at 2026-11-01T14:46:10Z.
+- S7.5: N/A — the PR references no issues (no "Closes #N"; issue #27
+  already closed completed 2026-10-24).
+- S7.6: GitHub Discussion summary user-confirmed; NOT posted (Discussions
+  write API 404 in this environment, per the #45/#55 deliveries) — recorded
+  below for the manual web-UI post.
+- S7.7 (this session): final state re-verified (Gitea `dev` = `main` =
+  `origin/dev` = `origin/main` = `26377b0`; GitHub `main` = `4a9bffc`; PR
+  closed without merge; no open PRs on the mirror; clean tree). Status:
+  DELIVERED. Plan doc archived to `completed/` + README + sequencing refs
+  updated (doc-only commit).
+
+Discussion summary (user-confirmed 2026-11-01; for manual web-UI post —
+the Discussions write API is unavailable from this environment):
+
+Title: `Update: PR #44 integrated — recipe method-chain validation (C3)`
+
+> What landed on main from the community this round:
+>
+> - PR #44 (@flowcool): the daemon now validates recipe method chains
+>   against the installed Playwright before any vault or browser access —
+>   unknown methods, invalid argument names or types, and unsupported
+>   variables are rejected with service and step coordinates, without
+>   retaining argument values. The full validation gate runs at web-UI
+>   recipe load and save, at the offline doctor's proposal, and at runner
+>   start (the offline doctor read keeps the reduced check so it can still
+>   read a method-invalid recipe for repair). The schema additionally
+>   accepts the positional `Enter` argument form for `press` only. All 15
+>   shipped recipes plus the `doc/SAFE_LOGIN.md` candidate are pinned by a
+>   new 57-case test module.
+>
+> Maintainer-side adaptations: `runner.py` needed a 3-way merge (main
+> already carried the safe launch diagnostics from PR #45 — both changes
+> kept, disjoint hunks); CHANGELOG merged only the C3 `Added` entry (the
+> PR's `Fixed` entry was already on main from PR #55); short README note
+> that the daemon recipe editor performs schema and method-chain
+> validation (link to `doc/RECIPE_METHODS.md`).
+>
+> Validation (exact promoted tree): new module 57/57 passed; the author's
+> 11-module focused set 311 passed / 1 skipped / 57 subtests (matching the
+> exact-head numbers); full regression harness PASS (7 scenarios / 8 PDFs);
+> ruff (F821, E4/E7/E9) clean; no new bandit findings.
+>
+> Commit:
+> https://github.com/s-t-e-f-a-n/BillCollector/commit/4a9bffc46015b1c6e36d0bf16b0de2b8634265cb
+
 ## Out of scope
 
 - Other issue #27 findings (F01–F07, F09–F10) and their work packages.
 - Playwright pin changes or re-derivation.
 - Stage 1b doctor LLM-repair work (separate plan doc).
 - GitHub Discussions write API (known 404 in this environment) — the S7
-  per-public-update summary will be recorded for a manual web-UI post.
+  per-public-update summary is recorded in the S7 result section for a
+  manual web-UI post.
 
 ## Open questions
 
-None. S3 confirmed as-is by the user; S5 validated 2026-11-01 with the
-deployment skip user-confirmed (2026-11-01T13:16:36Z); S6 docs
-user-confirmed 2026-11-01. Next stage: S7 commit + push (dev-commits gate,
-Gitea-first promotion, GitHub mirror, PR close per the publication routine).
+None. DELIVERED 2026-11-01 — S7 complete (commits `58d7a4b`/`df634cc`/
+`26377b0` → Gitea `main` `26377b0` → GitHub `main` `4a9bffc`; PR closed
+without merge 2026-11-01T14:46:10Z; no related issues). The only residual
+is the manual web-UI post of the user-confirmed Discussion summary recorded
+above.

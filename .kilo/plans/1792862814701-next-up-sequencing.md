@@ -593,6 +593,25 @@ Grounds:
   `1793527289534-pr44-recipe-method-chain-review.md` + README + sequencing
   refs — Status: AWAITING-DECISION, S3 next (user gate on verdict +
   integration plan).
+- PR #44 S3–S7 DELIVERED 2026-11-01 ("continue pr #44" sessions): S3
+  confirmed as-is (16 files byte-for-byte from head `0b9a57f5` +
+  `runner.py` 3-way merge keeping both PR #45's `launch_failure_record`
+  hunks and the PR's `load_recipe`/`locator_arguments` imports + CHANGELOG
+  C3 `Added` entry only); S5 all green on the exact dirty tree (new module
+  57/57; focused author set 311 passed / 1 skipped / 57 subtests = the
+  author's exact-head numbers; regression VERDICT: PASS 7 scenarios / 8
+  PDFs, exit 0; ruff F821+E4/E7/E9 clean; bandit only the pre-existing
+  B110; deployment skip user-confirmed — not deployment-relevant); S6 docs
+  as-is (README method-chain validation touch-up, CHANGELOG verbatim, no
+  CONTRIBUTING change); S7 commits `58d7a4b` (feat: validator + gate
+  wiring + schema) / `df634cc` (test: new 57-case module) / `26377b0`
+  (doc: RECIPE_METHODS + README note + CHANGELOG) → Gitea `main` ff-only
+  `26377b0` → GitHub `main` `4a9bffc` (mirror, STRIP-clean, integrated
+  content verified present); PR #44 closed without merge (comment
+  6559487293, 2026-11-01T14:46:10Z), no related issues; Discussion summary
+  user-confirmed, recorded for manual web-UI post (write API unavailable).
+  Plan doc archived to `completed/` + README + sequencing refs. **Batch-2
+  PR chain complete** — no open PRs on the GitHub mirror.
 
 ## Explicitly not doing
 

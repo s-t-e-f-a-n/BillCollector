@@ -11,6 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Daemon recipe validation checks the installed Playwright method chains,
+  argument names and types, properties, and reserved `wait_user` options (C3,
+  issue #27). UI save and run start use the same gate before vault or browser
+  access. Errors identify the service and step without argument values. The
+  agreed date-variable grammar and login `press("Enter")` form remain supported.
+
 - Terminal daemon run notifications: account-free failure, interruption and
   attention notices through the existing opt-in ntfy topic. Successful and
   cancelled runs stay silent, delivery is best-effort, and the monitor sends

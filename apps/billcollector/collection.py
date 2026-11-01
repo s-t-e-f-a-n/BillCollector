@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import logging
 import time
+from contextlib import nullcontext
 from dataclasses import dataclass
 
+from .archives import pdf_download
 from .interrupt import RunInterrupted
 
 MAX_DOWNLOAD_ITEMS = 200
@@ -357,9 +359,11 @@ def download_all(page, context, locator, save_download, options,
     options = _options(
         options,
         names={
-            "key_attribute", "max_items", "timeout_ms", "event_window_ms",
+            "key_attribute", "max_items", "timeout_ms", "event_window_ms", "unpack",
         },
     )
+    if "unpack" in options and options["unpack"] != "pdf":
+        raise CollectionError("unpack must be pdf when supplied")
     key_attribute = options.get("key_attribute")
     if not isinstance(key_attribute, str) or not key_attribute.strip():
         raise CollectionError("key_attribute must be a non-empty string")
@@ -426,7 +430,10 @@ def download_all(page, context, locator, save_download, options,
                 before_download()
 
             def save_completed(download):
-                record = save_download(download)
+                prepared = (pdf_download(download) if options.get("unpack") == "pdf"
+                            else nullcontext(download))
+                with prepared as document:
+                    record = save_download(document)
                 completed_keys.add(expected_key)
                 return record
 

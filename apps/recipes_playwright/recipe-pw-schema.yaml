@@ -244,6 +244,8 @@ definitions:
           required: [ key_attribute, max_items, timeout_ms, event_window_ms ]
           additionalProperties: false
           properties:
+            unpack:
+              const: pdf
             key_attribute:
               type: string
               minLength: 1

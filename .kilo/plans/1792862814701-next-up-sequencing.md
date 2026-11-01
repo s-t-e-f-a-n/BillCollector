@@ -558,6 +558,24 @@ Grounds:
   commits → Gitea `dev` → ff-only `main` → GitHub mirror → PR close; the
   per-public-update Discussion summary is recorded for manual web-UI post,
   write API unavailable).
+- PR #45 S7 done 2026-10-31 ("continue pr #45" sessions): DELIVERED — S7.1
+  the 3 planned commits on dev (`b4e833f` fix cache precedence, `430146c`
+  fix launch diagnostics, `96871d1` doc CHANGELOG M1) pushed
+  `1a50b9d..96871d1`; S7.2 Gitea main ff-only `22da847..96871d1` + pushed
+  (no tag, not a release); S7.3 mirror → GitHub main `8f4bdd9`, public gate
+  green (no private paths at the tip, `.github` = `ISSUE_TEMPLATE` only; 5
+  code/test files byte-identical to PR head `93f71b2`, CHANGELOG entry
+  present at top of `[Unreleased] → Fixed`); S7.4 PR #45 closed without
+  merge (comment 6550508082, closed_at 2026-10-31T23:20:57Z); S7.5 N/A (the
+  PR references no issues); S7.6 Discussion summary user-confirmed, recorded
+  for manual web-UI post (write API unavailable); the S7 session ended at a
+  model output limit after the close — the follow-up session re-verified the
+  full final state (Gitea main/dev/origin in sync at `96871d1`, GitHub
+  `8f4bdd9`, PR closed without merge, clean tree) and completed the record.
+  Plan doc archived to `completed/` + README + sequencing refs. Batch-2
+  chain now at **#44** (C3/F08 recipe method-chain validation, contract
+  agreed in #27) — its S1 pre-image check runs against the settled
+  `96871d1` tree.
 
 ## Explicitly not doing
 

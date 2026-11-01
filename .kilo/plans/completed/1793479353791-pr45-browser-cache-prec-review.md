@@ -1,11 +1,13 @@
 # PR #45 review: preserve explicit Playwright browser cache across imports
 
-> Status: VALIDATED (2026-10-31) — S3–S6 done: proposal confirmed as-is; 6
-> files applied (5 byte-identical to head `93f71b2` + CHANGELOG M1); full S5
-> validation green on the exact dirty tree (22/22 focused, 697/10/90 full
-> suite = baseline 675 + 22, regression PASS exit 0, ruff/bandit 0 new);
-> deployment skip user-confirmed (not deployment-relevant); docs confirmed.
-> S7 next (commit + push: Gitea first, then GitHub mirror, PR close).
+> Status: DELIVERED (2026-10-31) — S7 complete: 3 dev commits
+> `b4e833f`/`430146c`/`96871d1` pushed to `origin/dev`; ff-only promoted to
+> Gitea `main` `96871d1`; mirrored to GitHub `main` `8f4bdd9` (sanitized,
+> STRIP-clean, integrated content verified present). PR #45 closed without
+> merge (comment 6550508082, closed_at 2026-10-31T23:20:57Z); no related
+> issues (the PR references none). GitHub Discussion summary user-confirmed
+> but NOT posted (Discussions API 404 in this environment) — user to post in
+> the web UI (exact text recorded in the S7 execution record).
 
 ## PR metadata
 
@@ -209,12 +211,10 @@ container runtime behavior are unchanged.
 
 ## Open questions
 
-- None as of S6: S7 commits the validated content to `dev` (the 3 planned
-  commits), ff-only promotes to Gitea `main`, mirrors to GitHub, then closes
-  the PR (comment + close, user-confirmed text) and posts the per-public-
-  update summary (GitHub Discussion write API is unavailable from this
-  environment — the summary is drafted, user-confirmed, and recorded for
-  manual web-UI post, per the #55 delivery).
+- None: all stages S1–S7 complete. The only outstanding item is the GitHub
+  Discussion summary, which cannot be posted from this environment
+  (Discussions write API 404); the user posts it in the web UI (exact
+  user-confirmed text recorded in the S7 execution record).
 
 ## Execution record
 
@@ -283,3 +283,55 @@ container runtime behavior are unchanged.
   checked (documents neither `BC_BROWSER_DIR` nor
   `PLAYWRIGHT_BROWSERS_PATH` — nothing stale to update); no CONTRIBUTING
   change (no contributor-rule change). S6 gate passed. S7 next.
+- S7 (2026-10-31, "continue pr #45" session; record completed in the
+  follow-up session): S7.1 — the 3 planned commits on `dev` (one concern
+  each, mirroring the PR's two fix commits): `b4e833f` fix (config.py +
+  BillCollectorHelpers.py), `430146c` fix (redaction.py + runner.py +
+  test_bc_browser_cache.py), `96871d1` doc (CHANGELOG M1 placement); pushed
+  `1a50b9d..96871d1` to `origin/dev`, tree clean. S7.2 — Gitea `main`
+  promoted ff-only `22da847..96871d1` + pushed (no tag; not a release).
+  S7.3 — mirror `bash .private/sync_github.sh` → GitHub `main` `8f4bdd9`;
+  public gate green: no `.kilo`/`.vscode`/`.private`/`openwiki`/
+  `AGENTS.md`/`.openwikiignore`/`.github/workflows/` at the tip (`.github`
+  holds `ISSUE_TEMPLATE` only); integrated content present — the 5 code/test
+  files are byte-identical to PR head `93f71b2` on Gitea `96871d1`, and the
+  test file + the CHANGELOG entry (blob `1f439b9`, top of `[Unreleased] →
+  ### Fixed`) verified at the public tip. S7.4 — both public texts
+  user-confirmed at the S7 gate; close comment 6550508082 posted (mirror
+  flow, public commit link, M1 adaptation, validation summary, orphaned-tip
+  nit) and PR #45 closed without merge (closed_at 2026-10-31T23:20:57Z).
+  S7.5 — N/A (the PR references no issues). S7.6 — GitHub Discussion
+  summary user-confirmed; NOT posted (Discussions write API 404 in this
+  environment, per the #55 delivery) — recorded below for the manual web-UI
+  post. The S7 session ended at a model output limit right after the close;
+  the follow-up session re-verified the full final state (Gitea
+  `main` = `dev` = `origin/main` = `origin/dev` = `96871d1`, GitHub `main`
+  = `8f4bdd9`, PR closed without merge, clean tree, head still `93f71b2`)
+  and completed this record. Status: DELIVERED. Plan doc archived to
+  `completed/` + README + sequencing refs updated (doc-only commit).
+
+  Discussion summary (user-confirmed; for manual web-UI post — the
+  Discussions write API is unavailable from this environment):
+
+  Title: `Update: PR #45 integrated — browser cache precedence + safe launch
+  diagnostics`
+
+  > What landed on main from the community this round:
+  >
+  > - PR #45 (@flowcool): helper imports now preserve an explicit
+  >   `PLAYWRIGHT_BROWSERS_PATH`; empty `BC_BROWSER_DIR` /
+  >   `PLAYWRIGHT_BROWSERS_PATH` values fall back to the bundled
+  >   `apps/browser` directory (both import orders, pinned by an 18-case
+  >   subprocess matrix). Browser launch failures are now logged with the
+  >   exception class and a fixed recognized cause — including Chromium
+  >   sandbox startup banners — without retaining raw error text, call-log
+  >   lines or URLs.
+  >
+  > Maintainer-side adaptation: CHANGELOG entry placement (top of
+  > `[Unreleased] → Fixed`, house-style separator).
+  >
+  > Validation: full unit suite green (697 passed) and the full regression
+  > harness PASS (7 scenarios / 8 PDFs) on the exact promoted tree.
+  >
+  > Commit:
+  > https://github.com/s-t-e-f-a-n/BillCollector/commit/8f4bdd9387844014ed30a0c51dd31ec8df8c0cf8

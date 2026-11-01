@@ -35,11 +35,11 @@ def _action(step, terminals):
             or nested_actions
             or step.get("graceful") or methods[-1].get("method") not in terminals
             or any(m.get("method") not in LOCATORS for m in methods[:-1])):
-        raise ValueError("login requires locator chains with one explicit terminal action")
+        raise ValueError(f'step {step.get("step", "?") if isinstance(step, dict) else "?"}: login requires locator chains with one explicit terminal action')
     if methods[-1]["method"] == "press":
         args = methods[-1].get("arguments", [])
         if args not in ([{"key": "Enter"}], ["Enter"]):
-            raise ValueError("login submit press must use Enter")
+            raise ValueError(f'step {step.get("step", "?")}: login submit press must use Enter')
 
 
 def login_options(step):
@@ -102,21 +102,24 @@ def validate_login_recipe(recipe):
     """One top-level login block per task recipe; no implicit nested execution."""
     count = 0
 
-    def visit(step, nested=False):
+    def visit(step, service, nested=False):
         nonlocal count
         if is_login(step):
             if nested:
-                raise ValueError("login blocks cannot be nested")
-            login_options(step)
+                raise ValueError(f'service {service}, step {step["step"]}, method login: login blocks cannot be nested')
+            try:
+                login_options(step)
+            except ValueError as error:
+                raise ValueError(f'service {service}, step {step["step"]}, method login: {error}') from None
             count += 1
         else:
             if "submit" in step or "phases" in step:
-                raise ValueError("submit belongs to a login block")
+                raise ValueError(f'service {service}, step {step["step"]}: submit belongs to a login block')
             for child in step.get("steps", []):
-                visit(child, True)
+                visit(child, service, True)
 
     for service in recipe.get("services", []):
         for step in service.get("steps", []):
-            visit(step)
-    if count > 1:
-        raise ValueError("only one login block is supported per task recipe")
+            visit(step, service["serviceName"])
+            if count > 1:
+                raise ValueError(f'service {service["serviceName"]}, step {step["step"]}, method login: only one login block is supported per task recipe')

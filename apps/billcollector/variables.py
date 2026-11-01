@@ -153,6 +153,9 @@ def validate_variable_recipe(recipe, dates=None):
     """Shared UI/run-start validation of every original method argument."""
     def visit(value, location):
         if isinstance(value, dict):
+            for key, label in (("serviceName", "service"), ("step", "step"), ("method", "method")):
+                if key in value:
+                    location += f", {label} {value[key]}"
             for key, item in value.items():
                 if key in {'arguments', 'success'}:
                     expand_argument(item, None, dates, f'{location}/{key}')

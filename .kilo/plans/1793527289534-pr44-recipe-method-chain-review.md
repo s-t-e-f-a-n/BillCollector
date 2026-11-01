@@ -1,9 +1,9 @@
 # PR #44 review: validate daemon recipe method chains before runtime access (C3)
 
-> Status: AWAITING-DECISION (2026-11-01) — S1+S2 done: review complete,
-> verdict **approve** (no maintainer-side code changes; two integration
-> adaptations: runner.py 3-way merge, CHANGELOG entry merge); awaiting user
-> confirmation of verdict + integration plan before S3.
+> Status: INTEGRATING (2026-11-01) — S3 confirmed as-is by user; S4 done:
+> 16 files applied byte-for-byte from head `0b9a57f5` (verified identical),
+> runner.py 3-way merge resolved (one adjacent-import conflict, both sides
+> kept), CHANGELOG C3 entry inserted; tree left dirty for S5 validation.
 
 ## PR metadata
 
@@ -219,6 +219,29 @@ Manual (2 files):
 - `CHANGELOG.md` — insert the C3 `### Added` entry (PR text verbatim) at the
   top of `## [Unreleased] → ### Added`; do **not** re-add the #48 `### Fixed`
   entry (already present from PR #55).
+
+S4 result (2026-11-01):
+
+- Preflight re-run on dev `5f0063f`: head unchanged (`ls-remote` =
+  `refs/pr/44` = `0b9a57f5`), tree clean, 14 pre-images re-verified clean,
+  2 new files absent, runner.py blob hashes matched (`5bd6e11`/`e69374e`/
+  `2b59124`).
+- 16 files applied via `git show refs/pr/44:<path>`; `git hash-object` of
+  every applied file matches its PR-head blob.
+- runner.py 3-way merge (`git merge-file`): one conflict hunk at the import
+  block — dev's `launch_failure_record` extension and the PR's new
+  `from .recipes import load_recipe` line are adjacent, so the hunk was not
+  disjoint after all. Resolution keeps both: `from .redaction import
+  failure_category, failure_record, launch_failure_record` + `from .recipes
+  import load_recipe` (alphabetical order preserved). Post-merge checks all
+  pass (launch log line uses `launch_failure_record(e)`; `locator_arguments`
+  + `load_recipe` imports present; `_UNTIL_LOCATOR_KEYS` removed;
+  `CheckRecipe` import gone). Diff vs PR head = exactly the two PR #45
+  hunks; diff vs dev = 9 insertions / 32 deletions.
+- CHANGELOG: C3 entry inserted at the top of `## [Unreleased] → ### Added`
+  (blank line after, before the #49 entry); #48 `### Fixed` entry untouched.
+- Working tree left dirty (16 modified + 2 untracked) for S5; nothing
+  committed except this doc-only update.
 
 Skip (~102 entries): `doc/vault_transport.md` (identical to head), every
 `.kilo/`, `openwiki/`, `.private/`, `.vscode/`, `AGENTS.md`,

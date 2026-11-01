@@ -1,9 +1,12 @@
 # PR #44 review: validate daemon recipe method chains before runtime access (C3)
 
-> Status: INTEGRATING (2026-11-01) — S3 confirmed as-is by user; S4 done:
-> 16 files applied byte-for-byte from head `0b9a57f5` (verified identical),
-> runner.py 3-way merge resolved (one adjacent-import conflict, both sides
-> kept), CHANGELOG C3 entry inserted; tree left dirty for S5 validation.
+> Status: VALIDATED (2026-11-01) — S3 confirmed as-is; S4 done (16 files
+> byte-for-byte from head `0b9a57f5`, runner.py 3-way merge, CHANGELOG C3
+> entry); S5 all green: new module 57 passed, focused author set 311 passed
+> / 1 skipped / 57 subtests (author's exact-head numbers), regression
+> VERDICT: PASS (7 scenarios / 8 PDFs, exit 0), ruff F821+E4/E7/E9 clean,
+> bandit only the pre-existing B110; deployment skip user-confirmed. Next:
+> S6 documentation.
 
 ## PR metadata
 
@@ -270,7 +273,34 @@ Skip (~102 entries): `doc/vault_transport.md` (identical to head), every
 Deployment-process validation: the PR touches no `Dockerfile`,
 `.dockerignore`, `BillCollector.sh`, `install_docker-image.sh`,
 `deploy_remote.sh`, or runtime configuration → **not deployment-relevant**;
-the recorded skip is user-confirmed at the S5 gate (timestamp recorded there).
+recorded skip **user-confirmed at the S5 gate, 2026-11-01T13:16:36Z**.
+
+S5 result (2026-11-01, on dev `83804b5` + the dirty S4 tree, repo root,
+`apps/.venv/bin/python` with `PYTHONPATH=apps`):
+
+- Preflight re-run: head unchanged (`git ls-remote github refs/pull/44/head`
+  = `refs/pr/44` = `0b9a57f5`); all 17 applied files' `git hash-object`
+  matches their PR-head blobs; runner.py post-merge checks all pass
+  (redaction import line ends `launch_failure_record`; launch log line uses
+  `launch_failure_record(e)`; `from .methods import locator_arguments` and
+  `from .recipes import load_recipe` present; `_UNTIL_LOCATOR_KEYS` and
+  `CheckRecipe` absent).
+- New module: `pytest tests/test_bc_method_validation.py -q` → 57 passed
+  (5.1s).
+- Focused author set (11 modules, incl. the ungated real-browser test F4):
+  **311 passed, 1 skipped, 57 subtests passed** (219.8s) — exactly the
+  author's exact-head numbers.
+- Full regression: `run_regression.py --ini tests/bc_regression.ini` →
+  **VERDICT: PASS, exit 0** — 7 scenarios / 8 PDFs, every expectation
+  matched (testhappy x3 success; testgraceful success with the expected
+  graceful step failure; testbadlogin / testempty / testdlfail aborted as
+  expected; downloads: exactly the 8 expected files).
+- ruff 0.17.0 `--select F821,E4,E7,E9` on the 15 changed Python files →
+  All checks passed.
+- bandit on the changed app files → 1 Low: B110 try/except/pass at
+  `runner.py:985`; verified pre-existing (bare `except Exception:` present
+  in both the dev pre-PR blob `e69374e` at line 1008 and the PR-head blob
+  `2b59124` at line 985) — nothing new beyond the recorded baseline.
 
 ## Out of scope
 
@@ -282,5 +312,5 @@ the recorded skip is user-confirmed at the S5 gate (timestamp recorded there).
 
 ## Open questions
 
-None blocking. Awaiting user confirmation of the verdict and the integration
-plan (S2 gate → S3).
+None. S3 confirmed as-is by the user; S5 validated 2026-11-01 with the
+deployment skip user-confirmed. Next stage: S6 documentation.

@@ -60,7 +60,9 @@ CREATE TABLE IF NOT EXISTS Run (
     pause_prompt TEXT,
     pause_context TEXT,
     pause_deadline_at TEXT,
-    notes TEXT
+    notes TEXT,
+    collection_outcome TEXT,
+    date_from TEXT
 );
 CREATE TABLE IF NOT EXISTS PageStatus (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -153,6 +155,15 @@ class Database:
         }.items():
             if name not in download_cols:
                 self.conn.execute(f"ALTER TABLE Download ADD COLUMN {name} {definition}")
+
+        run_cols = {r["name"] for r in
+                    self.conn.execute("PRAGMA table_info(Run)")}
+        for name, definition in {
+            "collection_outcome": "TEXT",
+            "date_from": "TEXT",
+        }.items():
+            if name not in run_cols:
+                self.conn.execute(f"ALTER TABLE Run ADD COLUMN {name} {definition}")
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS download_notice_revision "
             "ON Download(task_id, source_identity, revision_sha256)")

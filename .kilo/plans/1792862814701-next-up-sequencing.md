@@ -576,6 +576,23 @@ Grounds:
   chain now at **#44** (C3/F08 recipe method-chain validation, contract
   agreed in #27) — its S1 pre-image check runs against the settled
   `96871d1` tree.
+- PR #44 S1+S2 done 2026-11-01 ("proceed from last sessions results"
+  session; last session had fetched the head + full diff): head
+  `0b9a57f` stable (matches `ls-remote`; `mergeable_state: clean`), branch
+  merged public `3c950d7` (pre-#45 tip) so PR #45's public delta is not in
+  the head; 119-file GitHub view resolved → 18 C3 files + 1 already-on-dev
+  file (`doc/vault_transport.md` via the #48 merge) + ~100 private-path
+  deletions (fork-behind-base artifact, never applied); pre-image check on
+  settled `dev` `31da0dc`: 14 clean applies + 2 new files
+  (`methods.py`, `test_bc_method_validation.py`), `runner.py` diverged only
+  by PR #45's disjoint `launch_failure_record` hunks (→ 3-way merge),
+  `CHANGELOG.md` manual (C3 entry only; #48 entry already on dev); verdict
+  **approve** (findings F1–F8 recorded; F1 diagnostics-format sanitization
+  trade-off, F2 until-locator `text=` normalization, F4 ungated
+  real-browser unit test to verify in S5); plan doc
+  `1793527289534-pr44-recipe-method-chain-review.md` + README + sequencing
+  refs — Status: AWAITING-DECISION, S3 next (user gate on verdict +
+  integration plan).
 
 ## Explicitly not doing
 

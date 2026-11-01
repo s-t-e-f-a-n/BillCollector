@@ -30,6 +30,7 @@ from billcollector.runner import (  # noqa: E402
     StepAbortError,
     _execute_step_with_pause,
     _handle_download_with_pause,
+    derive_outcome,
     run_result,
     step_attempts,
     transform_step_to_json,
@@ -46,27 +47,56 @@ class RetryDecisionTests(unittest.TestCase):
 
 
 class RunResultTests(unittest.TestCase):
-    def test_aborted_run_is_failure(self):
-        self.assertEqual(run_result(True, [{"result": "success"}]), "failure")
+    """C4: the five collection outcomes and their result mapping (pure)."""
 
-    def test_completed_run_without_downloads_is_failure(self):
-        # Legacy success contract: success needs at least one download.
-        self.assertEqual(run_result(False, []), "failure")
+    def test_aborted_run_with_rows_is_partial(self):
+        self.assertEqual(derive_outcome(False, [{"duplicate_of_id": None}], False),
+                         "partial")
 
-    def test_run_with_a_failed_download_is_failure(self):
-        files = [{"result": "success"},
-                 {"result": "failure: download error boom"}]
-        self.assertEqual(run_result(False, files), "failure")
+    def test_aborted_run_without_rows_is_failed(self):
+        self.assertEqual(derive_outcome(False, [], True), "failed")
 
-    def test_completed_run_with_successful_downloads_is_success(self):
-        files = [{"result": "success"}, {"result": "success"}]
-        self.assertEqual(run_result(False, files), "success")
+    def test_completed_run_with_a_new_row_is_new_documents(self):
+        rows = [{"duplicate_of_id": None}, {"duplicate_of_id": 7}]
+        self.assertEqual(derive_outcome(True, rows, False), "new_documents")
+
+    def test_completed_run_with_only_duplicate_rows_is_duplicates_only(self):
+        rows = [{"duplicate_of_id": 3}, {"duplicate_of_id": 4}]
+        self.assertEqual(derive_outcome(True, rows, False), "duplicates_only")
+
+    def test_completed_run_with_empty_proof_is_proved_empty(self):
+        self.assertEqual(derive_outcome(True, [], True), "proved_empty")
+
+    def test_completed_run_without_rows_or_proof_is_failed(self):
+        self.assertEqual(derive_outcome(True, [], False), "failed")
+
+    def test_new_documents_maps_to_success(self):
+        self.assertEqual(run_result(True, [{"duplicate_of_id": None}], False),
+                         "success")
+
+    def test_duplicates_only_maps_to_success(self):
+        self.assertEqual(run_result(True, [{"duplicate_of_id": 3}], False),
+                         "success")
+
+    def test_proved_empty_maps_to_success(self):
+        self.assertEqual(run_result(True, [], True), "success")
+
+    def test_completed_run_without_rows_or_proof_is_failure(self):
+        self.assertEqual(run_result(True, [], False), "failure")
+
+    def test_aborted_run_with_rows_is_failure(self):
+        self.assertEqual(run_result(False, [{"duplicate_of_id": None}], False),
+                         "failure")
+
+    def test_aborted_run_without_rows_is_failure(self):
+        self.assertEqual(run_result(False, [], True), "failure")
 
     def test_pause_outcome_cancel_is_cancelled(self):
-        self.assertEqual(run_result(True, [], "cancel"), "cancelled")
+        self.assertEqual(run_result(False, [{"duplicate_of_id": None}], True,
+                                    "cancel"), "cancelled")
 
     def test_pause_outcome_timeout_is_needs_attention(self):
-        self.assertEqual(run_result(True, [{"result": "success"}], "timeout"),
+        self.assertEqual(run_result(True, [], True, "timeout"),
                          "needs_attention")
 
 

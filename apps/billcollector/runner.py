@@ -136,25 +136,44 @@ def step_attempts(graceful: bool) -> int:
     return 1 if graceful else MAX_STEP_ATTEMPTS
 
 
-def run_result(aborted: bool, files_downloaded: list, pause_outcome=None) -> str:
-    """Terminal Run.result of a finished run.
+HEALTHY_OUTCOMES = ("new_documents", "duplicates_only", "proved_empty")
+
+
+def derive_outcome(completed: bool, rows: list, empty_proven: bool) -> str:
+    """What this run's collection proved for its window (C4, issue #24).
+
+    Derived at finalization from the run's own committed data (rows are
+    the run's Download rows; a new document is a row without a
+    duplicate_of_id): an incomplete run is partial when it committed
+    rows, failed otherwise; a completed run is new_documents on any new
+    row, duplicates_only when every row duplicates an existing identity,
+    proved_empty when the collection proved its window empty under
+    allow_empty, and failed when neither rows nor an empty proof exist."""
+    if not completed:
+        return "partial" if rows else "failed"
+    if any(row["duplicate_of_id"] is None for row in rows):
+        return "new_documents"
+    if rows:
+        return "duplicates_only"
+    return "proved_empty" if empty_proven else "failed"
+
+
+def run_result(completed: bool, rows: list, empty_proven: bool,
+               pause_outcome=None) -> str:
+    """Terminal Run.result of a finished run (C4, issue #24).
 
     A pause outcome is terminal in itself: cancel -> ``cancelled``,
     timeout -> ``needs_attention`` (decision: the operator can retry a
-    timed-out run manually later). Otherwise the legacy success contract:
-    success requires a completed run (no abort) with at least one
-    successfully downloaded file."""
+    timed-out run manually later). Otherwise the result follows the
+    collection outcome: the healthy outcomes (new_documents,
+    duplicates_only, proved_empty) map to ``success``, partial and
+    failed to ``failure``. The exit code stays 0 for success only."""
     if pause_outcome == "cancel":
         return "cancelled"
     if pause_outcome == "timeout":
         return "needs_attention"
-    if aborted:
-        return "failure"
-    if not files_downloaded:
-        return "failure"
-    if not all(entry["result"] == "success" for entry in files_downloaded):
-        return "failure"
-    return "success"
+    outcome = derive_outcome(completed, rows, empty_proven)
+    return "success" if outcome in HEALTHY_OUTCOMES else "failure"
 
 
 def _fresh_otp(bcs):
@@ -1095,7 +1114,8 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
                 ctx = _RunContext(task, run_id, db, debug, credentials, api_url)
                 ctx.bcs.date_context = dates
                 files, aborted, pause_outcome = _run_recipe(ctx, recipe)
-                result = run_result(aborted, files, pause_outcome)
+                rows = db.list_downloads(run_id=run_id)
+                result = run_result(not aborted, rows, False, pause_outcome)
             except RunInterrupted:
                 # A shutdown signal (SIGTERM/SIGINT) reached the run: the
                 # teardown below reaps the display stack and finalizes the

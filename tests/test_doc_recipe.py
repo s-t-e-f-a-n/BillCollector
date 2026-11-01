@@ -81,8 +81,8 @@ def test_author_example_login_downloads_and_session_reuse(portal, tmp_path, monk
                                      'http://127.0.0.1:9')
             files, aborted, outcome = runner._run_recipe(ctx, recipe)
             assert not aborted and outcome is None
-            assert runner.run_result(aborted, files, outcome) == 'success'
             records = db.list_downloads(run_id=run_id)
+            assert runner.run_result(not aborted, records, False, outcome) == 'success'
             assert {row['filename'] for row in records} == expected
             assert all(bool(row['duplicate_of_id']) is bool(attempt) for row in records)
             assert all(Path(row['saved_path']).read_bytes().startswith(b'%PDF') for row in records)

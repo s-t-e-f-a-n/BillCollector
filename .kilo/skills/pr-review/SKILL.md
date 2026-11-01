@@ -35,11 +35,13 @@ confirmation.
 - Commits follow the dev-commits skill (one concern per commit); promotion
   and mirroring follow the deploy skill (ff-only; no tag unless a release is
   decided separately).
-- Publication routine (agreed in GitHub issue #25, 2026-10-23): every
-  integrated delivery ends with the S7 close comment (public commit link +
-  maintainer-side adaptations + validation result), the related-issue
-  closure, and a per-public-update GitHub Discussion summary — each
-  public text is still user-confirmed before posting.
+- Publication routine (agreed in GitHub issue #25, 2026-10-23; amended
+  2026-11-01): every integrated delivery ends with the S7 close comment
+  (public commit link + maintainer-side adaptations + validation result)
+  and the related-issue closure. No GitHub Discussion entries are created
+  based on PRs (maintainer decision 2026-11-01) — the former
+  per-public-update Discussion summary step is removed. Each public text
+  is still user-confirmed before posting.
 - One PR per workflow chain. The review plan document is the single state
   carrier; every stage ends by committing its plan-doc update to `dev`
   (doc-only).
@@ -216,10 +218,9 @@ Gate: user confirms the docs.
    stating what landed (public commit link) and `PATCH .../issues/N`
    `{"state":"closed"}`; if the acceptance criteria are not met, leave the
    issue open and comment what remains (publication routine, issue #25).
-6. Per-public-update summary (user confirms the text first): post a short
-   GitHub Discussion summary of the included contributions and maintainer
-   changes, so contributors can subscribe instead of comparing `main`
-   (publication routine, issue #25).
+6. (Removed 2026-11-01 — maintainer decision: no GitHub Discussion
+   entries based on PRs. The step number is kept so older plan-doc
+   cross-references to "S7.6" stay meaningful.)
 7. Plan doc: Status: DELIVERED with the dev / main / GitHub hashes + close
    timestamp; doc-only commit + push to `dev` (stays private; `.kilo/` never
    reaches GitHub).

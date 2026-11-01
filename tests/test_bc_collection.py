@@ -589,7 +589,7 @@ services:
                 "methods": [{"method": "expect_download"}],
                 "steps": [{
                     "step": 3,
-                    "methods": [{"method": "click"}],
+                    "methods": [{"method": "click", "arguments": [{"selector": "#invoice"}]}],
                 }],
             }],
         }]

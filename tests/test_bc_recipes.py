@@ -66,6 +66,8 @@ services:
       description: "inner"
       methods:
       - method: "click"
+        arguments:
+        - selector: "#invoice"
 """
 
 
@@ -241,7 +243,7 @@ def test_parse_steps_flat_and_nested():
     assert child["number"] == 1
     assert child["description"] == "inner"
     assert child["depth"] == 1
-    assert child["methods"] == ["click"]
+    assert child["methods"] == ["click(selector=#invoice)"]
     assert child["children"] == []
 
 

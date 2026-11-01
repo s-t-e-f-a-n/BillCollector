@@ -325,7 +325,7 @@ class RunTaskOutcomeTests(unittest.TestCase):
     def _run_task(self, deadline_seconds=None):
         if deadline_seconds is not None:
             self.db.set_setting("pause_deadline_seconds", str(deadline_seconds))
-        with mock.patch.object(runner, "CheckRecipe", return_value=self.RECIPE), \
+        with mock.patch.object(runner, "load_recipe", return_value=(True, None, None, self.RECIPE)), \
                 mock.patch.object(runner, "_vault_preflight",
                                   return_value={"user": "u1",
                                                 "password": "p",
@@ -459,7 +459,7 @@ class RunInterruptedTests(unittest.TestCase):
         self._tmp.cleanup()
 
     def _run_task(self):
-        with mock.patch.object(runner, "CheckRecipe", return_value=self.RECIPE), \
+        with mock.patch.object(runner, "load_recipe", return_value=(True, None, None, self.RECIPE)), \
                 mock.patch.object(runner, "_vault_preflight",
                                   return_value={"user": "u1",
                                                 "password": "p",
@@ -582,7 +582,7 @@ class DisplayLifecycleTests(unittest.TestCase):
 
     def _run_task(self, manager=None):
         manager = manager or _LaunchDisplayManager()
-        with mock.patch.object(runner, "CheckRecipe", return_value=self.RECIPE), \
+        with mock.patch.object(runner, "load_recipe", return_value=(True, None, None, self.RECIPE)), \
                 mock.patch.object(runner, "_vault_preflight",
                                   return_value={"user": "u1",
                                                 "password": "p",
@@ -793,7 +793,11 @@ class WaitUserTests(unittest.TestCase):
                 ({"selector": "#done"}, "locator")):
             page = _UntilPage(_UntilLocator([]))
             runner._locator_for(page, until)
-            self.assertEqual(page.calls, [(expected, until)])
+            kwargs = dict(until)
+            for key in ("label", "placeholder"):
+                if key in kwargs:
+                    kwargs["text"] = kwargs.pop(key)
+            self.assertEqual(page.calls, [(expected, kwargs)])
 
     def test_locator_for_rejects_unrecognized_dicts(self):
         page = _UntilPage(_UntilLocator([]))

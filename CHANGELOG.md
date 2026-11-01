@@ -11,6 +11,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Opt-in daemon `download_all` incremental keys scoped to each task and key
+  attribute. Known items skip acquisition. A verified all-known list completes
+  successfully with an explicit log. Existing rows are not backfilled and
+  default acquisition stays unchanged. Keys do not detect corrections (issue #50).
+
 - Daemon recipe validation checks the installed Playwright method chains,
   argument names and types, properties, and reserved `wait_user` options (C3,
   issue #27). UI save and run start use the same gate before vault or browser

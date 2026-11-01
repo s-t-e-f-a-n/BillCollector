@@ -136,14 +136,16 @@ def step_attempts(graceful: bool) -> int:
     return 1 if graceful else MAX_STEP_ATTEMPTS
 
 
-def run_result(aborted: bool, files_downloaded: list, pause_outcome=None) -> str:
+def run_result(aborted: bool, files_downloaded: list, pause_outcome=None,
+               *, all_items_known=False) -> str:
     """Terminal Run.result of a finished run.
 
     A pause outcome is terminal in itself: cancel -> ``cancelled``,
     timeout -> ``needs_attention`` (decision: the operator can retry a
     timed-out run manually later). Otherwise the legacy success contract:
     success requires a completed run (no abort) with at least one
-    successfully downloaded file."""
+    successfully downloaded file, or a verified incremental all-known no-op.
+    The latter is logged explicitly by the collection adapter (issue #50)."""
     if pause_outcome == "cancel":
         return "cancelled"
     if pause_outcome == "timeout":
@@ -151,7 +153,7 @@ def run_result(aborted: bool, files_downloaded: list, pause_outcome=None) -> str
     if aborted:
         return "failure"
     if not files_downloaded:
-        return "failure"
+        return "success" if all_items_known else "failure"
     if not all(entry["result"] == "success" for entry in files_downloaded):
         return "failure"
     return "success"
@@ -522,14 +524,15 @@ def _collection_actions(ctx, step=None):
     identity_kwargs = ({"identity": step["notice_identity"]}
                        if step and "notice_identity" in step else {})
 
-    def save_download(download):
+    def save_download(download, *, source_key=None):
         filename = str(download.suggested_filename)
         if filename in collection_filenames and not identity_kwargs:
             raise collection.CollectionError(
                 "collection produced a duplicate suggested filename"
             )
+        key_kwargs = {"source_key": source_key} if source_key is not None else {}
         record = downloads.track_download(
-            download, ctx.run_id, ctx.task, ctx.db, **identity_kwargs
+            download, ctx.run_id, ctx.task, ctx.db, **identity_kwargs, **key_kwargs
         )
         collection_filenames.add(filename)
         ctx.files_downloaded.append({
@@ -540,14 +543,25 @@ def _collection_actions(ctx, step=None):
         return record
 
     def download(locator, options):
-        return collection.download_all(
+        incremental = isinstance(options, dict) and options.get("incremental") is True
+        if incremental:
+            prefix = collection.source_key(options.get("key_attribute"), "")
+            completed_keys.update(
+                key[len(prefix):] for key in ctx.db.known_source_keys(ctx.task["id"])
+                if key.startswith(prefix))
+        records = collection.download_all(
             ctx.page,
             ctx.context,
             locator,
             save_download,
             options,
             completed_keys=completed_keys,
+            keyed_save=True,
         )
+        if incremental and not records:
+            ctx.all_items_known = True
+            logger.info("Incremental collection succeeded: all items known")
+        return records
 
     def replacement_calendar(root, options):
         from .calendar import collect_calendar
@@ -1095,7 +1109,10 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
                 ctx = _RunContext(task, run_id, db, debug, credentials, api_url)
                 ctx.bcs.date_context = dates
                 files, aborted, pause_outcome = _run_recipe(ctx, recipe)
-                result = run_result(aborted, files, pause_outcome)
+                result = run_result(
+                    aborted, files, pause_outcome,
+                    all_items_known=getattr(ctx, "all_items_known", False),
+                )
             except RunInterrupted:
                 # A shutdown signal (SIGTERM/SIGINT) reached the run: the
                 # teardown below reaps the display stack and finalizes the
@@ -1138,7 +1155,10 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
             # shutdown signal arrived before the Run row existed.
             display.release_display(display_number)
         if result == "success":
-            logger.info(f"Task {task_id} run {run_id} finished with downloaded file(s) {files}.")
+            if not files:
+                logger.info(f"Task {task_id} run {run_id} succeeded: all items known.")
+            else:
+                logger.info(f"Task {task_id} run {run_id} finished with downloaded file(s) {files}.")
             return 0
         logger.error(f"Task {task_id} run {run_id} failed (result={result}, downloads={files}).")
         return 1

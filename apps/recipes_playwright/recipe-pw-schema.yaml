@@ -256,6 +256,8 @@ definitions:
               type: integer
               minimum: 1
               maximum: 600000
+            incremental:
+              type: boolean
             event_window_ms:
               type: integer
               minimum: 1

@@ -150,7 +150,8 @@ def _recover_locked(db, target):
                     # Conservative recovery of publication without its row:
                     # do not replay an unknown external consumer effect.
                     db.insert_download(**{k: metadata[k] for k in _FIELDS},
-                                       staged_path=str(staged), state="consumed")
+                                       staged_path=str(staged), state="consumed",
+                                       source_key=metadata.get("source_key"))
                     _clean_journal(entry)
                 else:
                     _quarantine(entry)
@@ -184,9 +185,10 @@ def recover_downloads(db):
             _recover_locked(db, target)
 
 
-def track_download(download, run_id, task, db, *, identity=None):
+def track_download(download, run_id, task, db, *, identity=None, source_key=None):
     """Stage one Playwright Download, commit intent, publish, then deliver.
 
+    source_key records the opt-in collection key, independent of content.
     Existing same-task hashes retain an audit row without another publication.
     With a notice identity, a repeated source+revision pair retains an audit
     row instead of republishing a metadata-only regeneration. Consumer
@@ -221,6 +223,8 @@ def track_download(download, run_id, task, db, *, identity=None):
             "url": sanitize_url(str(download.url)), "filename": filename,
             "size": staged.stat().st_size, "sha256": sha,
         }
+        if source_key is not None:
+            record["source_key"] = source_key
         if identity is not None:
             record["source_identity"] = source_identity
             record["revision_sha256"] = revision

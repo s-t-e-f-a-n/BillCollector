@@ -130,11 +130,15 @@ def next_run(scheduler: TaskScheduler, task_id: int) -> str:
 
 
 def _last_run_cell(run) -> str:
-    """Last run: timestamp + result (``—`` when the task never ran)."""
+    """Last run: timestamp + result + collection outcome (``—`` when the
+    task never ran; the outcome is omitted when the row predates it)."""
     if run is None:
         return "—"
     result = run["result"] or "running"
-    return f"{run['started_at'] or '—'} · {result}"
+    text = f"{run['started_at'] or '—'} · {result}"
+    if run["collection_outcome"]:
+        text += f" · {run['collection_outcome']}"
+    return text
 
 
 def _session_cell(task, latest_run) -> str:

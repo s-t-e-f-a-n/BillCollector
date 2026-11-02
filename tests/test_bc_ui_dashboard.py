@@ -204,6 +204,21 @@ async def test_one_row_per_task_sorted_and_populated(user, testdb, tmp_path):
     await user.should_see("1 waiting")
 
 
+async def test_last_run_cell_appends_the_collection_outcome(user, testdb,
+                                                             tmp_path):
+    """A finalized run with a collection outcome appends it to the
+    last-run cell (C4, A6); the NULL-outcome rows of the shared seed
+    stay result-only (``endswith("· success")`` in
+    ``test_one_row_per_task_sorted_and_populated``)."""
+    seed = _seed(testdb, tmp_path)
+    testdb.update_run(seed["run_idle"], collection_outcome="proved_empty")
+    await _login(user, testdb)
+    await user.open("/")
+
+    idle_row = next(r for r in _table_rows(user) if r["id"] == seed["idle"])
+    assert idle_row["last_run"].endswith("· success · proved_empty")
+
+
 async def test_service_filter_narrows_the_rows(user, testdb, tmp_path):
     _seed(testdb, tmp_path)
     await _login(user, testdb)

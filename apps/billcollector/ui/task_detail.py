@@ -306,22 +306,26 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
         def render_history() -> None:
             """The run history (D4.1b): one expansion per run (newest
             first) with the run's notes tail and its step rows. Rebuilt
-            only when the run set or a run's result/end changes, so the
-            poll keeps the user's expanded state in between."""
+            only when the run set or a run's result/end/outcome changes,
+            so the poll keeps the user's expanded state in between."""
             runs = db.list_runs(task_id)
-            sig = tuple((r["id"], r["result"], r["ended_at"]) for r in runs)
+            sig = tuple((r["id"], r["result"], r["ended_at"],
+                         r["collection_outcome"]) for r in runs)
             if sig == history_sig["sig"]:
                 return
             history_sig["sig"] = sig
             history_box.clear()
             with history_box:
                 for run in runs:
-                    with ui.expansion(
-                            f"Run {run['id']} · {_fmt_ts(run['started_at'])} → "
-                            f"{_fmt_ts(run['ended_at'])} · "
-                            f"{run['result'] or 'running'} · "
-                            f"{_duration(run['started_at'], run['ended_at'])}"
-                    ).classes("w-full"):
+                    label = (
+                        f"Run {run['id']} · {_fmt_ts(run['started_at'])} → "
+                        f"{_fmt_ts(run['ended_at'])} · "
+                        f"{run['result'] or 'running'} · "
+                        f"{_duration(run['started_at'], run['ended_at'])}"
+                    )
+                    if run["collection_outcome"]:
+                        label += f" · {run['collection_outcome']}"
+                    with ui.expansion(label).classes("w-full"):
                         if run["notes"]:
                             ui.label(f"Notes: {_tail(run['notes'], NOTES_TAIL)}"
                                      ).classes("text-grey-6").mark("detail-notes")

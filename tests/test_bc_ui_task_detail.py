@@ -159,6 +159,20 @@ async def test_detail_page_shows_header_history_steps_and_downloads(
     await user.should_see("detail log line")
 
 
+async def test_run_history_header_appends_the_collection_outcome(
+        user, testdb, tmp_path):
+    """The run history expansion appends the run's collection outcome
+    (C4, A6); the NULL-outcome seed run is covered by the main test
+    above, whose header keeps ``success · 4m 5s`` without a suffix."""
+    seed = _seed_detail(testdb, tmp_path)
+    testdb.update_run(seed["run"], collection_outcome="new_documents")
+    await _login(user, testdb)
+    await user.open(f"/tasks/{seed['task']}")
+
+    (exp,) = user.find(kind=ui.expansion).elements
+    assert "success · 4m 5s · new_documents" in exp.text
+
+
 async def test_action_buttons_follow_the_task_status(user, testdb, tmp_path):
     """While the task is running: Run now and Reset profile are
     disabled, Stop is enabled (D4.1/D4.4)."""

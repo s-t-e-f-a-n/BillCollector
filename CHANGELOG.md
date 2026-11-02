@@ -11,6 +11,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Run-result semantics (issue #24, F06): a run now separates run health
+  from what the collection proved. `Run.result` keeps its values; two
+  additive columns (migrated in place, no backfill) carry the rest -
+  `Run.collection_outcome` (`new_documents` / `duplicates_only` /
+  `proved_empty` / `partial` / `failed`, derived at finalization from the
+  run's committed rows and its empty proof) and `Run.date_from` (the
+  effective window start, so the statement is auditable). The three
+  healthy outcomes map to `success` (exit 0): a healthy empty collection
+  and a duplicates-only run are no longer failures; `partial` and
+  `failed` stay `failure`, with the outcome saying why. `download_all`
+  gains the opt-in `allow_empty` (default off): an empty listing then
+  completes with zero records and proves the window empty; without it an
+  empty listing fails closed as before. The terminal notification now
+  also sends for successful runs and carries the outcome and window
+  start; the dashboard last-run cell and the task-detail run history
+  show the outcome.
 - Daemon recipe validation checks the installed Playwright method chains,
   argument names and types, properties, and reserved `wait_user` options (C3,
   issue #27). UI save and run start use the same gate before vault or browser
@@ -18,9 +34,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   agreed date-variable grammar and login `press("Enter")` form remain supported.
 
 - Terminal daemon run notifications: account-free failure, interruption and
-  attention notices through the existing opt-in ntfy topic. Successful and
-  cancelled runs stay silent, delivery is best-effort, and the monitor sends
-  each terminal notice once. (issue #49)
+  attention notices through the existing opt-in ntfy topic. Cancelled runs
+  stay silent (successful runs are notified with their collection outcome -
+  see the run-result entry in this section), delivery is best-effort, and
+  the monitor sends each terminal notice once. (issue #49)
 - Opt-in daemon `notice_identity` with source-scoped PDF revision tracking,
   nullable Download identity columns, and pinned pypdf. Original PDFs are kept.
   (issue #38)

@@ -206,6 +206,7 @@ Arguments: exactly one object:
 | `max_items` | integer 1..200 | yes |
 | `timeout_ms` | integer 1..600000 | yes |
 | `event_window_ms` | integer 1..10000, and < `timeout_ms` | yes |
+| `allow_empty` | boolean (default `false`) | no |
 
 Semantics: the initial ordered key snapshot is the contract for the
 whole action; the list is re-read after every click and the selected
@@ -213,8 +214,10 @@ element re-checked before use - shrink, reorder, replacement, duplicate
 or empty keys, and ambiguous controls fail closed. Exactly one file per
 click within the event window; popups are captured and closed; the
 listing is restored after a navigating download. Persisted records stay
-committed when a later item fails. Non-graceful, single attempt, cannot
-be nested.
+committed when a later item fails. With the opt-in `allow_empty` an
+empty listing completes with zero records and proves the window empty
+for the run outcome; without the option the fail-closed error is
+unchanged. Non-graceful, single attempt, cannot be nested.
 
 ## 4. Variables
 

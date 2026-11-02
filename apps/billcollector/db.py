@@ -439,6 +439,11 @@ class Database:
         self.conn.commit()
         return cur.lastrowid
 
+    def get_download(self, download_id):
+        """The Download row with the given id, or None."""
+        return self.conn.execute(
+            "SELECT * FROM Download WHERE id=?", (download_id,)).fetchone()
+
     def set_download_state(self, download_id, state):
         self.conn.execute("UPDATE Download SET state=? WHERE id=?",
                           (state, download_id))

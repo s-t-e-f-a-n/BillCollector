@@ -300,6 +300,46 @@ class Orchestrator:
             await proc.wait()
         return True
 
+    async def retry_delivery(self, download_id: int) -> tuple[bool, str | None]:
+        """Manually retry the delivery of one Download row (issue #24).
+
+        Spawns the same recovery subprocess as startup recovery (consumers
+        stay out of the UI process, as today) with a --retry argument,
+        bounded by the download_recovery_timeout_seconds setting. Returns
+        (True, None) when the child exits 0 (the row is consumed);
+        otherwise (False, message) with a sanitized message that never
+        includes the child's raw stderr (consumer exceptions can contain
+        document URLs or credentials)."""
+        try:
+            timeout = int(self._db.get_setting("download_recovery_timeout_seconds"))
+            if timeout <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return False, ("Download recovery timeout setting is invalid; "
+                           "retry not started")
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, "-m", "billcollector.downloads",
+                str(Path(self._db.path).resolve()), "--retry", str(download_id),
+                cwd=str(config.APP_DIR),
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+        except Exception:
+            logger.exception("retry_delivery: spawning the retry subprocess failed")
+            return False, "Manual delivery retry could not be started"
+        try:
+            exit_code = await asyncio.wait_for(proc.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            # wait_for cancels the wait, not the child: kill and reap it
+            # before reporting the sanitized timeout error.
+            proc.kill()
+            await proc.wait()
+            return False, f"Manual delivery retry timed out after {timeout}s"
+        if exit_code:
+            return False, f"Manual delivery retry failed (exit code {exit_code})"
+        return True, None
+
     @staticmethod
     def _signal_group(proc, signum) -> None:
         """Signal a runner's whole process group (the display-stack

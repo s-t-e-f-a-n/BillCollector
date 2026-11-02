@@ -2,6 +2,7 @@
 """Unit tests for daemon download tracking + per-task sha256 dedup (no browser)."""
 
 import hashlib
+import os
 import shutil
 import sys
 import tempfile
@@ -137,6 +138,68 @@ class DownloadTrackingTests(unittest.TestCase):
                if r["duplicate_of_id"] is not None][0]
         self.assertEqual(dup["state"], "consumed")
         self.assertIsNone(dup["delivery_attempts"])
+
+    def test_retry_delivery_consumes_a_failed_row(self):
+        from unittest.mock import patch
+
+        def consume(record):
+            raise OSError("synthetic consumer unavailable")
+
+        with patch.object(bcdl, "CONSUMERS", [consume]):
+            record = self._track("a.pdf", b"manual retry", "http://x/a.pdf")
+        row = self.db.find_download_by_sha(self.tid, record["sha256"])
+        self.assertEqual(row["state"], "failed")
+        with patch.object(bcdl, "CONSUMERS", [lambda r: None]):
+            self.assertIs(bcdl.retry_delivery(self.db, row["id"]), True)
+        fresh = self.db.get_download(row["id"])
+        self.assertEqual(fresh["state"], "consumed")
+        self.assertEqual(fresh["delivery_attempts"], 2)
+
+    def test_retry_delivery_consumes_a_published_row(self):
+        from unittest.mock import patch
+        self._track("a.pdf", b"published retry", "http://x/a.pdf")
+        row = dict(self.db.list_downloads()[0])
+        # Simulate the crash window: published but not yet delivered.
+        self.db.set_download_state(row["id"], "published")
+        with patch.object(bcdl, "CONSUMERS", [lambda r: None]):
+            self.assertIs(bcdl.retry_delivery(self.db, row["id"]), True)
+        fresh = self.db.get_download(row["id"])
+        self.assertEqual(fresh["state"], "consumed")
+
+    def test_retry_delivery_publishes_a_staged_row_before_delivery(self):
+        from unittest.mock import patch
+        data = b"staged retry bytes"
+        target = Path(self.tmp.name) / "dl"
+        identity = hashlib.sha256(os.fsencode(Path(self.db.path).resolve())).hexdigest()[:16]
+        entry = target / ".billcollector" / identity / "manual"
+        entry.mkdir(parents=True)
+        staged = entry / "document"
+        staged.write_bytes(data)
+        row_id = self.db.insert_download(
+            self.rid, self.tid, "http://x/s.pdf", "s.pdf", len(data),
+            hashlib.sha256(data).hexdigest(), str(target / "s.pdf"),
+            state="staged", staged_path=str(staged))
+        with patch.object(bcdl, "CONSUMERS", [lambda r: None]):
+            self.assertIs(bcdl.retry_delivery(self.db, row_id), True)
+        fresh = self.db.get_download(row_id)
+        self.assertEqual(fresh["state"], "consumed")
+        self.assertEqual((target / "s.pdf").read_bytes(), data)
+
+    def test_retry_delivery_refuses_consumed_duplicate_and_missing_rows(self):
+        from unittest.mock import patch
+
+        def refuse(record):
+            raise AssertionError("consumer must not run for refused rows")
+
+        self._track("a.pdf", b"refuse bytes", "http://x/a.pdf")
+        self._track("a.pdf", b"refuse bytes", "http://x/a-mirror.pdf")
+        rows = self.db.list_downloads(task_id=self.tid)
+        consumed = [r for r in rows if r["duplicate_of_id"] is None][0]
+        dup = [r for r in rows if r["duplicate_of_id"] is not None][0]
+        with patch.object(bcdl, "CONSUMERS", [refuse]):
+            self.assertIs(bcdl.retry_delivery(self.db, consumed["id"]), False)
+            self.assertIs(bcdl.retry_delivery(self.db, dup["id"]), False)
+            self.assertIs(bcdl.retry_delivery(self.db, 987654), False)
 
     def test_notify_delivery_failed_sends_message_with_dispatch(self):
         from unittest.mock import patch

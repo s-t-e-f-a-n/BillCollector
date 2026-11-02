@@ -196,6 +196,25 @@ def recover_downloads(db):
             _recover_locked(db, target)
 
 
+def retry_delivery(db, download_id):
+    """Manually retry the delivery of one row (at-least-once, issue #24).
+
+    Missing, duplicate and consumed rows are refused. A staged row is
+    published first; the row is then delivered on its stable idempotency
+    key under the target's publication lock, the same path startup
+    recovery uses. True iff the row ends consumed.
+    """
+    row = db.get_download(download_id)
+    if row is None or row["duplicate_of_id"] is not None or row["state"] == "consumed":
+        return False
+    with _publication_lock(Path(row["saved_path"]).parent):
+        if row["state"] == "staged":
+            _publish(row, db)
+        row = dict(db.get_download(download_id))
+        _deliver(row, db)
+    return db.get_download(download_id)["state"] == "consumed"
+
+
 def track_download(download, run_id, task, db, *, identity=None):
     """Stage one Playwright Download, commit intent, publish, then deliver.
 
@@ -303,9 +322,27 @@ def recover_downloads_in_subprocess(db):
 if __name__ == "__main__":
     from .db import Database
 
-    database = Database(path=sys.argv[1])
+    args = sys.argv[1:]
+    retry_id = None
+    if "--retry" in args:
+        index = args.index("--retry")
+        if index + 1 >= len(args):
+            sys.exit(2)
+        try:
+            retry_id = int(args[index + 1])
+        except ValueError:
+            sys.exit(2)
+        args = args[:index] + args[index + 2:]
+    if len(args) != 1:
+        sys.exit(2)
+    database = Database(path=args[0])
     try:
-        recover_downloads(database)
+        if retry_id is None:
+            recover_downloads(database)
+        elif not retry_delivery(database, retry_id):
+            # Exit 0 only on delivery: missing, duplicate and consumed
+            # rows and a failed delivery all exit 1.
+            sys.exit(1)
     except Exception:
         # Do not persist raw exception text or paths from recovery/consumers.
         sys.exit(1)

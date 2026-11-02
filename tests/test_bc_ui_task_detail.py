@@ -30,6 +30,7 @@ from billcollector import config  # noqa: E402
 from billcollector.db import Database  # noqa: E402
 from billcollector.orchestrator import Orchestrator  # noqa: E402
 from billcollector.ui import auth  # noqa: E402
+from billcollector.ui.downloads import build_download_rows  # noqa: E402
 
 GOOD_PASSWORD = "ui-test-pass-1"
 
@@ -390,3 +391,86 @@ async def test_detail_recovery_is_one_run_only(user, testdb, monkeypatch):
     await _wait(lambda: len(started) == 2, 'normal run did not dispatch')
     assert started[-1] == (task, None)
     assert testdb.get_task(task)['date_window_days'] == 90
+
+
+def test_download_rows_expose_the_delivery_states(testdb):
+    """The row builder maps the four internal delivery states to the
+    exposed labels (issue #24 C8), carries the attempt count on failed
+    rows (``—`` when it was never attempted), and flags every
+    non-``consumed``, non-duplicate row as retryable."""
+    task = testdb.create_task("svc-dl", "user1")
+    run = testdb.create_run(task)
+    staged = testdb.insert_download(run, task, "http://dl.example/s.pdf",
+                                    "s.pdf", 1, "0123456789aa",
+                                    "/tmp/s.pdf", state="staged")
+    published = testdb.insert_download(run, task, "http://dl.example/p.pdf",
+                                       "p.pdf", 1, "0123456789bb",
+                                       "/tmp/p.pdf", state="published")
+    failed = testdb.insert_download(run, task, "http://dl.example/f.pdf",
+                                    "f.pdf", 1, "0123456789cc",
+                                    "/tmp/f.pdf", state="failed")
+    dup = testdb.insert_download(run, task, "http://dl.example/f2.pdf",
+                                 "f2.pdf", 1, "0123456789dd",
+                                 "/tmp/f2.pdf", state="failed",
+                                 duplicate_of_id=failed)
+    rows = {r["id"]: r for r in build_download_rows(testdb, task_id=task)}
+    assert rows[staged]["delivery"] == "downloaded"
+    assert rows[published]["delivery"] == "pending delivery"
+    assert rows[failed]["delivery"] == "failed delivery (—)"
+    assert rows[dup]["delivery"] == "failed delivery (—)"
+    for rid in (staged, published, failed):
+        assert rows[rid]["retryable"] is True
+    assert rows[dup]["retryable"] is False
+
+    testdb.increment_download_attempts(failed)
+    rows = {r["id"]: r for r in build_download_rows(testdb, task_id=task)}
+    assert rows[failed]["delivery"] == "failed delivery (1)"
+
+    testdb.set_download_state(published, "consumed")
+    rows = {r["id"]: r for r in build_download_rows(testdb, task_id=task)}
+    assert rows[published]["delivery"] == "delivered"
+    assert rows[published]["retryable"] is False
+
+
+async def test_downloads_page_retry_confirms_and_routes(user, testdb,
+                                                        tmp_path, monkeypatch):
+    """Per-row Retry delivery on the downloads page (issue #24 C8): the
+    exposed delivery states render in the table, the confirmation dialog
+    states the at-least-once semantics, the confirm routes to the
+    orchestrator's retry subprocess with the row id, and the rows are
+    rebuilt (the retried row turns ``delivered``)."""
+    seed = _seed_detail(testdb, tmp_path)
+    testdb.set_download_state(seed["dl1"], "failed")
+    testdb.increment_download_attempts(seed["dl1"])
+    retried = []
+
+    async def fake_retry(self, download_id):
+        retried.append(download_id)
+        testdb.set_download_state(download_id, "consumed")
+        return True, None
+
+    monkeypatch.setattr(Orchestrator, "retry_delivery", fake_retry)
+    await _login(user, testdb)
+    await user.open("/downloads")
+
+    (table,) = user.find(kind=ui.table).elements
+    rows = table.rows
+    assert len(rows) == 2
+    failed_row = next(r for r in rows if r["delivery"] == "failed delivery (1)")
+    assert failed_row["id"] == seed["dl1"]
+    assert failed_row["retryable"] is True
+    dup_row = next(r for r in rows if r["duplicate"] != "—")
+    assert dup_row["delivery"] == "delivered"
+    assert dup_row["retryable"] is False
+
+    user.find(kind=ui.table).trigger(
+        "dlretry", {"id": seed["dl1"], "task": "svc-a / user1"})
+    await user.should_see("Retry the delivery?")
+    await user.should_see("at-least-once")
+    user.find(marker="downloads-retry-confirm").click()
+    await _wait(lambda: retried == [seed["dl1"]],
+                "retry did not route to the orchestrator")
+    assert user.notify.contains(f"Delivery retried for download #{seed['dl1']}")
+    rows = table.rows
+    assert next(r for r in rows
+                if r["id"] == seed["dl1"])["delivery"] == "delivered"

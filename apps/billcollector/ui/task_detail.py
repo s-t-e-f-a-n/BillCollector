@@ -32,6 +32,7 @@ from .auth import require_auth
 from .downloads import BODY as DOWNLOAD_BODY
 from .downloads import COLUMNS as DOWNLOAD_COLUMNS
 from .downloads import build_download_rows
+from .downloads import open_download_retry
 from .format import deadline_text
 from .layout import build_layout
 from .logpane import LogPane
@@ -367,14 +368,30 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
 
         def render_downloads() -> None:
             """The task's downloads (D4.1/D4.3): newest first, the
-            duplicate_of rows badged. Rebuilt only when the row set
-            changed."""
+            duplicate_of rows badged, the exposed delivery state
+            (issue #24 C8). Rebuilt only when the row set changed (the
+            delivery state is part of the signature: a row finishing or
+            failing a delivery changes it)."""
             rows = build_download_rows(db, task_id=task_id)
-            sig = tuple(r["filename"] + r["date"] for r in rows)
+            sig = tuple(r["filename"] + r["date"] + r["delivery"]
+                        for r in rows)
             if sig == download_sig["sig"]:
                 return
             download_sig["sig"] = sig
             download_table.rows = rows
+
+        def on_dl_retry(e) -> None:
+            """Per-row Retry delivery (issue #24 C8): the confirmation
+            dialog, then the orchestrator's retry subprocess (the shared
+            body slot carries the button)."""
+            detail = e.args if isinstance(e.args, dict) else {}
+            download_id = detail.get("id")
+            if download_id is None:
+                return
+            open_download_retry(download_id, orchestrator, refresh)
+
+        download_table.on("dlretry", on_dl_retry,
+                          js_handler="(event) => emit(event.detail)")
 
         render_downloads()
 

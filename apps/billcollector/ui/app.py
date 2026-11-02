@@ -170,7 +170,7 @@ def build_app(db: Database, orchestrator: Orchestrator,
     register_task_detail(db, orchestrator)
     register_session(db)
     register_recipe_editor(db, orchestrator)
-    register_downloads(db)
+    register_downloads(db, orchestrator)
     register_settings(db)
     register_runfiles(nicegui_app)
 

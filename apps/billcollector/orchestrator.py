@@ -530,5 +530,10 @@ class Orchestrator:
         logger.info("runner for task %s (run %s) exited with code %s",
                     task_id, run_id, exit_code)
         # Only the monitor sends terminal notifications, including after shutdown.
+        # Runner-finalized rows carry the outcome and window start; the
+        # orchestrator-finalized crash paths leave both None, so the
+        # message carries no outcome suffix.
         notify_run_result(self._db, updates.get("result", row["result"]),
+                          outcome=row["collection_outcome"],
+                          date_from=row["date_from"],
                           dispatch=self._dispatch_notification)

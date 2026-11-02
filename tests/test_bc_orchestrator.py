@@ -300,9 +300,14 @@ class RunNotificationTests(OrchestratorTestBase):
         self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
         self.assertNotIn("private secret", str(logs.output))
 
-    def test_success_does_not_send(self):
+    def test_success_sends_the_base_message_without_outcome(self):
+        # The stub runner finalizes without collection_outcome/date_from,
+        # so the monitor sends the base success message (issue #24:
+        # successful runs are notified with their outcome when known).
         self.assertEqual(self._run_and_drain(self._orch("ok")), 0)
-        self.post.assert_not_called()
+        self.post.assert_called_once()
+        self.assertEqual(self.post.call_args.kwargs["data"],
+                         b"A collector run finished successfully.")
 
     def test_interrupted_shutdown_sends_once(self):
         orch = self._orch("crash", sleep=30)

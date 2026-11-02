@@ -108,6 +108,7 @@ class NotifyRunResultTests(unittest.TestCase):
 
     def test_outcomes_send_fixed_payloads_once(self):
         for result, message in {
+            "success": "A collector run finished successfully.",
             "failure": "A collector run failed. Check the BillCollector dashboard.",
             "interrupted": "A collector run was interrupted. Check the BillCollector dashboard.",
             "needs_attention": "A collector run timed out waiting for attention. Check the BillCollector dashboard.",
@@ -129,8 +130,33 @@ class NotifyRunResultTests(unittest.TestCase):
                 post.assert_not_called()
                 dispatch.assert_not_called()
 
+    def test_outcome_and_window_are_appended_when_known(self):
+        cases = (
+            ("success", "new_documents", "2026-07-04",
+             "A collector run finished successfully. Outcome: new_documents "
+             "(window from 2026-07-04)"),
+            ("failure", "partial", None,
+             "A collector run failed. Check the BillCollector dashboard. "
+             "Outcome: partial"),
+        )
+        for result, outcome, date_from, message in cases:
+            with self.subTest(result=result), mock.patch.object(
+                    notify.requests, "post",
+                    return_value=mock.Mock(status_code=200)) as post:
+                self.assertTrue(notify.notify_run_result(
+                    self.db, result, outcome=outcome, date_from=date_from))
+                post.assert_called_once()
+                self.assertEqual(post.call_args.kwargs["data"].decode("utf-8"), message)
+
+    def test_unknown_outcome_sends_the_base_message_only(self):
+        with mock.patch.object(
+                notify.requests, "post", return_value=mock.Mock(status_code=200)) as post:
+            self.assertTrue(notify.notify_run_result(self.db, "failure"))
+        self.assertEqual(post.call_args.kwargs["data"].decode("utf-8"),
+                         "A collector run failed. Check the BillCollector dashboard.")
+
     def test_other_results_are_silent(self):
-        for result in (None, "success", "cancelled", "https://private.test/secret"):
+        for result in (None, "cancelled", "https://private.test/secret"):
             with self.subTest(result=result), mock.patch.object(notify.requests, "post") as post:
                 self.assertFalse(notify.notify_run_result(self.db, result))
                 post.assert_not_called()

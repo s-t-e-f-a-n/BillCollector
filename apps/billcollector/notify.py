@@ -78,22 +78,30 @@ def notify_pause(db, run, task):
 
 
 _RUN_MESSAGES = {
+    "success": "A collector run finished successfully.",
     "failure": "A collector run failed. Check the BillCollector dashboard.",
     "interrupted": "A collector run was interrupted. Check the BillCollector dashboard.",
     "needs_attention": "A collector run timed out waiting for attention. Check the BillCollector dashboard.",
 }
 
 
-def notify_run_result(db, result, *, dispatch=None):
+def notify_run_result(db, result, *, outcome=None, date_from=None, dispatch=None):
     """Best-effort daemon outcome push with a fixed, account-free payload.
 
     Read Settings before dispatch: the worker receives only immutable strings,
-    never the SQLite connection. Successful and cancelled runs stay silent.
+    never the SQLite connection. Terminal results (including success, since
+    the #24 agreement notified successful runs with their outcome) are
+    pushed; cancelled runs stay silent. The collection outcome and the
+    window start are appended when known.
     """
     try:
         message = _RUN_MESSAGES.get(result)
         if message is None:
             return False
+        if outcome is not None:
+            message += f" Outcome: {outcome}"
+            if date_from is not None:
+                message += f" (window from {date_from})"
         topic = (db.get_setting("ntfy_topic") or "").strip()
         if not topic:
             return False

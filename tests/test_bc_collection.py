@@ -282,6 +282,50 @@ class DownloadAllTests(unittest.TestCase):
                 )
             self.assertEqual(listing.handles, [])
 
+    def test_empty_snapshot_with_allow_empty_returns_no_records(self):
+        page, context, listing = self.setup_listing([])
+
+        records = download_all(
+            page, context, listing, lambda item: item,
+            {**self.options, "allow_empty": True},
+        )
+
+        self.assertEqual(records, [])
+        self.assertEqual(listing.handles, [])
+
+    def test_empty_snapshot_without_allow_empty_still_fails(self):
+        page, context, listing = self.setup_listing([])
+
+        with self.assertRaisesRegex(CollectionError, "empty"):
+            download_all(page, context, listing, lambda item: item,
+                         self.options)
+
+        self.assertEqual(listing.handles, [])
+
+    def test_non_empty_listing_is_unchanged_with_allow_empty(self):
+        page, context, listing = self.setup_listing([
+            {"data-key": "one", "download": "one"},
+        ])
+        saved = []
+
+        records = download_all(
+            page, context, listing, lambda item: saved.append(item) or item,
+            {**self.options, "allow_empty": True},
+        )
+
+        self.assertEqual(records, ["one"])
+        self.assertEqual(saved, ["one"])
+        self.assertEqual(listing.clicked, ["one"])
+
+    def test_allow_empty_rejects_non_boolean_values(self):
+        for value in ("true", 1, 0, None):
+            page, context, listing = self.setup_listing([])
+            with self.assertRaisesRegex(CollectionError, "boolean"):
+                download_all(page, context, listing, lambda item: item, {
+                    **self.options, "allow_empty": value,
+                })
+            self.assertEqual(listing.handles, [])
+
     def test_insufficient_event_budget_fails_before_any_click(self):
         page, context, listing = self.setup_listing([
             {"data-key": str(index), "download": str(index)}
@@ -818,6 +862,70 @@ services:
             "suggested_filename": "invoice.pdf",
             "result": "success",
         }])
+
+    def test_download_adapter_tracks_the_empty_proof_counters(self):
+        # C4 empty proof (issue #24): every started download_all counts as
+        # ran; only a completed empty result under allow_empty counts as
+        # proven, and a raised (graceful-failed) action counts as ran, never
+        # proven. click_until_absent is not counted.
+        def make_ctx():
+            return SimpleNamespace(
+                page=object(),
+                context=object(),
+                collection_filenames=set(),
+                files_downloaded=[],
+                run_id=7,
+                task={"id": 3},
+                db=object(),
+            )
+
+        options_allow_empty = {
+            "key_attribute": "href", "max_items": 2,
+            "timeout_ms": 10, "event_window_ms": 2,
+            "allow_empty": True,
+        }
+        options = {
+            "key_attribute": "href", "max_items": 2,
+            "timeout_ms": 10, "event_window_ms": 2,
+        }
+
+        with mock.patch.object(
+                runner.collection, "download_all", return_value=[]) as download:
+            ctx = make_ctx()
+            runner._collection_actions(ctx)["download_all"](
+                object(), options_allow_empty)
+            self.assertEqual(
+                (ctx.collection_actions_ran, ctx.collection_actions_proven),
+                (1, 1))
+
+            download.return_value = [{"url": "https://example.test/doc"}]
+            runner._collection_actions(ctx)["download_all"](object(), options)
+            self.assertEqual(
+                (ctx.collection_actions_ran, ctx.collection_actions_proven),
+                (2, 1))
+
+            download.side_effect = CollectionError("download list is empty")
+            with self.assertRaisesRegex(CollectionError, "empty"):
+                runner._collection_actions(ctx)["download_all"](
+                    object(), options)
+            self.assertEqual(
+                (ctx.collection_actions_ran, ctx.collection_actions_proven),
+                (3, 1))
+            download.side_effect = None
+
+        ctx = make_ctx()
+        with mock.patch.object(
+                runner.collection, "click_until_absent",
+                return_value=object()) as paginate:
+            runner._collection_actions(ctx)["click_until_absent"](
+                object(), {
+                    "progress_selector": ".rows", "max_clicks": 1,
+                    "timeout_ms": 10,
+                })
+        self.assertEqual(paginate.call_count, 1)
+        self.assertEqual(
+            (ctx.collection_actions_ran, ctx.collection_actions_proven),
+            (0, 0))
 
     def test_collection_action_rejects_an_earlier_side_effect(self):
         click = mock.Mock()

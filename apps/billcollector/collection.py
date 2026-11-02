@@ -184,9 +184,9 @@ def _snapshot(locator, key_attribute):
     return tuple(keys)
 
 
-def _validate_snapshot(keys, max_items):
+def _validate_snapshot(keys, max_items, allow_empty=False):
     count = len(keys)
-    if count == 0:
+    if count == 0 and not allow_empty:
         raise CollectionError("download list is empty")
     if count > max_items:
         raise CollectionError(
@@ -352,17 +352,23 @@ def download_all(page, context, locator, save_download, options,
     list is re-read after every click and the selected element handle is
     checked immediately before use, so re-rendering is supported but shrink,
     reorder, replacement and ambiguous controls fail closed.  Successfully
-    persisted records remain committed when a later item fails.
+    persisted records remain committed when a later item fails.  With
+    ``allow_empty`` an empty listing completes as an empty result (and serves
+    as the run's empty proof, C4); without it the empty listing fails closed.
     """
     options = _options(
         options,
         names={
             "key_attribute", "max_items", "timeout_ms", "event_window_ms",
+            "allow_empty",
         },
     )
     key_attribute = options.get("key_attribute")
     if not isinstance(key_attribute, str) or not key_attribute.strip():
         raise CollectionError("key_attribute must be a non-empty string")
+    allow_empty = options.get("allow_empty", False)
+    if not isinstance(allow_empty, bool):
+        raise CollectionError("allow_empty must be a boolean")
     max_items = _positive_int(
         options, "max_items", maximum=MAX_DOWNLOAD_ITEMS
     )
@@ -379,7 +385,9 @@ def download_all(page, context, locator, save_download, options,
         total_deadline = min(total_deadline, deadline)
 
     keys = _snapshot(locator, key_attribute)
-    _validate_snapshot(keys, max_items)
+    _validate_snapshot(keys, max_items, allow_empty=allow_empty)
+    if not keys:
+        return []
     if completed_keys is None:
         completed_keys = set()
     records = []

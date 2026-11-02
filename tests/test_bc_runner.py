@@ -288,6 +288,25 @@ class _FakeContext:
         pass
 
 
+class _EmptyListingLocator:
+    """A locator whose key listing is empty (the C4 allow_empty proof)."""
+
+    def evaluate_all(self, _script, _attribute):
+        return []
+
+
+class _EmptyListingPage(_FakePage):
+    def locator(self, selector):
+        if selector != ".rows":
+            raise AssertionError(selector)
+        return _EmptyListingLocator()
+
+
+class _EmptyListingContext(_FakeContext):
+    def __init__(self):
+        self._page = _EmptyListingPage()
+
+
 class _FakePlaywrightManager:
     """Stand-in for ``sync_playwright()``: the real ``_launch_browser`` runs
     (profile setup included), only the browser factory is faked."""
@@ -623,6 +642,17 @@ class _LaunchDisplayManager:
         return False
 
 
+class _EmptyListingManager(_LaunchDisplayManager):
+    """A launch manager whose browser context answers an empty key listing
+    (the C4 allow_empty proof)."""
+
+    def __enter__(self):
+        playwright = super().__enter__()
+        playwright.chromium.launch_persistent_context.return_value = \
+            _EmptyListingContext()
+        return playwright
+
+
 class DisplayLifecycleTests(unittest.TestCase):
     """C6.3: the runner owns the per-run display lifecycle: it allocates a
     display before the Run row (the row records display/novnc_port), starts
@@ -795,6 +825,84 @@ class DisplayLifecycleTests(unittest.TestCase):
             self.db.get_task(self.task_id)["date_window_days"], None
         ).date_from.isoformat()
         self.assertEqual(run["date_from"], expected_from)
+        self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
+
+    def _run_task_empty_listing(self, options):
+        # A download_all step against the empty-listing fake context; the
+        # options dict is supplied by the test (C4, issue #24).
+        recipe = {
+            "services": [{
+                "serviceName": "svc",
+                "steps": [
+                    {"step": 1, "description": "Download all invoices",
+                     "methods": [
+                         {"method": "locator",
+                          "arguments": [{"selector": ".rows"}]},
+                         {"method": "download_all",
+                          "arguments": [options]},
+                     ]},
+                ],
+            }]
+        }
+        with mock.patch.object(runner, "load_recipe",
+                               return_value=(True, None, None, recipe)), \
+                mock.patch.object(runner, "_vault_preflight",
+                                  return_value={"user": "u1",
+                                                "password": "p",
+                                                "otp": "o"}), \
+                mock.patch.object(runner, "sync_playwright",
+                                  return_value=_EmptyListingManager()), \
+                mock.patch.object(display, "start_display_stack",
+                                  return_value=[]):
+            return runner.run_task(self.task_id)
+
+    def test_completed_empty_listing_with_allow_empty_proves_empty(self):
+        # C4 (issue #24): a download_all that completes on an empty listing
+        # under allow_empty is the run's empty proof - the run ends success
+        # with outcome proved_empty.
+        exit_code = self._run_task_empty_listing({
+            "key_attribute": "data-key", "max_items": 5,
+            "timeout_ms": 500, "event_window_ms": 30,
+            "allow_empty": True,
+        })
+        self.assertEqual(exit_code, 0)
+        run = self.db.get_run(1)
+        self.assertEqual(run["result"], "success")
+        self.assertEqual(run["collection_outcome"], "proved_empty")
+        self.assertIsNotNone(run["date_from"])
+        self.assertEqual(self.db.list_downloads(run_id=1), [])
+        self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
+
+    def test_empty_listing_without_allow_empty_proves_nothing(self):
+        # C4 (issue #24): the same recipe without allow_empty - download_all
+        # fails closed on the empty listing. The run pauses (C5.6, bounded by
+        # the pause deadline) and cancels; the raised action counts as ran,
+        # never proven, so the outcome stays failed, not proved_empty.
+        self.db.set_setting("pause_deadline_seconds", "20")
+
+        def cancel_when_paused():
+            sock_path = pause.control_sock_path(1)
+            deadline = time.time() + 25
+            while not sock_path.exists():
+                if time.time() > deadline:
+                    return
+                time.sleep(0.02)
+            ControlClient(sock_path).request("cancel")
+
+        thread = threading.Thread(target=cancel_when_paused)
+        thread.start()
+        try:
+            exit_code = self._run_task_empty_listing({
+                "key_attribute": "data-key", "max_items": 5,
+                "timeout_ms": 500, "event_window_ms": 30,
+            })
+        finally:
+            thread.join(timeout=30)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(exit_code, 1)
+        run = self.db.get_run(1)
+        self.assertEqual(run["result"], "cancelled")
+        self.assertEqual(run["collection_outcome"], "failed")
         self.assertEqual(self.db.get_task(self.task_id)["status"], "idle")
 
 

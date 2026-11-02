@@ -536,6 +536,10 @@ def _collection_actions(ctx, step=None):
         completed_by_step = {}
         ctx.collection_completed_keys = completed_by_step
     completed_keys = completed_by_step.setdefault(id(step), set())
+    if getattr(ctx, "collection_actions_ran", None) is None:
+        ctx.collection_actions_ran = 0
+    if getattr(ctx, "collection_actions_proven", None) is None:
+        ctx.collection_actions_proven = 0
 
     def paginate(locator, options):
         return collection.click_until_absent(ctx.page, locator, options)
@@ -561,7 +565,12 @@ def _collection_actions(ctx, step=None):
         return record
 
     def download(locator, options):
-        return collection.download_all(
+        # Empty-proof accounting (C4, issue #24): count the call before the
+        # action so a raised (graceful-failed) action counts as ran, never
+        # proven; only a completed empty result under allow_empty proves the
+        # listing empty.
+        ctx.collection_actions_ran += 1
+        records = collection.download_all(
             ctx.page,
             ctx.context,
             locator,
@@ -569,6 +578,10 @@ def _collection_actions(ctx, step=None):
             options,
             completed_keys=completed_keys,
         )
+        if (not records and isinstance(options, dict)
+                and options.get("allow_empty") is True):
+            ctx.collection_actions_proven += 1
+        return records
 
     def replacement_calendar(root, options):
         from .calendar import collect_calendar

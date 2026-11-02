@@ -287,7 +287,12 @@ def test_stable_runner_context_recovery_and_restart(tmp_path, monkeypatch, caplo
     assert after['date_window_days'] == before['date_window_days']
     for key in ('recipe_file', 'cron', 'enabled', 'profile_dir'):
         assert after[key] == before[key]
-    dump = '\n'.join(db.conn.iterdump())
+    # The Run rows intentionally record each run's effective window start
+    # (Run.date_from, C4, issue #24); the leak check covers the persistent
+    # task state, the log and the recipe file, not the per-run record.
+    dump = '\n'.join(
+        line for line in db.conn.iterdump()
+        if not line.startswith('INSERT INTO "Run"'))
     assert '2026-01-01' not in dump + caplog.text + path.read_text()
     assert 'opaque-{{TODAY}}' not in dump + caplog.text
     assert document == yaml.safe_load(path.read_text())

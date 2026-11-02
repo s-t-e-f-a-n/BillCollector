@@ -87,7 +87,8 @@ CREATE TABLE IF NOT EXISTS Download (
     state TEXT NOT NULL DEFAULT 'consumed',
     staged_path TEXT,
     source_identity TEXT,
-    revision_sha256 TEXT
+    revision_sha256 TEXT,
+    delivery_attempts INTEGER
 );
 CREATE TABLE IF NOT EXISTS Settings (
     key TEXT PRIMARY KEY,
@@ -152,6 +153,7 @@ class Database:
             "staged_path": "TEXT",
             "source_identity": "TEXT",
             "revision_sha256": "TEXT",
+            "delivery_attempts": "INTEGER",
         }.items():
             if name not in download_cols:
                 self.conn.execute(f"ALTER TABLE Download ADD COLUMN {name} {definition}")

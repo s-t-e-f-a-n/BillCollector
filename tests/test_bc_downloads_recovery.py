@@ -134,7 +134,7 @@ def test_same_filename_across_tasks_keeps_separate_consumer_deliveries(tracking)
     assert calls[0]["idempotency_key"] != calls[1]["idempotency_key"]
 
 
-def test_pending_delivery_recovers_at_runner_start_before_any_portal(tracking):
+def test_failed_delivery_persists_until_recovery_retries_at_runner_start(tracking):
     from billcollector import runner
     db, task, run = tracking
     calls = []
@@ -144,16 +144,19 @@ def test_pending_delivery_recovers_at_runner_start_before_any_portal(tracking):
 
     with patch.object(downloads, "CONSUMERS", [unavailable]):
         downloads.track_download(Document(), run, task, db)
-    # An invalid recipe prevents display/vault/browser setup. Recovery does not
-    # require a working portal or a successful subsequent recipe.
+    # B2: the failed delivery is recorded failed; startup recovery retries
+    # failed rows from B3. An invalid recipe prevents display/vault/browser
+    # setup either way.
     with patch.object(runner, "Database", lambda: Database(db.path)), \
             patch.object(runner, "load_recipe", return_value=(False, "invalid synthetic recipe", None, None)), \
             patch.object(runner, "_vault_preflight") as vault, \
             patch.object(downloads, "CONSUMERS", [calls.append]):
         assert runner.run_task(task["id"]) == 1
     vault.assert_not_called()
-    assert len(calls) == 1
-    assert db.list_downloads()[0]["state"] == "consumed"
+    assert calls == []
+    row = db.list_downloads()[0]
+    assert row["state"] == "failed"
+    assert row["delivery_attempts"] == 1
 
 
 def test_published_file_without_row_is_recovered_without_redelivery(tracking):
@@ -252,20 +255,21 @@ def test_unsafe_filename_cannot_escape_staging(tracking, name):
     assert db.list_downloads() == []
 
 
-def test_changed_pending_file_is_not_delivered_with_old_checksum(tracking):
+def test_changed_published_file_fails_delivery_without_raising(tracking):
     db, task, run = tracking
-
-    def fail(record):
-        raise OSError("synthetic unavailable")
-
-    with patch.object(downloads, "CONSUMERS", [fail]):
-        record = downloads.track_download(Document(), run, task, db)
-    Path(record["saved_path"]).write_bytes(b"different document")
+    tracked = downloads.track_download(Document(), run, task, db)
+    # Simulate a crash between publication and delivery, with the published
+    # file already changed.
+    Path(tracked["saved_path"]).write_bytes(b"different document")
+    row = db.find_download_by_sha(task["id"], tracked["sha256"])
+    db.set_download_state(row["id"], "published")
     calls = []
-    with patch.object(downloads, "CONSUMERS", [calls.append]), pytest.raises(OSError, match="checksum"):
+    with patch.object(downloads, "CONSUMERS", [calls.append]):
         downloads.recover_downloads(db)
     assert calls == []
-    assert db.list_downloads()[0]["state"] == "published"
+    fresh = db.find_download_by_sha(task["id"], tracked["sha256"])
+    assert fresh["state"] == "failed"
+    assert fresh["delivery_attempts"] == 2
 
 
 def test_completed_download_does_not_require_old_output_root(tracking, tmp_path):
@@ -288,9 +292,9 @@ def test_daemon_startup_reconciles_even_without_a_scheduled_task(tracking):
 
     with patch.object(downloads, "CONSUMERS", [fail]):
         downloads.track_download(Document(), run, task, db)
-    assert db.list_downloads()[0]["state"] == "published"
-    # Use real subprocess recovery on this isolated DB. There are no consumers
-    # configured in the child; publication alone completes delivery there.
+    assert db.list_downloads()[0]["state"] == "failed"
+    # Use real subprocess recovery on this isolated DB. B2: the child does not
+    # retry failed rows yet (B3), so the row stays failed.
     with patch.object(ui_app, "Database", return_value=db), \
             patch.object(ui_app, "build_app"), \
             patch.object(ui_app, "build_lifecycle", return_value=(lambda: None, lambda: None)), \
@@ -298,7 +302,9 @@ def test_daemon_startup_reconciles_even_without_a_scheduled_task(tracking):
             patch.object(ui_app.nicegui_app, "on_shutdown"), \
             patch.object(ui_app.ui, "run"):
         ui_app.start("127.0.0.1", 8000)
-    assert db.list_downloads()[0]["state"] == "consumed"
+    row = db.list_downloads()[0]
+    assert row["state"] == "failed"
+    assert row["delivery_attempts"] == 1
 
 
 def test_daemon_recovery_timeout_reaps_blocked_child_and_allows_retry(tracking):

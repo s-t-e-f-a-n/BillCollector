@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
 from billcollector import db as bcd  # noqa: E402
 from billcollector import downloads as bcdl  # noqa: E402
+from billcollector import notify as bcn  # noqa: E402
 
 
 class _StubDownload:
@@ -63,7 +64,7 @@ class DownloadTrackingTests(unittest.TestCase):
             record = self._track("a.pdf", b"durable document", "http://x/a.pdf")
         self.assertEqual(observed, [(True, f"{self.tid}:{record['sha256']}")])
 
-    def test_failed_consumer_is_retried_after_database_reopen(self):
+    def test_failed_consumer_leaves_row_failed_until_recovery(self):
         from unittest.mock import patch
         attempts = []
 
@@ -78,8 +79,82 @@ class DownloadTrackingTests(unittest.TestCase):
             self.db = bcd.Database(path=Path(self.tmp.name) / "test.db")
             bcdl.recover_downloads(self.db)
             bcdl.recover_downloads(self.db)
-        self.assertEqual(attempts, [f"{self.tid}:{record['sha256']}"] * 2)
-        self.assertEqual(self.db.list_downloads()[0]["state"], "consumed")
+        # B2: a failed consumer records the row failed; the recovery retry of
+        # failed rows lands in B3.
+        self.assertEqual(attempts, [f"{self.tid}:{record['sha256']}"])
+        row = self.db.list_downloads()[0]
+        self.assertEqual(row["state"], "failed")
+        self.assertEqual(row["delivery_attempts"], 1)
+
+    def test_failed_consumer_records_one_first_failure_notification(self):
+        from unittest.mock import patch
+
+        def consume(record):
+            raise OSError("synthetic consumer unavailable")
+
+        with patch.object(bcdl, "CONSUMERS", [consume]), \
+             patch.object(bcdl.notify, "notify_delivery_failed") as notification:
+            self._track("a.pdf", b"notify delivery", "http://x/a.pdf")
+        self.assertEqual(notification.call_count, 1)
+        row = self.db.list_downloads()[0]
+        self.assertEqual(row["state"], "failed")
+        self.assertEqual(row["delivery_attempts"], 1)
+
+    def test_checksum_mismatch_fails_delivery_without_raising(self):
+        from unittest.mock import patch
+        self._track("a.pdf", b"original", "http://x/a.pdf")
+        row = dict(self.db.find_download_by_sha(self.tid, hashlib.sha256(b"original").hexdigest()))
+        # Force the published state, corrupt the published file, then deliver.
+        self.db.set_download_state(row["id"], "published")
+        Path(row["saved_path"]).write_bytes(b"corrupted bytes")
+        with patch.object(bcdl, "CONSUMERS", [lambda record: None]), \
+             patch.object(bcdl.notify, "notify_delivery_failed") as notification:
+            bcdl._deliver(row, self.db)
+        fresh = dict(self.db.find_download_by_sha(self.tid, row["sha256"]))
+        self.assertEqual(fresh["state"], "failed")
+        self.assertEqual(fresh["delivery_attempts"], 2)
+        self.assertEqual(notification.call_count, 1)
+
+    def test_successful_consumer_consumes_with_attempt_count(self):
+        from unittest.mock import patch
+
+        def consume(record):
+            pass
+
+        with patch.object(bcdl, "CONSUMERS", [consume]), \
+             patch.object(bcdl.notify, "notify_delivery_failed") as notification:
+            self._track("a.pdf", b"ok bytes", "http://x/a.pdf")
+        row = self.db.list_downloads()[0]
+        self.assertEqual(row["state"], "consumed")
+        self.assertEqual(row["delivery_attempts"], 1)
+        self.assertEqual(notification.call_count, 0)
+
+    def test_duplicate_row_is_never_delivered(self):
+        self._track("a.pdf", b"same bytes", "http://x/a.pdf")
+        second = self._track("a.pdf", b"same bytes", "http://x/a-mirror.pdf")
+        self.assertIs(second["duplicate"], True)
+        dup = [r for r in self.db.list_downloads(task_id=self.tid)
+               if r["duplicate_of_id"] is not None][0]
+        self.assertEqual(dup["state"], "consumed")
+        self.assertIsNone(dup["delivery_attempts"])
+
+    def test_notify_delivery_failed_sends_message_with_dispatch(self):
+        from unittest.mock import patch
+        self.db.set_setting("ntfy_topic", "testtopic")
+        row = {"task_id": self.tid, "filename": "a.pdf", "delivery_attempts": 0}
+        sent = []
+
+        def fake_dispatch(send, url, message):
+            sent.append((url, message))
+            return True
+
+        with patch.object(bcn, "_ntfy_host", return_value="http://ntfy.test"):
+            ok = bcn.notify_delivery_failed(self.db, row, dispatch=fake_dispatch)
+        self.assertTrue(ok)
+        self.assertEqual(len(sent), 1)
+        url, message = sent[0]
+        self.assertEqual(url, "http://ntfy.test/testtopic")
+        self.assertEqual(message, "delivery failed: svc u1 a.pdf (attempt 1)")
 
     def test_first_download_tracked(self):
         data = b"first file bytes"

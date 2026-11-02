@@ -444,6 +444,13 @@ class Database:
                           (state, download_id))
         self.conn.commit()
 
+    def increment_download_attempts(self, download_id):
+        self.conn.execute(
+            "UPDATE Download SET delivery_attempts=COALESCE(delivery_attempts, 0) + 1 "
+            "WHERE id=?",
+            (download_id,))
+        self.conn.commit()
+
     def pending_downloads(self):
         return self.conn.execute(
             "SELECT * FROM Download WHERE state!='consumed' ORDER BY id").fetchall()

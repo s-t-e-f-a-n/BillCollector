@@ -128,3 +128,49 @@ def _send_run_result(url, message):
         # Exception text can contain the endpoint or topic. Never log it.
         logger.warning("ntfy run result push failed: %s", type(e).__name__)
     return False
+
+
+def notify_delivery_failed(db, row, *, dispatch=None):
+    """Best-effort push for a row's first failed delivery.
+
+    The caller sends this only when the row's previous state was not already
+    failed, so a retry of a failed row notifies no further. The attempt count
+    in the message is the new count: the caller has already incremented the
+    row. The task is looked up before dispatch so the worker receives only
+    immutable strings, never the SQLite connection.
+    """
+    try:
+        topic = (db.get_setting("ntfy_topic") or "").strip()
+        if not topic:
+            return False
+        old_attempts = row["delivery_attempts"] if "delivery_attempts" in row else None
+        attempt = (old_attempts or 0) + 1
+        task = db.get_task(row["task_id"])
+        if task is not None:
+            service_user = f"{task['service']} {task['user']}".strip()
+            message = f"delivery failed: {service_user} {row['filename']} (attempt {attempt})"
+        else:
+            message = f"delivery failed: {row['filename']} (attempt {attempt})"
+        url = f"{_ntfy_host()}/{topic}"
+        if dispatch is not None:
+            return dispatch(_send_delivery_failed, url, message)
+        return _send_delivery_failed(url, message)
+    except Exception as e:
+        # Settings/dispatch failures must not affect delivery either.
+        logger.warning("ntfy delivery push failed: %s", type(e).__name__)
+        return False
+
+
+def _send_delivery_failed(url, message):
+    try:
+        response = requests.post(
+            url, data=message.encode("utf-8"),
+            headers={"Title": "BillCollector: delivery failed", "Priority": "4",
+                     "Tags": "warning"}, timeout=NTFY_TIMEOUT)
+        if response.status_code == 200:
+            return True
+        logger.warning("ntfy delivery push failed: HTTP %s", response.status_code)
+    except Exception as e:
+        # Exception text can contain the endpoint or topic. Never log it.
+        logger.warning("ntfy delivery push failed: %s", type(e).__name__)
+    return False

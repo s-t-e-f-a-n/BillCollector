@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from . import config, notice
+from . import config, notice, notify
 from .consumers import CONSUMERS
 from .interrupt import RunInterrupted
 from .redaction import sanitize_url
@@ -73,11 +73,16 @@ def _deliver(row, db):
         return
     record = {k: row[k] for k in _FIELDS}
     record["idempotency_key"] = f"{row['task_id']}:{row['sha256']}"
+    previous_state = row["state"] if "state" in row else "published"
     failed = False
     for consume in CONSUMERS:
         saved = Path(row["saved_path"])
         if saved.exists() and (not saved.is_file() or sha256_of(saved) != row["sha256"]):
-            raise OSError("Published download checksum mismatch")
+            # A checksum mismatch is a delivery failure like a consumer
+            # exception: stop the loop and skip the remaining consumers.
+            failed = True
+            logger.error("Published download checksum mismatch; delivery failed")
+            break
         try:
             consume(record.copy())
         except RunInterrupted:
@@ -85,8 +90,15 @@ def _deliver(row, db):
         except Exception:
             failed = True
             # Consumer exceptions can contain document URLs or credentials.
-            logger.error("Download consumer failed; delivery remains pending")
-    if not failed:
+            logger.error("Download consumer failed; delivery failed")
+    if failed:
+        db.increment_download_attempts(row["id"])
+        db.set_download_state(row["id"], "failed")
+        if previous_state != "failed":
+            # First transition to failed only; a retry stays silent.
+            notify.notify_delivery_failed(db, row)
+    else:
+        db.increment_download_attempts(row["id"])
         db.set_download_state(row["id"], "consumed")
 
 

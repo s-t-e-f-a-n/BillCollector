@@ -79,12 +79,12 @@ class DownloadTrackingTests(unittest.TestCase):
             self.db = bcd.Database(path=Path(self.tmp.name) / "test.db")
             bcdl.recover_downloads(self.db)
             bcdl.recover_downloads(self.db)
-        # B2: a failed consumer records the row failed; the recovery retry of
-        # failed rows lands in B3.
-        self.assertEqual(attempts, [f"{self.tid}:{record['sha256']}"])
+        # The first failure leaves the row failed; the startup recovery retry
+        # re-delivers it on the same idempotency key and consumes it.
+        self.assertEqual(attempts, [f"{self.tid}:{record['sha256']}"] * 2)
         row = self.db.list_downloads()[0]
-        self.assertEqual(row["state"], "failed")
-        self.assertEqual(row["delivery_attempts"], 1)
+        self.assertEqual(row["state"], "consumed")
+        self.assertEqual(row["delivery_attempts"], 2)
 
     def test_failed_consumer_records_one_first_failure_notification(self):
         from unittest.mock import patch

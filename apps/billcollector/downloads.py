@@ -171,7 +171,7 @@ def _recover_locked(db, target):
         if row["state"] == "staged":
             _publish(row, db)
             row["state"] = "published"
-        if row["state"] == "published":
+        if row["state"] in ("published", "failed"):
             _deliver(row, db)
         if entry.exists():
             # Failed consumers retain the journal and pending row for retry.

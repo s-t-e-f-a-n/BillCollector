@@ -88,7 +88,8 @@ CREATE TABLE IF NOT EXISTS Download (
     staged_path TEXT,
     source_identity TEXT,
     revision_sha256 TEXT,
-    delivery_attempts INTEGER
+    delivery_attempts INTEGER,
+    source_key TEXT
 );
 CREATE TABLE IF NOT EXISTS Settings (
     key TEXT PRIMARY KEY,
@@ -154,6 +155,7 @@ class Database:
             "source_identity": "TEXT",
             "revision_sha256": "TEXT",
             "delivery_attempts": "INTEGER",
+            "source_key": "TEXT",
         }.items():
             if name not in download_cols:
                 self.conn.execute(f"ALTER TABLE Download ADD COLUMN {name} {definition}")
@@ -428,14 +430,14 @@ class Database:
     def insert_download(self, run_id, task_id, url, filename, size, sha256,
                         saved_path, duplicate_of_id=None, *,
                         state="consumed", staged_path=None, source_identity=None,
-                        revision_sha256=None):
+                        revision_sha256=None, source_key=None):
         cur = self.conn.execute(
             """INSERT INTO Download (run_id, task_id, url, filename, size, sha256,
                                      saved_path, created_at, duplicate_of_id, state,
-                                     staged_path, source_identity, revision_sha256)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                     staged_path, source_identity, revision_sha256, source_key)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (run_id, task_id, url, filename, size, sha256, saved_path, now(), duplicate_of_id, state, staged_path,
-             source_identity, revision_sha256))
+             source_identity, revision_sha256, source_key))
         self.conn.commit()
         return cur.lastrowid
 
@@ -472,6 +474,12 @@ class Database:
             "SELECT * FROM Download WHERE task_id=? AND source_identity=? "
             "AND revision_sha256=? AND duplicate_of_id IS NULL ORDER BY id",
             (task_id, source_identity, revision_sha256)).fetchone()
+
+    def known_source_keys(self, task_id):
+        """Source keys already committed for this task; old rows stay unknown."""
+        return {r["source_key"] for r in self.conn.execute(
+            "SELECT DISTINCT source_key FROM Download "
+            "WHERE task_id=? AND source_key IS NOT NULL", (task_id,))}
 
     def list_downloads(self, run_id=None, task_id=None):
         if run_id is not None:

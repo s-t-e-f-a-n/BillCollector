@@ -139,7 +139,8 @@ def step_attempts(graceful: bool) -> int:
 HEALTHY_OUTCOMES = ("new_documents", "duplicates_only", "proved_empty")
 
 
-def derive_outcome(completed: bool, rows: list, empty_proven: bool) -> str:
+def derive_outcome(completed: bool, rows: list, empty_proven: bool,
+                   *, all_items_known: bool = False) -> str:
     """What this run's collection proved for its window (C4, issue #24).
 
     Derived at finalization from the run's own committed data (rows are
@@ -148,18 +149,25 @@ def derive_outcome(completed: bool, rows: list, empty_proven: bool) -> str:
     rows, failed otherwise; a completed run is new_documents on any new
     row, duplicates_only when every row duplicates an existing identity,
     proved_empty when the collection proved its window empty under
-    allow_empty, and failed when neither rows nor an empty proof exist."""
+    allow_empty, and failed when neither rows nor an empty proof exist.
+    A completed run with no rows and no empty proof is duplicates_only
+    when the incremental collection verified every item known (#50, per
+    the C4 contract on issue #24), failed otherwise."""
     if not completed:
         return "partial" if rows else "failed"
     if any(row["duplicate_of_id"] is None for row in rows):
         return "new_documents"
     if rows:
         return "duplicates_only"
-    return "proved_empty" if empty_proven else "failed"
+    if empty_proven:
+        return "proved_empty"
+    if all_items_known:
+        return "duplicates_only"
+    return "failed"
 
 
 def run_result(completed: bool, rows: list, empty_proven: bool,
-               pause_outcome=None) -> str:
+               pause_outcome=None, *, all_items_known: bool = False) -> str:
     """Terminal Run.result of a finished run (C4, issue #24).
 
     A pause outcome is terminal in itself: cancel -> ``cancelled``,
@@ -167,12 +175,15 @@ def run_result(completed: bool, rows: list, empty_proven: bool,
     timed-out run manually later). Otherwise the result follows the
     collection outcome: the healthy outcomes (new_documents,
     duplicates_only, proved_empty) map to ``success``, partial and
-    failed to ``failure``. The exit code stays 0 for success only."""
+    failed to ``failure``. The exit code stays 0 for success only.
+    all_items_known marks a verified incremental all-known no-op (issue
+    #50), logged explicitly by the collection adapter."""
     if pause_outcome == "cancel":
         return "cancelled"
     if pause_outcome == "timeout":
         return "needs_attention"
-    outcome = derive_outcome(completed, rows, empty_proven)
+    outcome = derive_outcome(completed, rows, empty_proven,
+                             all_items_known=all_items_known)
     return "success" if outcome in HEALTHY_OUTCOMES else "failure"
 
 
@@ -218,6 +229,7 @@ class _RunContext:
         self.collection_completed_keys = {}
         self.collection_actions_ran = 0
         self.collection_actions_proven = 0
+        self.all_items_known = False
         self.context = None
         self.page = None
         self.bcs = ServiceObj(
@@ -547,14 +559,15 @@ def _collection_actions(ctx, step=None):
     identity_kwargs = ({"identity": step["notice_identity"]}
                        if step and "notice_identity" in step else {})
 
-    def save_download(download):
+    def save_download(download, *, source_key=None):
         filename = str(download.suggested_filename)
         if filename in collection_filenames and not identity_kwargs:
             raise collection.CollectionError(
                 "collection produced a duplicate suggested filename"
             )
+        key_kwargs = {"source_key": source_key} if source_key is not None else {}
         record = downloads.track_download(
-            download, ctx.run_id, ctx.task, ctx.db, **identity_kwargs
+            download, ctx.run_id, ctx.task, ctx.db, **identity_kwargs, **key_kwargs
         )
         collection_filenames.add(filename)
         ctx.files_downloaded.append({
@@ -570,6 +583,12 @@ def _collection_actions(ctx, step=None):
         # proven; only a completed empty result under allow_empty proves the
         # listing empty.
         ctx.collection_actions_ran += 1
+        incremental = isinstance(options, dict) and options.get("incremental") is True
+        if incremental:
+            prefix = collection.source_key(options.get("key_attribute"), "")
+            completed_keys.update(
+                key[len(prefix):] for key in ctx.db.known_source_keys(ctx.task["id"])
+                if key.startswith(prefix))
         records = collection.download_all(
             ctx.page,
             ctx.context,
@@ -577,10 +596,14 @@ def _collection_actions(ctx, step=None):
             save_download,
             options,
             completed_keys=completed_keys,
+            keyed_save=True,
         )
         if (not records and isinstance(options, dict)
                 and options.get("allow_empty") is True):
             ctx.collection_actions_proven += 1
+        if incremental and not records:
+            ctx.all_items_known = True
+            logger.info("Incremental collection succeeded: all items known")
         return records
 
     def replacement_calendar(root, options):
@@ -1106,6 +1129,7 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
         pause_outcome = None
         rows = []
         empty_proven = False
+        all_items_known = False
         # The effective vault API values (Settings win over env) are exported
         # into the process environment before any vault call, so the vault
         # transport's BW_API_HOST read and the run context's TOTP re-fetch
@@ -1142,7 +1166,11 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
                 ran = ctx.collection_actions_ran
                 proven = ctx.collection_actions_proven
                 empty_proven = ran > 0 and ran == proven
-                result = run_result(completed, rows, empty_proven, pause_outcome)
+                all_items_known = ctx.all_items_known
+                result = run_result(
+                    completed, rows, empty_proven, pause_outcome,
+                    all_items_known=all_items_known,
+                )
             except RunInterrupted:
                 # A shutdown signal (SIGTERM/SIGINT) reached the run: the
                 # teardown below reaps the display stack and finalizes the
@@ -1179,7 +1207,8 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
                     # the run before the step loop ran.
                     db.update_run(run_id, result=result, ended_at=now(),
                                   collection_outcome=derive_outcome(
-                                      completed, rows, empty_proven),
+                                      completed, rows, empty_proven,
+                                      all_items_known=all_items_known),
                                   date_from=dates.date_from.isoformat())
                     settle_attempt(db, task_id, run_id)
                     # A finished run releases the task: the 'waiting' status
@@ -1193,7 +1222,10 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
             # shutdown signal arrived before the Run row existed.
             display.release_display(display_number)
         if result == "success":
-            logger.info(f"Task {task_id} run {run_id} finished with downloaded file(s) {files}.")
+            if not files:
+                logger.info(f"Task {task_id} run {run_id} succeeded: all items known.")
+            else:
+                logger.info(f"Task {task_id} run {run_id} finished with downloaded file(s) {files}.")
             return 0
         logger.error(f"Task {task_id} run {run_id} failed (result={result}, downloads={files}).")
         return 1

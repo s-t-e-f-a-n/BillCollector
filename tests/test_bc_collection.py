@@ -830,7 +830,7 @@ services:
         completed_sets = []
 
         def exercise(_page, _context, _locator, save, _options,
-                     *, completed_keys):
+                     *, completed_keys, keyed_save):
             nonlocal calls
             calls += 1
             completed_sets.append(completed_keys)

@@ -723,6 +723,33 @@ class DisplayLifecycleTests(unittest.TestCase):
             lambda: child.kill() if child.poll() is None else None)
         return child
 
+    def test_incremental_all_known_finishes_run_successfully(self):
+        self.db.insert_download(None, self.task_id, "https://fixture.invalid/one",
+                                "one.pdf", 1, "synthetic", "unused",
+                                source_key="id=one")
+
+        def collect(ctx, recipe):
+            locator = mock.Mock()
+            locator.evaluate_all.return_value = ["one"]
+            runner._collection_actions(ctx)["download_all"](locator, {
+                "key_attribute": "id", "max_items": 5,
+                "timeout_ms": 100, "event_window_ms": 5,
+                "incremental": True,
+            })
+            locator.nth.assert_not_called()
+            return ctx.files_downloaded, False, None
+
+        with mock.patch.object(display, "start_display_stack", return_value=[]), \
+                mock.patch.object(runner, "_run_recipe", side_effect=collect), \
+                self.assertLogs(runner.logger, level="INFO") as logs:
+            exit_code = self._run_task()
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(self.db.get_run(1)["result"], "success")
+        self.assertEqual(self.db.get_run(1)["collection_outcome"],
+                         "duplicates_only")
+        self.assertIn("all items known", " ".join(logs.output))
+        self.assertEqual(len(self.db.list_downloads()), 1)
+
     def test_run_task_records_the_display_on_the_run_row(self):
         with mock.patch.object(display, "start_display_stack",
                                return_value=[]) as start:

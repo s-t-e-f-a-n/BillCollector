@@ -1,7 +1,8 @@
 # PR #57 review — opt-in incremental download keys
 
-> Status: INTEGRATING (2026-11-03) — S4 applied the confirmed S3 proposal to
-> the dev working tree (dirty, uncommitted); S5 (validate/refine) next session.
+> Status: VALIDATED (2026-11-03) — S5 validated the applied tree (all checks
+> green, one M4a signature fix, deployment skip user-confirmed); S6
+> (documentation) next session.
 
 ## PR metadata
 
@@ -521,6 +522,47 @@ dev-commits skill):
   bandit; deployment-process validation recorded as not deployment-relevant
   (skip, no Docker host needed) and user-confirmed there.
 
+### S5 result (2026-11-03)
+
+- Preflight re-verified: PR head `24e8492…` unchanged
+  (`ls-remote github refs/pull/57/head`); `dev` = `origin/dev` = `2d4d32d`
+  (the S4 doc commit; since the S3 pre-image record only doc commits landed,
+  the S1 pre-image checks remain valid); dirty tree exactly the 9 modified +
+  1 untracked file S4 applied.
+- Validation on the exact dirty tree (repo root, venv), all green:
+  - PR's 6 test modules via the PR body's pytest command
+    (`BILLCOLLECTOR_BROWSER_TESTS=1 apps/.venv/bin/python -m pytest
+    tests/test_bc_incremental.py tests/test_bc_collection.py
+    tests/test_bc_runner.py tests/test_bc_downloads.py
+    tests/test_bc_downloads_recovery.py tests/test_notice_identity.py -q`):
+    **161 passed, 17 subtests passed, no skips** (after the S5 fix below).
+    Note: `test_bc_downloads_recovery` and `test_notice_identity` are
+    pytest-style (fixtures `tmp_path`/`monkeypatch`, parametrize); they
+    collect 0 tests under `python -m unittest`, so the PR body's pytest
+    command is the S5 vehicle for the full 6-module set.
+  - Full regression: `apps/.venv/bin/python tests/run_regression.py --ini
+    tests/bc_regression.ini` → exit 0, **VERDICT: PASS** (7 pairs / 8 files).
+  - `ruff check apps tests` → clean (exit 0).
+  - Bandit on the 4 changed app files → identical findings to the
+    pre-integration HEAD (`2d4d32d`) scan (B608 ×2 in `db.py`, B110 in
+    `runner.py`; line-shifted only) → nothing new beyond the known baseline.
+- S5 fix (M4a refinement, on dev, uncommitted — ships in the S7 code commit):
+  `tests/test_bc_incremental.py` branch table — the re-expressed
+  `run_result` call passed `pause` as the third positional arg (the
+  `empty_proven` slot), so the `cancel`/`timeout` rows derived
+  `proved_empty` → `success` instead of `cancelled`/`needs_attention`.
+  Now `run_result(completed, rows, False, pause, all_items_known=True)` —
+  the dev signature M4a specified. Re-run: 161 passed, 17 subtests, no
+  skips.
+- Deployment-process validation: **skip (not deployment-relevant; no
+  Dockerfile, shell script, or runtime-config change) — user-confirmed at
+  the S5 gate (2026-11-03)**.
+- Status: VALIDATED. Next session: S6 documentation — review the merged
+  CHANGELOG `### Added` entry (sanitized, public-safe wording; merged in
+  S4), README/CONTRIBUTING only if user-visible behavior or contributor
+  rules changed (none expected beyond the RECIPE_AUTHORING section already
+  applied), plan-doc record; then S7 commit + push + PR close.
+
 ## Validation plan
 
 S5 executes on the exact dev tree, from the repo root, with the venv:
@@ -542,7 +584,8 @@ S5 executes on the exact dev tree, from the repo root, with the venv:
 
 Not deployment-relevant: the PR touches no `Dockerfile`, `.dockerignore`,
 `BillCollector.sh`, `install_docker-image.sh`, `deploy_remote.sh`, or app
-runtime configuration. Record the skip in S5; no Docker host needed.
+runtime configuration. Skip recorded in S5 (2026-11-03); **user-confirmed at
+the S5 gate (2026-11-03)**. No Docker host needed.
 
 ## Out of scope
 

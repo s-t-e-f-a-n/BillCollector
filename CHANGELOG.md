@@ -27,6 +27,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   also sends for successful runs and carries the outcome and window
   start; the dashboard last-run cell and the task-detail run history
   show the outcome.
+- Delivery-state exposure (issue #24, F10): each Download row exposes its
+  delivery state - `downloaded` (`staged`), `pending delivery` (`published`),
+  `delivered` (`consumed`), and `failed delivery (N)` (new `failed` state;
+  additive `Download.delivery_attempts` counter, no backfill). A consumer
+  failure or a published-file checksum mismatch moves the row to `failed`
+  without failing the run and sends one best-effort ntfy notice on the first
+  transition to `failed` only. Two retry paths re-deliver the row
+  at-least-once on the task + sha256 key with no automatic retry cap: startup
+  recovery now also retries `failed` rows (the same code path as pending
+  rows), and the Downloads page and the task-detail downloads section gain a
+  Delivery column plus a per-row **Retry delivery** action that re-delivers
+  the row in a runner subprocess (consumers stay out of the UI process; the
+  confirmation states the at-least-once semantics). Duplicate rows are never
+  delivered and cannot be retried.
 - Daemon recipe validation checks the installed Playwright method chains,
   argument names and types, properties, and reserved `wait_user` options (C3,
   issue #27). UI save and run start use the same gate before vault or browser

@@ -25,9 +25,56 @@ portal name. A same-task/hash repeat retains an audit row and the original path;
 Consumers must accept repeated delivery with the same key. A crash after an
 external effect but before its state commit can repeat every consumer, including
 ones that previously succeeded. This is at-least-once delivery, not exactly-once.
-Consumer errors retain pending state without failing the recipe. Exceptions are
-not logged verbatim. Shutdown signals propagate and preserve pending state.
-No configured consumers means that publication completes immediately.
+Consumer errors move the row to `failed` (see Delivery states and retry) without
+failing the recipe. Exceptions are not logged verbatim. Shutdown signals
+propagate and preserve pending state. No configured consumers means that
+publication completes immediately.
+
+## Delivery states and retry
+
+A Download row exposes four delivery states:
+
+| Exposed state | Row state | Meaning |
+|---|---|---|
+| downloaded | `staged` | row committed, bytes staged, not yet published (transient; visible after a crash between the row commit and publication) |
+| pending delivery | `published` | atomically published; delivery not yet acknowledged by all registered consumers |
+| delivered | `consumed` | all registered consumers acknowledged, or none registered |
+| failed delivery (N) | `failed` | a delivery attempt failed (consumer exception or published-file checksum mismatch); N is the attempt count |
+
+The state machine is `staged` → `published` → `consumed`, plus the `failed`
+branch: a consumer exception or a published-file checksum mismatch stops the
+consumer loop and moves the row to `failed`, incrementing its
+`delivery_attempts` count (a nullable additive column; pre-existing rows keep
+`NULL`). A successful delivery also increments the count and moves the row to
+`consumed`. A failed delivery does not fail the recipe; the run continues.
+When a row first transitions to `failed` — at run-time delivery or at startup
+recovery — one best-effort ntfy notice goes out on the existing opt-in topic:
+`delivery failed: <service> <user> <filename> (attempt N)`. A retry of a
+`failed` row sends no further notice.
+
+Two retry paths re-deliver a `failed` or still-pending row:
+
+- **Manual retry**: the per-row **Retry delivery** action on the Downloads
+  page and the task-detail downloads section. It runs the row's delivery in a
+  runner subprocess (consumers stay out of the UI process, as in startup
+  recovery), opening its own database connection and taking the target's
+  publication lock; a `staged` row is published first. Missing, duplicate and
+  already-delivered rows are refused. The confirmation dialog states that
+  delivery is at-least-once and keyed on the task and the document's sha256.
+  The same path is available from the command line as
+  `python -m billcollector.downloads <db> --retry <id>`; it exits 0 only when
+  the row is delivered.
+- **Automatic retry**: every startup recovery (below) retries `failed` rows in
+  addition to `staged` and `published` rows, on the same code path and the same
+  idempotency key. There is no automatic retry cap: a row is retried on every
+  startup until it delivers.
+
+Both paths deliver at-least-once, keyed on task + sha256: a consumer may
+receive the same document more than once and must tolerate re-delivery with
+the same key. A retry re-checks the published file's checksum while the file
+still exists; a file already moved by a downstream folder watcher does not
+block delivery — the consumer receives the record and acts on the stable key.
+Duplicate rows are never delivered and cannot be retried.
 
 ## Recovery
 
@@ -47,7 +94,8 @@ interrupt a consumer after its external effect, so the same stable key can be
 delivered again.
 
 - A committed staged row finishes publication and then delivers consumers.
-- A published row retries delivery with the same key.
+- A published or failed row retries delivery with the same key. A row that
+  still fails keeps its journal for the next retry.
 - A consumed row only needs leftover journal cleanup.
 - A partial or complete staged file without a row moves into the journal's
   `quarantine/` directory. Recovery does not publish uncertain staging bytes.
@@ -69,10 +117,38 @@ journal without its database or discard quarantine files before inspection.
 Filesystem/SQLite failures propagate and stop dependent tracking. Checksum
 mismatches or an occupied reserved destination stop recovery without overwrite.
 
+## What delivered proves
+
+The C8 (F10) finding's core question, stated as contract — what a plain
+consume-folder integration can prove without an ingestion callback:
+
+- **With no registered ingestion consumer (the default), `delivered` means
+  "atomically published into the output directory with no delivery obligation
+  outstanding" — and nothing about the archive.** The daemon's proof ends at
+  the checksum-verified atomic rename: a durable row, staged bytes, and a
+  rename ordered so a crash cannot produce a published file without a row
+  (recovery reconstructs the row conservatively as delivered). A missed
+  ingestion is discoverable in the row list; a duplicate ingestion is not, per
+  the agreed issue #24 contract.
+- **Ingestion proof requires a registered ingestion consumer** whose success
+  means the archive acknowledged the document. The consumer slot (`CONSUMERS`)
+  exists for exactly this; until one is registered and succeeds, a
+  consume-folder integration can prove "the file arrived in the folder with
+  the committed bytes", and the archive side must prove the rest (for example,
+  the archive's document result with a matching checksum readback).
+- **Re-delivery and moved files**: the bytes may already have left the folder
+  (a watcher took them). Delivery hands off the record (idempotency key +
+  metadata), not the file: a consumer must be able to act on the record alone
+  when `saved_path` no longer exists — checksum-deduplicating consumers do by
+  construction; a consumer that needs the bytes must treat a missing
+  `saved_path` as "already handed off", not as an error.
+
 ## Migration and rollback
 
-Schema changes are additive: `Download.state` and `Download.staged_path`.
-Historical rows default to `consumed`; migration does not replay them.
+Schema changes are additive: `Download.state`, `Download.staged_path` and
+`Download.delivery_attempts`.
+Historical rows default to `consumed` with a `NULL` attempt count; migration
+does not replay them.
 No historical file scan or production data conversion is performed.
 
 A local rollback reverts the contribution. Before running an older binary on

@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Opt-in daemon `download_all` incremental keys scoped to each task and key
+  attribute. Known items skip acquisition. A verified all-known list completes
+  successfully with an explicit log. Existing rows are not backfilled and
+  default acquisition stays unchanged. Keys do not detect corrections (issue #50).
 - Run-result semantics (issue #24, F06): a run now separates run health
   from what the collection proved. `Run.result` keeps its values; two
   additive columns (migrated in place, no backfill) carry the rest -

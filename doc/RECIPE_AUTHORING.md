@@ -104,6 +104,29 @@ The current save path uses the suggested filename in the configured download
 directory. A same-name file can be replaced. Test with isolated files; do not
 claim collision-safe publication or archive delivery from a download result.
 
+### Opt-in incremental downloads
+
+The daemon supports `incremental: true` in `download_all` options (issue #50).
+The default and `incremental: false` keep full acquisition. The legacy batch
+runner rejects `incremental: true` before any click; it has no persistent keys.
+
+Opt in only when each `key_attribute` value is stable, unique, and identifies
+a notice that the portal never corrects in place. A constant button key or a
+changing signed URL is not suitable. Keys do not detect content revisions.
+Portals that can correct notices, including Bourse Direct, must fetch originals
+and use `notice_identity` instead.
+
+The daemon stores `<key_attribute>=<key>` in the nullable `Download.source_key`
+column. Keys are scoped to the task and attribute. Old rows remain NULL; no
+backfill occurs. Changing the task or attribute starts a separate key scope.
+The download journal retains keys across recovery. Known keys are skipped
+without clicking or comparing content. An all-known non-empty list completes
+with `Run.result=success` and the explicit log `all items known`. Empty or
+invalid lists still fail. No new control-protocol or result field is added.
+
+The schema change is additive. Reverting this feature leaves the nullable
+column and existing rows intact; older code can ignore them.
+
 ## Test without a real account
 
 Start from a separate checkout. Install the development environment as described

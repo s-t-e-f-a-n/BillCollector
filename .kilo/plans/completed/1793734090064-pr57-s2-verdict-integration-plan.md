@@ -1,7 +1,8 @@
 # PR #57 — S2 execution: verdict + integration plan (doc completion, doc commit, gate)
 
 > For an implementation session ("continue PR #57"). S1 findings are complete in
-> `.kilo/plans/1793730437637-pr57-incremental-keys-review.md` (Status: REVIEWING,
+> `.kilo/plans/completed/1793730437637-pr57-incremental-keys-review.md`
+> (Status: REVIEWING,
 > "S2 pending at the user gate"). This plan records the three S2 decisions
 > (user-confirmed in the 2026-11-03 planning session) and specifies exactly what
 > the S2 session writes into the review plan doc, the doc-only commit + push, and
@@ -56,7 +57,8 @@
 
 ### Task 1 — Complete the review plan doc
 
-File: `.kilo/plans/1793730437637-pr57-incremental-keys-review.md`. Changes:
+File: `.kilo/plans/completed/1793730437637-pr57-incremental-keys-review.md`.
+Changes:
 
 1. Status line →
    `> Status: AWAITING-DECISION (date) — verdict (approve with maintainer changes) + integration plan complete; user gate before S3.`

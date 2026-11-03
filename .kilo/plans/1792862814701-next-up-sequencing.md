@@ -610,8 +610,30 @@ Grounds:
   content verified present); PR #44 closed without merge (comment
   6559487293, 2026-11-01T14:46:10Z), no related issues; Discussion summary
   user-confirmed, recorded for manual web-UI post (write API unavailable).
-  Plan doc archived to `completed/` + README + sequencing refs. **Batch-2
-  PR chain complete** — no open PRs on the GitHub mirror.
+   Plan doc archived to `completed/` + README + sequencing refs. **Batch-2
+   PR chain complete** — no open PRs on the GitHub mirror.
+- PR #57 S1-S7 DELIVERED 2026-11-04 ("continue pr #57" sessions; S1-S6 on
+  2026-11-03): S2 verdict "approve with maintainer changes" (adapt the
+  incremental wiring to the current run-result contract — keyword-only
+  `all_items_known` threaded through `derive_outcome`/`run_result`; the
+  fork-behind README/RECIPE_METHODS hunks not applied); S3 confirmed as-is
+  (9 files: 8 modified + new `tests/test_bc_incremental.py`, PR hunks merged
+  alongside concurrent changes, PR content preserved); S5 all green (focused
+  161 tests + 17 subtests across the six affected modules, no skips;
+  regression VERDICT: PASS 7 scenarios/8 PDFs; ruff clean; bandit unchanged
+  from baseline; deployment skip user-confirmed — not deployment-relevant);
+  S6 docs confirmed (CHANGELOG entry verbatim + sanitized; README/CONTRIBUTING
+  unchanged per the S3 gate). S7: dev commits `ca72481` (feat: incremental
+  keys + all-known success) / `4bd0f92` (doc: RECIPE_AUTHORING + CHANGELOG)
+  pushed to `origin/dev`; ff-only promoted to Gitea `main` `2485719` →
+  `4bd0f92`; GitHub `main` `eb06503` → `24eaa52` (mirror sync, public gate
+  green: no private paths at the tip, `tests/test_bc_incremental.py`
+  present); PR #57 closed without merge (comment 6617807406,
+  2026-11-03T23:08:51Z), issue #50 comment 6617807988 (phase (a) landed;
+  phase (b) ZIP unpack pending in PR #58) — issue left open; Discussion
+  summary skipped per the 2026-11-01 publication-routine correction (no
+  Discussion entries from PRs). Plan docs archived to `completed/` (review
+  doc + S1/S2 session plans).
 
 ## Explicitly not doing
 

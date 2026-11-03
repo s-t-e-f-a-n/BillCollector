@@ -41,6 +41,7 @@ agreement (see "Implementation plan").
 - 2026-11-03: B6 landed — C8 docs + CHANGELOG + plan status (docs only, no code): doc/DOWNLOAD_RECOVERY.md — new "Delivery states and retry" section (the `staged` → `published` → `consumed` state machine plus the `failed` branch: consumer exception or published-file checksum mismatch moves the row to `failed`, increments `delivery_attempts`, first-transition-only ntfy notice `delivery failed: <service> <user> <filename> (attempt N)`; the two retry paths — the per-row **Retry delivery** action / `python -m billcollector.downloads <db> --retry <id>` in the runner subprocess, and automatic retry of `failed` rows on every startup recovery — both at-least-once on task + sha256 with no cap; duplicate rows never delivered) and the "What delivered proves" section (the C8 (F10) statement as contract text: without a registered ingestion consumer `delivered` proves publication, not ingestion; ingestion proof requires a registered consumer; delivery hands off the record, not the file); the consumer paragraph, the recovery bullets and the migration section updated to the `failed` state + `delivery_attempts`. README — the Downloads bullet mentions the Delivery column + the **Retry delivery** action; the doc pointer gains the state machine and retry semantics. CHANGELOG Unreleased — new delivery-state exposure entry (issue #24, F10). Verify: full unit suite green (799 passed, 10 skipped, 92 subtests) — delivery gate passed, Delivery B (C8) complete. Next: promote Delivery B per the release cycle, then close issue #24 and draft the #52 archive-receipt interface proposal.
 - 2026-11-03: Delivery B (C8) DELIVERED — Stage 1 re-verified at the promotion tip (full unit suite green: 799 passed, 10 skipped, 92 subtests; full-scope regression harness PASS, exit 0); ff-only dev → Gitea main 2485719 (67b5b38..2485719); sanitized GitHub mirror main eb06503 (no tag — not a versioned release); public listing verified (no private paths). Both deliveries (A + B) complete. Next per "After the deliveries": close issue #24, then draft the #52 archive-receipt interface proposal. Plan fully delivered — moved to `completed/`.
 - 2026-11-03: issue #24 closed on GitHub (state_reason=completed, 2026-11-03T06:57:50Z) with the close comment (comment 6597460209: both lanes delivered, public main `21ef9f3` / `eb06503`, validation summary, #52 draft next) — "After the deliveries" step 2 done. Remaining: step 3, post the #52 archive-receipt interface draft (separate drafting session).
+- 2026-11-03: step 3 done — the #52 archive-receipt interface proposal was posted to issue #52 (comment 6604836002), drafted against public main `eb06503`: a durable receipt keyed on the idempotency key (task + sha256); ingestion proven by a durable archive document result + original-checksum readback (or a verified relation to a previously archived original); a consumer-owned receipt store with reconcile-before-resend (verified receipt → idempotent; in-flight resolution; bounded exact-checksum archive query within the per-task marker scope; ambiguous or unprovable effects fail the delivery visibly, never silently); optional provider evidence bound to the exact original checksum (associations, never gates; missing/incomplete/ambiguous evidence never suppresses a document); per-account / per-notice separation; changed originals preserved with no financial correction inferred; the agreed boundaries restated. All "After the deliveries" steps done. Awaiting flowcool's agreement on #52; the archive-side consumer is a separate implementation lane after agreement (its plan file is created when the lane starts).
 
 ## Verified context (dev `f11cb30` / public `main` `4a9bffc`, 2026-11-01)
 
@@ -730,17 +731,33 @@ plus the chunk's "read" list, never the whole design or the repo.
 > first, then the delivery-state exposure, and close this issue when the
 > latter lands.
 
-### Draft: issue #52 comment (posted after the #24 agreement)
+### Draft: issue #52 comment — POSTED 2026-11-03 (comment 6604836002)
 
-> The #24 delivery-state lane is agreed; the archive-side interface
-> proposal, as committed, follows. [Full interface proposal — drafted at that
-> point against the agreed delivery states: evidence binding to the exact
-> untouched PDF/checksum across retries; ingestion proven by a durable
-> archive document result + checksum readback or a verified relation to a
-> previously archived original; uncertain-effect reconciliation before
-> resend; per-account / per-notice separation; changed originals preserved
-> with no financial correction inferred from a byte change; missing,
-> incomplete or ambiguous evidence never silently suppresses a document.]
+> The #24 delivery-state lane has shipped (public main `eb06503`): the
+> `staged → published → consumed` state machine with the `failed` branch
+> and attempt count, the two at-least-once retry paths (manual per-row, and
+> startup recovery), and the C4 collection outcomes. This is the archive-side
+> interface proposal I committed to in my reply here, for agreement before
+> any code.
+>
+> [Eight points: (1) a durable receipt keyed on the idempotency key
+> (task + sha256) — verified or nonexistent; (2) ingestion proof = durable
+> archive document result + original-checksum readback, evidence and
+> HTML-equality never gates; (3) reconcile before any resend — verified
+> receipt idempotent, in-flight entry resolved, bounded exact-checksum
+> archive query in the per-task marker scope, ambiguous or unprovable
+> effects fail visibly; (4) optional provider evidence bound to the exact
+> original checksum, preserved across retries, never a gate, drops recorded;
+> (5) per-account / per-notice separation, new revisions archive alongside
+> earlier originals, byte-identical same-account notices suppressed at
+> delivery; (6) changed originals preserved, no financial correction
+> inferred, financial importer stays read-only; (7) one coherent semantics
+> across the C4 outcomes → delivery states → receipts; (8) boundaries:
+> shipped collector suppression unchanged, no collector schema/state, no
+> Paperless version policy, no automatic historical conversion, required
+> archive capabilities named, no private contents.]
+>
+> Full posted text: https://github.com/s-t-e-f-a-n/BillCollector/issues/52#issuecomment-6604836002
 
 ## Cross-references
 

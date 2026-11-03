@@ -1,7 +1,7 @@
 # PR #57 review — opt-in incremental download keys
 
-> Status: AWAITING-DECISION (2026-11-03) — S3 proposal confirmed as-is by
-> the user (2026-11-03); S4 (selective integration on dev) next session.
+> Status: INTEGRATING (2026-11-03) — S4 applied the confirmed S3 proposal to
+> the dev working tree (dirty, uncommitted); S5 (validate/refine) next session.
 
 ## PR metadata
 
@@ -496,6 +496,30 @@ dev-commits skill):
   `all_items_known` instead of a direct `ctx.` read at both call sites).
 - Next session: S4 selective integration on `dev` (apply the confirmed
   content, leave the tree dirty for S5 validation).
+
+### S4 result (2026-11-03)
+
+- Preflight re-verified: PR head `24e8492…` unchanged
+  (`ls-remote github refs/pull/57/head`); `dev` = `origin/dev` = `82297f1`
+  (the S3 doc commit); since the S1 pre-image record (`c377736`) only doc
+  commits landed, the pre-image checks remain valid; working tree clean.
+- All 12 candidates applied to the working tree per the confirmed plan:
+  verbatim hunks for `recipe-pw-schema.yaml`, `RECIPE_AUTHORING.md` (+ M4c
+  whitespace fix), `test_bc_collection.py`, `test_bc_incremental.py`
+  (new, + M4a), `test_bc_runner.py` (+ M4b one-line pin); keep-both manual
+  merges for `collection.py`, `db.py`, `downloads.py`; `runner.py` = PR
+  hunks except the superseded pre-C4 `run_result` hunk + M1–M3 (with the S3
+  run-local finalization refinement); `CHANGELOG.md` incremental entry merged
+  into `## [Unreleased]` → `### Added` (newest-first position, before the
+  F06 entry). Skipped per plan: `README.md`, `doc/RECIPE_METHODS.md`
+  (recommit noise, dev ahead), 102 comparison artifacts (private-path
+  deletions, never applied).
+- Sanity only (full validation is S5 on the exact dirty tree): `py_compile`
+  on all 7 changed Python files OK; `ruff check apps tests` clean.
+- Tree left dirty (uncommitted) for S5 validation, per S4.
+- Next session: S5 validate/refine — PR's 6 test modules, full regression,
+  bandit; deployment-process validation recorded as not deployment-relevant
+  (skip, no Docker host needed) and user-confirmed there.
 
 ## Validation plan
 

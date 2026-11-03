@@ -2,7 +2,9 @@
 
 > Status: VALIDATED (2026-11-03) — S5 validated the applied tree (all checks
 > green, one M4a signature fix, deployment skip user-confirmed); S6
-> (documentation) next session.
+> documentation confirmed (2026-11-03): CHANGELOG entry kept verbatim,
+> README/CONTRIBUTING unchanged per the S3-confirmed plan; S7 (commit +
+> push + PR close) next session.
 
 ## PR metadata
 
@@ -562,6 +564,36 @@ dev-commits skill):
   S4), README/CONTRIBUTING only if user-visible behavior or contributor
   rules changed (none expected beyond the RECIPE_AUTHORING section already
   applied), plan-doc record; then S7 commit + push + PR close.
+
+### S6 result (2026-11-03)
+
+- Preflight re-verified: PR head `24e8492…` unchanged
+  (`ls-remote github refs/pull/57/head`); `dev` = `origin/dev` = `c5974f4`
+  (the S5 doc commit); dirty tree exactly the 9 modified + 1 untracked
+  file S4 applied + S5 fixed.
+- CHANGELOG: the incremental-keys entry under `## [Unreleased]` →
+  `### Added` (merged in S4, newest-first before the F06 entry) is the
+  PR's own entry verbatim; re-checked for sanitization (no Gitea host,
+  NAS details, or private paths) and accuracy against the applied code
+  (task+attribute key scoping, skip-known, all-known → `success` with
+  the explicit log, no backfill, default acquisition unchanged, no
+  correction detection) — confirmed, no change.
+- README / CONTRIBUTING: **no change** — the S3-confirmed plan kept,
+  user-confirmed at the S6 gate (2026-11-03). Re-verified the PR's
+  README/RECIPE_METHODS hunks are fork-behind noise (method-chain
+  validation + `replacement_calendar` text; zero `incremental` content).
+  Maintainer observation recorded: README:333's `download_all` note
+  documents the opt-in `allow_empty` option but not the new opt-in
+  `incremental` option; a one-sentence README addition was offered at
+  the S6 gate and declined. The feature documentation lives in
+  `doc/RECIPE_AUTHORING.md` § "Opt-in incremental downloads" (PR
+  section, applied in S4).
+- Tree unchanged by S6 (doc-only session): exactly the 9 modified + 1
+  untracked file from S4/S5.
+- Next session: S7 — the two confirmed commits (S3 split: code / doc),
+  Gitea `origin/dev` first, then promotion + GitHub mirror + PR close
+  per the publication routine. Deployment-validation skip was
+  user-confirmed at S5; the tree must not move before S7.
 
 ## Validation plan
 

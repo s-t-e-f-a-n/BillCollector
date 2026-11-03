@@ -1,7 +1,7 @@
 # PR #57 review — opt-in incremental download keys
 
-> Status: AWAITING-DECISION (2026-11-03) — verdict (approve with
-> maintainer changes) + integration plan complete; user gate before S3.
+> Status: AWAITING-DECISION (2026-11-03) — S3 proposal confirmed as-is by
+> the user (2026-11-03); S4 (selective integration on dev) next session.
 
 ## PR metadata
 
@@ -429,10 +429,17 @@ docstring note. No other change.
 
   (Edge: `allow_empty` + `incremental` + empty listing sets both flags; M1's
   precedence makes the outcome `proved_empty` — pinned by M4a.)
-- Finalization (runner.py:1145, 1180-1183): pass
-  `all_items_known=ctx.all_items_known` at the `run_result` call and the
-  `derive_outcome` call (attribute direct, not `getattr`, per nit-2); the PR's
-  success-log hunk verbatim (`if not files:` → "succeeded: all items known.").
+- Finalization (runner.py:1145, 1180-1183): a run-local `all_items_known`
+  (initialized `False` beside `empty_proven`, assigned
+  `all_items_known = ctx.all_items_known` at the `run_result` call where ctx
+  is guaranteed) is passed to both the `run_result` and the finalize
+  `derive_outcome` call (S3 refinement of the S2 wording: on the finalize
+  path `ctx` can be `None` — vault-preflight/display failure after the Run
+  row exists — so a direct attribute read would crash finalization; the local
+  keeps the attribute direct where ctx exists, and is required for
+  consistency: without the flag the all-known success path would end
+  `result=success` with `collection_outcome=failed`); the PR's success-log
+  hunk verbatim (`if not files:` → "succeeded: all items known.").
 - `_RunContext.__init__` (runner.py:210-220): add
   `self.all_items_known = False` beside `collection_actions_ran/proven` (nit-2).
 
@@ -463,12 +470,32 @@ docstring note. No other change.
 - M4b `tests/test_bc_runner.py`
   `test_incremental_all_known_finishes_run_successfully`: keep as applied;
   recommended one-line addition asserting
-  `self.db.get_run(1)["collection_outcome"] == "duplicates_only"` to pin the
-  contract mapping end-to-end (S3 confirms).
+   `self.db.get_run(1)["collection_outcome"] == "duplicates_only"` to pin the
+   contract mapping end-to-end (confirmed in S3, included in the proposal).
 - M4c `doc/RECIPE_AUTHORING.md`: remove the double blank line before
   "## Test without a real account" (nit-3).
 
-Commit split (one concern per commit, dev-commits skill) is proposed in S3.
+Commit split (confirmed as-is in S3, 2026-11-03; one concern per commit,
+dev-commits skill):
+
+1. `feat: opt-in incremental download keys with all-known success (issue #50)`
+   — `collection.py`, `db.py`, `downloads.py`, `runner.py` (M1–M3),
+   `recipe-pw-schema.yaml`, `tests/test_bc_collection.py`,
+   `tests/test_bc_incremental.py` (M4a), `tests/test_bc_runner.py` (M4b).
+2. `doc: incremental downloads — recipe authoring guide and changelog (issue #50)`
+   — `doc/RECIPE_AUTHORING.md` (M4c), `CHANGELOG.md`.
+
+### S3 result (2026-11-03)
+
+- Preflight re-verified: PR head `24e8492…` unchanged
+  (`ls-remote github refs/pull/57/head`); `dev` = `origin/dev` = `87c5443`
+  (the S2 doc commit); working tree clean.
+- The exact proposal (apply/skip list, manual merges, M1–M4 exact diffs,
+  commit split) presented; **user confirmed as-is** at the S3 gate.
+- One S3 refinement recorded above (M3 finalization: run-local
+  `all_items_known` instead of a direct `ctx.` read at both call sites).
+- Next session: S4 selective integration on `dev` (apply the confirmed
+  content, leave the tree dirty for S5 validation).
 
 ## Validation plan
 

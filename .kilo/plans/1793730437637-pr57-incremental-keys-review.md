@@ -1,10 +1,10 @@
 # PR #57 review — opt-in incremental download keys
 
-> Status: VALIDATED (2026-11-03) — S5 validated the applied tree (all checks
-> green, one M4a signature fix, deployment skip user-confirmed); S6
-> documentation confirmed (2026-11-03): CHANGELOG entry kept verbatim,
-> README/CONTRIBUTING unchanged per the S3-confirmed plan; S7 (commit +
-> push + PR close) next session.
+> Status: DELIVERED (2026-11-03) — S7 complete: Gitea dev/main =
+> `4bd0f92` (feat `ca72481` + doc `4bd0f92`), sanitized GitHub mirror main =
+> `24eaa52` (public feat commit `ca72481`), PR #57 closed without merge
+> (comment `6617807406`), issue #50 phase (a) recorded (comment
+> `6617807988`) and left open for phase (b) / PR #58.
 
 ## PR metadata
 
@@ -594,6 +594,50 @@ dev-commits skill):
   Gitea `origin/dev` first, then promotion + GitHub mirror + PR close
   per the publication routine. Deployment-validation skip was
   user-confirmed at S5; the tree must not move before S7.
+
+### S7 result (2026-11-03) — DELIVERED
+
+- Preflight re-verified: PR head `24e8492…` unchanged
+  (`ls-remote github refs/pull/57/head`); `dev` = `origin/dev` = `68e1b84`
+  (the S6 doc commit); dirty tree exactly the 9 modified + 1 untracked
+  file S4 applied + S5 fixed; the S5-validated tree had not moved since
+  the user-confirmed deployment-validation skip, so no re-validation was
+  required.
+- S7 commits (the confirmed S3 split, one concern each), pushed to
+  Gitea `origin/dev`:
+  - `ca72481` `feat: opt-in incremental download keys with all-known
+    success (issue #50)` — `collection.py`, `db.py`, `downloads.py`,
+    `runner.py` (M1–M3), `recipe-pw-schema.yaml`, `test_bc_collection.py`,
+    `test_bc_incremental.py` (M4a), `test_bc_runner.py` (M4b).
+  - `4bd0f92` `doc: incremental downloads — recipe authoring guide and
+    changelog (issue #50)` — `doc/RECIPE_AUTHORING.md` (M4c),
+    `CHANGELOG.md`.
+  - `dev` = `origin/dev` = `4bd0f92`. `.private/notes.txt` left untracked
+    (never committed).
+- Promotion (deploy skill Stage 2, ff-only, no tag): Gitea `main`
+  `2485719` → `4bd0f92`; `origin/main` = `4bd0f92`; returned to `dev`.
+- Mirror (deploy skill Stage 3, `bash .private/sync_github.sh`): sanitized
+  `github/main` forced `eb06503` → `24eaa52`. Public verification:
+  `git ls-remote github refs/heads/main` = `24eaa52`; public root listing
+  has no `.kilo` / `.private` / `.vscode` / `openwiki` / `AGENTS.md` /
+  `.openwikiignore` / `.github/workflows` (`.github` holds only
+  `ISSUE_TEMPLATE`); the integrated content is present
+  (`tests/test_bc_incremental.py` and the incremental hunks). Public
+  commits: feat = `ca72481` (SHA preserved — no private files in that
+  commit), doc tip = `24eaa52` (sanitized, so SHA differs from Gitea
+  `4bd0f92`).
+- PR close (user confirmed the exact comment text): posted
+  `6617807406` on PR #57 (mirror flow, public commit links,
+  maintainer-side adaptations, validation summary, nit) and closed the PR
+  **without merge** (`state: closed`, `merged: false`) — the change reached
+  GitHub via the mirror, keeping public history canonical.
+- Related issue (user confirmed the exact comment text): posted
+  `6617807988` on issue #50 (phase (a) landed on `main`, phase (b) pending
+  in PR #58) and **left it open** — acceptance needs both phases.
+- GitHub Discussion summary: **not posted** — per the publication-routine
+  correction (2026-11-01) no Discussion entries are created from PRs;
+  deliveries end with the PR close comment + related-issue comment.
+- Status: DELIVERED. Lane complete.
 
 ## Validation plan
 

@@ -244,6 +244,8 @@ definitions:
           required: [ key_attribute, max_items, timeout_ms, event_window_ms ]
           additionalProperties: false
           properties:
+            unpack:
+              const: pdf
             key_attribute:
               type: string
               minLength: 1
@@ -327,7 +329,10 @@ definitions:
               minimum: 1
               maximum: 120
             download_options:
-              $ref: '#/definitions/downloadAllMethod/properties/arguments/items'
+              allOf:
+                - $ref: '#/definitions/downloadAllMethod/properties/arguments/items'
+                - not:
+                    required: [unpack]
             month_names:
               type: array
               minItems: 12

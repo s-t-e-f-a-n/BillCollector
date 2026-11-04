@@ -1,7 +1,8 @@
 # PR #58 — review: opt-in bounded single-PDF ZIP extraction
 
-> Status: AWAITING-DECISION (2026-11-04) — S1 review + S2 verdict/integration
-> plan complete (verdict: approve); user reviews verdict and plan, then S3.
+> Status: INTEGRATING (2026-11-04) — S3 proposal presented and confirmed
+> as-is (incl. M1); S4 next session applies it on dev (tree still clean at
+> `71b2df9`); S5 validates the exact dirty tree before any commit.
 
 ## PR metadata
 
@@ -231,6 +232,72 @@ Preflight: on `dev`, clean tree; `git ls-remote github refs/pull/58/head` =
 | M1 (optional, S3 gate) | maintainer change | `archives._member_name`: reject `len(parts[-1]) > 255` with the existing unsafe-path error |
 
 Tree left dirty after S4 (S5 validates the exact content before any commit).
+
+### Exact merge shapes (S3, confirmed as-is 2026-11-04)
+
+`collection.py` imports: `from contextlib import nullcontext` after
+`import time`; `from .archives import pdf_download` before
+`from .interrupt import RunInterrupted`.
+
+`collection.py` options set:
+
+    names={
+        "key_attribute", "max_items", "timeout_ms", "event_window_ms",
+        "allow_empty", "incremental", "unpack",
+    },
+
+`collection.py` unpack validation (after dev's `keyed_save` check, before
+`key_attribute = …`):
+
+    if "unpack" in options and options["unpack"] != "pdf":
+        raise CollectionError("unpack must be pdf when supplied")
+
+`collection.py` `save_completed` (dev's if/else wrapped in the PR's context,
+`document` as save argument):
+
+    def save_completed(download):
+        prepared = (pdf_download(download) if options.get("unpack") == "pdf"
+                    else nullcontext(download))
+        with prepared as document:
+            if incremental:
+                record = save_download(
+                    document, source_key=source_key(key_attribute, expected_key)
+                )
+            else:
+                record = save_download(document)
+        completed_keys.add(expected_key)
+        return record
+
+M1 (`archives._member_name`, appended condition, existing error message):
+
+    if (not name or "\\" in name or ":" in name
+            or any(ord(char) < 32 or ord(char) == 127 for char in name)
+            or any(part in {"", ".", ".."} for part in parts)
+            or len(parts[-1]) > 255):
+        raise ValueError("ZIP member path is unsafe")
+
+### S7 commits (confirmed as-is 2026-11-04, one concern each)
+
+1. `feat: opt-in download_all unpack: pdf (bounded single-PDF ZIP transport)` —
+   `archives.py` (+M1), `collection.py`, `recipe-pw-schema.yaml`
+2. `test: bounded ZIP extraction coverage for download_all` —
+   `tests/test_bc_archives.py`
+3. `doc: ZIP transport contract, unpack option, changelog entry` —
+   `CHANGELOG.md`, `README.md`, `doc/RECIPE_AUTHORING.md`,
+   `doc/RECIPE_METHODS.md`
+
+### S3 gate (2026-11-04)
+
+- User confirmed the proposal as-is (A–E + M1 + the three S7 commits).
+- Preflight re-verified at the gate: PR head `d97d7f3` unchanged
+  (`git ls-remote github refs/pull/58/head` = fetched `refs/pr/58`);
+  `dev` = `origin/dev` = `71b2df9`, clean tree (untracked
+  `.private/notes.txt` only — private note, untouched). dev's move since
+  S1 (`c1ab80a` → `71b2df9`) is doc-only plan commits → pre-image checks
+  stand.
+- Issue #50 verified **open** at the gate; PR body says "Refs #50, phase
+  two" (no auto-close). Both phases land with this delivery → S7 closes
+  #50 with a user-confirmed comment per the publication routine.
 
 ## Validation plan (S5, from repo root, `apps/.venv`, exact dev tree)
 

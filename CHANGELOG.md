@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Opt-in `download_all` option `unpack: pdf` validates a bounded ZIP with one
+  safe regular PDF member and saves its unchanged bytes. Default downloads
+  remain unchanged. The calendar action does not support this option. (issue #50)
 - Opt-in daemon `download_all` incremental keys scoped to each task and key
   attribute. Known items skip acquisition. A verified all-known list completes
   successfully with an explicit log. Existing rows are not backfilled and

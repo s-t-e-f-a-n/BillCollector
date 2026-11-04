@@ -207,6 +207,7 @@ Arguments: exactly one object:
 | `timeout_ms` | integer 1..600000 | yes |
 | `event_window_ms` | integer 1..10000, and < `timeout_ms` | yes |
 | `allow_empty` | boolean (default `false`) | no |
+| `unpack` | `pdf` only; validate one bounded regular PDF in a ZIP and save its unchanged bytes | no |
 
 Semantics: the initial ordered key snapshot is the contract for the
 whole action; the list is re-read after every click and the selected
@@ -217,7 +218,9 @@ listing is restored after a navigating download. Persisted records stay
 committed when a later item fails. With the opt-in `allow_empty` an
 empty listing completes with zero records and proves the window empty
 for the run outcome; without the option the fail-closed error is
-unchanged. Non-graceful, single attempt, cannot be nested.
+unchanged. Non-graceful, single attempt, cannot be nested. See the
+[ZIP transport contract](RECIPE_AUTHORING.md#pagination-empty-lists-and-downloads)
+for the size limits, rejected archive types and supported scope.
 
 ## 4. Variables
 

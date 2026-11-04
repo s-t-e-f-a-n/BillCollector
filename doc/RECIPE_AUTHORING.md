@@ -93,6 +93,24 @@ does not grant automatic retries or count manual submissions in the login budget
 | Download one known document | `expect_download` with nested steps that trigger the click. Files pass through download tracking and per-task SHA-256 deduplication. |
 | Handle an empty list | Prove the portal's explicit empty state in a synthetic fixture. A collection with no downloads can still finish as `failure` under current run-result semantics. |
 
+For a ZIP transport, add `unpack: pdf` to the `download_all` options object.
+The archive must contain exactly one member, including directory entries. The
+member must be a regular file with a `.pdf` extension and a `%PDF-` signature.
+This checks the transport type; it does not parse or repair the PDF document.
+Absolute paths, empty/dot/parent components, backslashes, colons and control
+characters are rejected. Safe subdirectories are allowed; only the member's
+basename becomes the published filename. Symlinks and other special types,
+encryption, unsupported compression, corrupt archives and CRC failures fail
+before persistence. Only stored and deflated ZIP members are supported.
+The ZIP transport is limited to 32 MiB and the uncompressed member to 64 MiB.
+ZIP metadata reads are limited to 256 KiB before the member table is parsed.
+The PDF stream is bounded too. The extracted bytes pass unchanged to the normal
+save path, hash deduplication and optional notice identity. A rejected archive
+saves no record and does not mark its collection key complete. Earlier saved
+items remain saved. Without this option, downloads keep their current behavior.
+The `unpack` option applies only to `download_all`. It is not supported in
+`replacement_calendar.download_options`.
+
 Collection actions cannot be graceful, nested under `expect_download`, or placed
 in login phases. They use bounded, single-attempt execution. Later failure does
 not undo prior saved records. Resume intentionally after checking partial effects.

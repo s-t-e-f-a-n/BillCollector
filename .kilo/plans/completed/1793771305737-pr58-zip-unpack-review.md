@@ -1,13 +1,11 @@
 # PR #58 — review: opt-in bounded single-PDF ZIP extraction
 
-> Status: VALIDATED (2026-11-04) — S5 done on the exact S4 dirty tree:
-> unit 16 + 33 subtests, correction suite 106 + 33 (dev-side +5 collection
-> tests), regression VERDICT: PASS (7 pairs / 8 files, exit 0), ruff clean,
-> bandit 1.9.4 zero findings on changed files; deployment-skip record
-> user-confirmed at the S5 gate. S6 (documentation) done 2026-11-04:
-> CHANGELOG/README/doc entries verified sanitized, CONTRIBUTING unchanged,
-> candidates re-verified intact (M1-only diff vs head, tests byte-identical);
-> S7 (commit + push, Gitea first, then GitHub mirror) next session.
+> Status: DELIVERED (2026-11-04) — S7 complete: 3 dev commits (`5076bfb`
+> feat / `b59354f` test / `dac3e60` doc) pushed to Gitea `dev`, ff-only
+> promoted to Gitea `main` `dac3e60`; GitHub `main` `24eaa52` → `2209e3e`
+> (mirror, public gate green); PR #58 closed without merge (comment
+> 6643446086), issue #50 closed (comment 6643447008) — both agreed phases
+> of issue #50 are on public `main`.
 
 ## PR metadata
 
@@ -389,6 +387,58 @@ byte-identical; PR head `d97d7f3…` unchanged; `dev` = `origin/dev` =
 | `CONTRIBUTING.md` | contributor rules unchanged (opt-in additive feature, no new process or interface agreement needed) | no change needed |
 
 Gate: user confirms the docs (S6 gate) before S7 commits or pushes.
+
+### S7 result (2026-11-04) — DELIVERED
+
+Preflight re-verified: PR head `d97d7f3…` unchanged (`git ls-remote
+github refs/pull/58/head` = fetched `refs/pr/58`); `dev` = `origin/dev` =
+`b6eb20a` (the S6 doc commit), no unpushed commits; tree = the exact
+S5-validated tree (`archives.py` diff vs PR head = M1 line only;
+`tests/test_bc_archives.py` byte-identical; the 6 modified files unchanged
+since S4); the dev move since the S5/S6 gates (`20b9adb` → `b6eb20a`) is
+doc-only plan commits → the user-confirmed deployment-skip stands for the
+exact tree being promoted.
+
+- S7 commits (the confirmed S3 split, one concern each), pushed to Gitea
+  `origin/dev`:
+  - `5076bfb` `feat: opt-in download_all unpack: pdf (bounded single-PDF
+    ZIP transport)` — `apps/billcollector/archives.py` (+M1),
+    `apps/billcollector/collection.py`,
+    `apps/recipes_playwright/recipe-pw-schema.yaml`.
+  - `b59354f` `test: bounded ZIP extraction coverage for download_all` —
+    `tests/test_bc_archives.py`.
+  - `dac3e60` `doc: ZIP transport contract, unpack option, changelog
+    entry` — `CHANGELOG.md`, `README.md`, `doc/RECIPE_AUTHORING.md`,
+    `doc/RECIPE_METHODS.md`.
+  - `dev` = `origin/dev` = `dac3e60`. `.private/notes.txt` left untracked
+    (never committed).
+- Promotion (deploy skill Stage 2, ff-only, no tag): Gitea `main`
+  `4bd0f92` → `dac3e60`; `origin/main` = `dac3e60`; `git diff main dev`
+  empty, status clean; returned to `dev`.
+- Mirror (deploy skill Stage 3, `bash .private/sync_github.sh`): sanitized
+  `github/main` forced `24eaa52` → `2209e3e`. Public gate green:
+  `git ls-remote github refs/heads/main` = `2209e3e`; public root listing
+  has no `.kilo` / `.private` / `.vscode` / `openwiki` / `AGENTS.md` /
+  `.openwikiignore` / `.github/workflows` (`.github` holds only
+  `ISSUE_TEMPLATE`); the integrated content is present
+  (`apps/billcollector/archives.py` incl. the M1 cap,
+  `tests/test_bc_archives.py`). Public commits: feat = `5076bfb` and
+  test = `b59354f` (SHA preserved — no private files in those commits);
+  doc tip = `2209e3e` (sanitized, so SHA differs from Gitea `dac3e60`).
+- PR close (user confirmed the exact comment text): posted `6643446086` on
+  PR #58 (mirror flow, public commit links, maintainer-side adaptations,
+  validation summary, nit) and closed the PR **without merge**
+  (`state: closed`, `merged: false`) — the change reached GitHub via the
+  mirror, keeping public history canonical.
+- Related issue (user confirmed the exact comment text): posted
+  `6643447008` on issue #50 (phase (b) landed on `main`; with phase (a)
+  both agreed phases delivered) and **closed it** (`state: closed`) —
+  acceptance criteria met.
+- GitHub Discussion summary: **not posted** — per the publication-routine
+  correction (2026-11-01) no Discussion entries are created from PRs; the
+  delivery ends with the PR close comment + related-issue comment.
+- Status: DELIVERED. Lane complete. Plan doc archived to `completed/`;
+  README + sequencing refs updated.
 
 ## Out of scope
 

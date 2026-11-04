@@ -632,8 +632,34 @@ Grounds:
   2026-11-03T23:08:51Z), issue #50 comment 6617807988 (phase (a) landed;
   phase (b) ZIP unpack pending in PR #58) — issue left open; Discussion
   summary skipped per the 2026-11-01 publication-routine correction (no
-  Discussion entries from PRs). Plan docs archived to `completed/` (review
-  doc + S1/S2 session plans).
+   Discussion entries from PRs). Plan docs archived to `completed/` (review
+   doc + S1/S2 session plans).
+ - PR #58 S1-S7 DELIVERED 2026-11-04 ("continue pr #58" sessions, all six
+   stages across 2026-11-04): S2 verdict "approve" (opt-in bounded
+   single-PDF ZIP `unpack: pdf` for `download_all`; the 110-file GitHub
+   diff is a fork-behind-base artifact — real content 8 files +492/−4);
+   S3 confirmed as-is (4 additive 3-way merges + M1 one-line maintainer
+   hardening: reject member basenames > 255 bytes with the existing
+   unsafe-path error); S5 all green on the exact dirty tree (new module
+   16 tests + 33 subtests incl. the real-Chromium browser test, no skips;
+   focused four-module set 106 + 33; regression VERDICT: PASS 7
+   scenarios/8 PDFs, exit 0; ruff clean; bandit 1.9.4 zero findings on
+   changed files; deployment skip user-confirmed — not deployment-
+   relevant); S6 docs confirmed (CHANGELOG entry merged newest-first;
+   README/RECIPE_METHODS keep-both; RECIPE_AUTHORING + schema as-is;
+   CONTRIBUTING unchanged). S7: dev commits `5076bfb` (feat: archives +
+   collection + schema + M1) / `b59354f` (test: bounded ZIP extraction
+   coverage) / `dac3e60` (doc: ZIP transport contract, unpack option,
+   changelog) pushed to `origin/dev`; ff-only promoted to Gitea `main`
+   `4bd0f92` → `dac3e60`; GitHub `main` `24eaa52` → `2209e3e` (mirror
+   sync, public gate green: no private paths at the tip, `archives.py`
+   + `test_bc_archives.py` present; feat/test SHAs preserved, doc tip
+   sanitized); PR #58 closed without merge (comment 6643446086,
+   2026-11-04T22:12:13Z), issue #50 closed (comment 6643447008 — phase
+   (b) landed; with phase (a) both agreed phases delivered); Discussion
+   summary skipped per the 2026-11-01 publication-routine correction (no
+   Discussion entries from PRs). Plan doc archived to `completed/` +
+   README + sequencing refs. **No open PRs on the GitHub mirror.**
 
 ## Explicitly not doing
 

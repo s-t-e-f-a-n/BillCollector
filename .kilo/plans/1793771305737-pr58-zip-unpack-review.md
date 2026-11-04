@@ -1,8 +1,8 @@
 # PR #58 — review: opt-in bounded single-PDF ZIP extraction
 
-> Status: INTEGRATING (2026-11-04) — S3 proposal presented and confirmed
-> as-is (incl. M1); S4 next session applies it on dev (tree still clean at
-> `71b2df9`); S5 validates the exact dirty tree before any commit.
+> Status: INTEGRATING (2026-11-04) — S4 applied on dev: all 8 candidate files
+> + M1 in the working tree, left dirty for S5 (dev was `f467760`, clean, at
+> S4 start); S5 next session validates the exact dirty tree before any commit.
 
 ## PR metadata
 
@@ -298,6 +298,31 @@ M1 (`archives._member_name`, appended condition, existing error message):
 - Issue #50 verified **open** at the gate; PR body says "Refs #50, phase
   two" (no auto-close). Both phases land with this delivery → S7 closes
   #50 with a user-confirmed comment per the publication routine.
+
+### S4 application record (2026-11-04)
+
+Preflight re-run, all green: `git ls-remote github refs/pull/58/head` =
+`d97d7f3…` = fetched `refs/pr/58` (unchanged); `dev` = `origin/dev` =
+`f467760`, clean tree (untracked `.private/notes.txt` only, private note,
+untouched); dev's move since S3 gate (`71b2df9` → `f467760`) and since S1
+(`c1ab80a` → `f467760`) is doc-only plan commits → pre-image checks stand.
+
+Applied per the confirmed plan (tree left dirty, uncommitted):
+
+| File | Result |
+|---|---|
+| `apps/billcollector/archives.py` | applied from head byte-for-byte, then M1 appended (`len(parts[-1]) > 255` in the unsafe-path condition) — diff vs PR head = M1 line only (verified) |
+| `tests/test_bc_archives.py` | applied from head byte-for-byte (verified) |
+| `apps/billcollector/collection.py` | manual 3-way per confirmed shapes: imports, options set + `unpack`, validation block after the `keyed_save` check, `save_completed` wrapped in `with prepared as document:` — diff matches the S3 shapes exactly |
+| `apps/recipes_playwright/recipe-pw-schema.yaml` | auto 3-way, 0 conflicts (F5); `unpack: {const: pdf}` present, `download_options` allOf/not intact (verified) |
+| `CHANGELOG.md` | manual: PR's 3-line entry inserted at the top of `### Added` under `## [Unreleased]`, above the PR #57 entry (newest-first) |
+| `README.md` | manual: dev's `allow_empty` sentence kept; PR's two continuation lines (`Set optional `unpack: pdf`…` + ZIP transport contract link) appended after it |
+| `doc/RECIPE_AUTHORING.md` | auto 3-way, 0 conflicts (F5); ZIP paragraph inside "Pagination, empty lists and downloads" (L87 section), before `### Opt-in incremental downloads` (L125) — anchor stays valid |
+| `doc/RECIPE_METHODS.md` | manual: keep-both — `allow_empty` row kept, PR's `unpack` row added after it; semantics keep dev's `allow_empty` sentence + PR's ZIP contract link sentence appended after "cannot be nested." |
+
+`git status` after S4: 6 modified + 2 untracked new (the 8 candidates) +
+pre-existing untracked `.private/notes.txt`. S5 validates this exact dirty
+tree before any commit.
 
 ## Validation plan (S5, from repo root, `apps/.venv`, exact dev tree)
 

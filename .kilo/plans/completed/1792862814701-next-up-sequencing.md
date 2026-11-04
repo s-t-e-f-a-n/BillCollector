@@ -696,3 +696,33 @@ Each step validates per its own plan file's acceptance criteria (C1/C2/C3 in
 `1792819039884-recipe-doctor-implementation.md`). Repo gate before each push:
 `ruff check apps tests` + full pytest suite; commits via dev-commits with
 per-item user confirmation.
+
+## Closing (2026-11-05)
+
+All sequenced work in this doc is complete:
+
+- PR chain #30 → #58 DELIVERED (2026-10-25 → 2026-11-04; the entries above
+  are the record) — no open PRs on the GitHub mirror.
+- C1 (F04) + C2 (F09) + C3 (F08 contract) done 2026-10-24 (issue27 plan).
+- C4 (F06) DELIVERED 2026-11-02 (Gitea `main` `67b5b38` / GitHub `21ef9f3`)
+  and C8 (F10) DELIVERED 2026-11-03 (Gitea `main` `2485719` / GitHub
+  `eb06503`) via the C4/C8 plan
+  (`completed/1793551618380-issue24-c4-c8-result-delivery-contract.md`);
+  issue #24 closed as completed 2026-11-03 (maintainer).
+
+Current next-up snapshot (each item's own plan is the tracker):
+
+- Stage 1b remainder — 1und1 (fix committed `c29d978`, runs 22–25 still
+  paused `step_failed`), freenet_mobilfunk, kabeldeutschland (Option D
+  re-authoring) — `1792819039884-recipe-doctor-implementation.md`.
+- C5 (F02 recipe-storage design), C6 (F03 noVNC access design), C7 (F05
+  protected-login conversion — rides the remaining Stage 1b portal windows)
+  — `1792861675256-issue27-maintainer-commitments.md`.
+- Issue #59 engine PR (Bourse Direct adapter; boundary accepted 2026-11-04,
+  comment 6644532027) — a new pr-review plan when flowcool's rebased engine
+  PR arrives.
+- Issue #52 archive receipts — proposal posted 2026-11-03 (comment
+  6604836002), awaiting flowcool's response.
+
+This doc is archived to `completed/` as consumed; new sequencing decisions
+start a fresh doc.

@@ -121,8 +121,9 @@ on dev.
   contract is agreed on the issue.
 - Then implement: UI, notifications and CLI/exit semantics updated
   consistently, with compatibility tests.
-- Status: not started; waits for the #24/#26 lanes to settle the shared
-  semantics.
+- Status: done 2026-11-02 (Delivery A of the C4/C8 plan
+  `completed/1793551618380-issue24-c4-c8-result-delivery-contract.md`;
+  Gitea `main` `67b5b38` / GitHub `21ef9f3`).
 
 ### C5 — F02: recipe storage design (P1, design first)
 
@@ -172,9 +173,8 @@ on dev.
   / delivered / failed delivery states, using the agreed stable idempotency
   key and safe retries; a plain consume-folder integration states what it can
   prove when no ingestion callback exists. No competing implementation.
-- Status: crash-recovery prerequisite delivered via PR #33 (2026-10-26);
-  schedulable now. Issue #24 stays open per maintainer decision — the
-  delivery-state exposure (C8) is its remaining lane.
+- Status: done 2026-11-03 (Delivery B of the C4/C8 plan; Gitea `main`
+  `2485719` / GitHub `eb06503`).
 
 ## Handed over to flowcool (tracked in their PRs, not here)
 
@@ -191,12 +191,14 @@ on dev.
 
 - #24 crash recovery (flowcool implementation PR #33) — **DELIVERED
   2026-10-26** (Gitea `main` `181a9cc` / GitHub `main` `5116627`, PR closed
-  without merge, comment 6425517713). F01 (collision-safe storage) is in; the
-  consumer-delivery half (F10/C8) remains. Issue #24 left OPEN per maintainer
-  decision 2026-10-26 (no closure comment); C8 is now schedulable.
+  without merge, comment 6425517713); **CLOSED completed 2026-11-03**
+  (maintainer, comment 6597460209) with both lanes delivered: F01
+  (collision-safe storage) via #33, the consumer-delivery half (F10/C8) via
+  the C4/C8 plan (Delivery B, 2026-11-03).
 - #26 date variables / collection window (flowcool PR #34, last in the
-  continuation order) — overlaps C4; once it lands with #33, C4 becomes
-  draftable.
+  continuation order) — **closed 2026-10-27** (PR #34 delivered, Gitea
+  `main` `53a5dff` / GitHub `main` `6bb3348`); its C4 overlap settled via
+  the C4/C8 result contract.
 - #28 Chromium sandbox (flowcool, contract accepted 2026-10-24) —
   **DELIVERED 2026-10-26 via PR #32** (Gitea `main` `bde713c` / GitHub
   `main` `93bfcc8`); issue #28 closed as delivered (comment 6429514585).
@@ -228,16 +230,18 @@ when picked up). O01 stays deferred per #21.
 
 ## Status
 
-- Plan created 2026-10-24; triage decision posted on issue #27
-  (comment 6387035799). C2 (F09) done 2026-10-24; C1 (F04) done 2026-10-24
-  (gate green: ruff + pytest 451 passed); C3 (F08 contract) done
-  2026-10-24 (`doc/RECIPE_METHODS.md` commit `5745e59`, issue #27 comment
-  6388757576). PR #33 (the #24 implementation lane) DELIVERED 2026-10-26
-  (Gitea `main` `181a9cc` / GitHub `5116627`): crash recovery + F01 on main,
-  C8 (F10) now schedulable, C4 still needs #34 (#26). PR #32 (Chromium
-  sandbox, #28) DELIVERED 2026-10-26 (Gitea `main` `bde713c` / GitHub
-  `93bfcc8`). Next per the sequencing plan
-  (`1792862814701-next-up-sequencing.md`): PR chain #34, then doctor
-  Stage 1b (needs the user's portal-access windows; C7 conversions ride
-  the same windows). C4–C8 remain open — this plan stays Active until
-  they are delivered.
+C1–C4 and C8 delivered; remaining C5 (F02 recipe-storage design), C6 (F03
+noVNC access design), C7 (F05 protected-login conversion — schedule with
+the remaining Stage 1b portal windows). Plan stays Active until C5–C7 are
+delivered.
+
+Timeline: plan created 2026-10-24 (triage decision posted on issue #27,
+comment 6387035799); C2 (F09) + C1 (F04) done 2026-10-24; C3 (F08 contract)
+done 2026-10-24 (`doc/RECIPE_METHODS.md`, commit `5745e59`, issue #27
+comment 6388757576); C4 (F06) done 2026-11-02 (Gitea `main` `67b5b38` /
+GitHub `21ef9f3`); C8 (F10) done 2026-11-03 (Gitea `main` `2485719` /
+GitHub `eb06503`). Issue #24 closed as completed 2026-11-03 (maintainer,
+comment 6597460209); issue #26 closed 2026-10-27 (PR #34 delivered). The PR
+chain that delivered the #24/#26 lanes is recorded in
+`completed/1792862814701-next-up-sequencing.md` (archived as consumed
+2026-11-05).

@@ -4,7 +4,7 @@ Extended 2026-10-24: Stage 1b continuation for the remaining five
 services (see below).
 
 Goal: implement Option B from
-`1792793307574-recipe-repair-llm-options.md` — a dev-side
+`completed/1792793307574-recipe-repair-llm-options.md` — a dev-side
 `billcollector doctor` subcommand that proposes a repaired recipe step
 for a captured pause context, gated by the existing
 `validate_recipe`/`save_recipe` path and explicit human approval.
@@ -275,6 +275,19 @@ the definition of done, and the wrap-up steps below are unchanged; the
 wrap-up (batch commit, plan archival) happens after all seven are
 green.
 
+### Status (2026-11-05)
+
+Still 4 of 7 green (buhl, datev, nuernberger, winsim). No local portal
+runs since 2026-10-25 — 1und1's last attempt is run 25 (paused
+`step_failed`; the committed fix `c29d978` has not been re-run),
+freenet_mobilfunk and kabeldeutschland remain not started. The engine
+has moved on main since 2026-10-25 (C4/C8 run-result semantics, PR #57
+incremental keys, PR #58 bounded ZIP unpack) — the per-iteration loop is
+unchanged, but the next session re-verifies its assumptions against the
+current tree first. The options doc is archived to `completed/` (no
+remaining execution steps there); this plan stays Active until all seven
+are green.
+
 ### Per-service checklist (order: cheap wins first)
 
 1. **nuernberger** — re-target (not an overlay case).
@@ -359,10 +372,12 @@ with the reviewed diff.
 
 1. Commit the recipe fixes + the doctor prompt enhancement
    (dev-commits, user confirms).
-2. Archive the delivered plans: move this file and
-   `1792793307574-recipe-repair-llm-options.md` to
+2. Archive the delivered plans: move this file to
    `.kilo/plans/completed/`, update `.kilo/plans/README.md` per its
-   own rules (the daemon master plan stays active).
+   own rules (the daemon master plan stays active). The options doc
+   (`completed/1792793307574-recipe-repair-llm-options.md`) already moved
+   ahead of this doc on 2026-11-05 — its remaining options were executed
+   or tracked here (Stage 2/C stays a separate plan).
 3. Stage 2 (Option C in-daemon copilot) stays a separate plan; the
    pause context + the proven doctor prompt are its foundation.
 

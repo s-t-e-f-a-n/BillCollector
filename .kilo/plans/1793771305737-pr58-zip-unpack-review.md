@@ -1,8 +1,13 @@
 # PR #58 — review: opt-in bounded single-PDF ZIP extraction
 
-> Status: INTEGRATING (2026-11-04) — S4 applied on dev: all 8 candidate files
-> + M1 in the working tree, left dirty for S5 (dev was `f467760`, clean, at
-> S4 start); S5 next session validates the exact dirty tree before any commit.
+> Status: VALIDATED (2026-11-04) — S5 done on the exact S4 dirty tree:
+> unit 16 + 33 subtests, correction suite 106 + 33 (dev-side +5 collection
+> tests), regression VERDICT: PASS (7 pairs / 8 files, exit 0), ruff clean,
+> bandit 1.9.4 zero findings on changed files; deployment-skip record
+> user-confirmed at the S5 gate. S6 (documentation) done 2026-11-04:
+> CHANGELOG/README/doc entries verified sanitized, CONTRIBUTING unchanged,
+> candidates re-verified intact (M1-only diff vs head, tests byte-identical);
+> S7 (commit + push, Gitea first, then GitHub mirror) next session.
 
 ## PR metadata
 
@@ -342,12 +347,48 @@ tree before any commit.
 5. If any failure requires a fix: fix on `dev`, new dev-commits cycle, re-run;
    a fix that materially changes PR intent → S3 refusal branch.
 
+### S5 validation results (2026-11-04, on the exact S4 dirty tree)
+
+Preflight re-run, all green: PR head `d97d7f3…` unchanged (`git ls-remote`
+= fetched `refs/pr/58`); `dev` = `origin/dev` = `20b9adb` (S4 plan-doc
+commit); tree matches the S4 record exactly (6 modified + 2 untracked
+candidates); `archives.py` diff vs head = M1 line only;
+`tests/test_bc_archives.py` byte-identical.
+
+| # | Check | PR claim | Result |
+|---|---|---|---|
+| 1 | `BILLCOLLECTOR_BROWSER_TESTS=1 pytest tests/test_bc_archives.py -q` (real Chromium 153.0.8010.12) | 16 + 33 subtests, no skips | **16 passed + 33 subtests, no skips** (4.1 s) |
+| 2 | `BILLCOLLECTOR_BROWSER_TESTS=1 pytest tests/test_bc_archives.py tests/test_bc_collection.py tests/test_bc_calendar.py tests/test_bc_recipes.py -q` | 101 + 33, no skips | **106 passed + 33 subtests, no skips** — +5 delta verified dev-side: `test_bc_collection.py` 25→30 (PR #57 incremental/`allow_empty` tests, post-fork-point) |
+| 3 | `run_regression.py --ini tests/bc_regression.ini` (real browser, live 24.9 MB db, no re-init) | VERDICT: PASS, 7 scenarios / 8 PDFs, exit 0 | **VERDICT: PASS**, 7/7 pairs OK, exactly 8 expected files, exit 0 (~9 min) |
+| 4 | `ruff check apps tests` + bandit 1.9.4 on the changed Python files | clean / nothing new vs baseline | **all checks passed** / **0 findings** on changed files |
+
+Tree verified unchanged after the regression run. Deployment-process
+validation: recorded skip (F15) — **user-confirmed at the S5 gate
+(2026-11-04)**; this confirmation is the S7 prerequisite for the exact tree.
+
 ## Deployment validation
 
 Not deployment-relevant (F15): no `Dockerfile`, `.dockerignore`,
 `BillCollector.sh`, `install_docker-image.sh`, `deploy_remote.sh`, INI keys or
-`.env` handling touched. The S5 skip is recorded here; the user confirms the
-recorded skip at the S5 gate before S6/S7 may commit or push to `main`.
+`.env` handling touched. The S5 skip is recorded here; the user confirmed the
+recorded skip at the S5 gate (2026-11-04).
+
+## Documentation (S6, 2026-11-04)
+
+Preflight: candidates re-verified on the exact S4 dirty tree —
+`archives.py` diff vs PR head = M1 line only; `tests/test_bc_archives.py`
+byte-identical; PR head `d97d7f3…` unchanged; `dev` = `origin/dev` =
+`20b9adb`.
+
+| Doc | Check | Result |
+|---|---|---|
+| `CHANGELOG.md` | `[Unreleased]` / `Added` entry for the integrated change; sanitized public-safe wording; newest-first above the PR #57 entry; cites issue #50 | verified — 3-line entry, no Gitea host / NAS details / private paths / plan refs |
+| `README.md` | user-visible behavior: two continuation lines on the "Bounded collections" bullet (`Set optional unpack: pdf…` + ZIP transport contract link); dev's `allow_empty` sentence intact | verified |
+| `doc/RECIPE_AUTHORING.md` | ZIP transport contract paragraph inside "Pagination, empty lists and downloads" (anchor valid, F11), before `### Opt-in incremental downloads` | verified |
+| `doc/RECIPE_METHODS.md` | options-table `unpack` row after dev's `allow_empty` row; semantics paragraph appends the ZIP transport contract link after "cannot be nested." | verified |
+| `CONTRIBUTING.md` | contributor rules unchanged (opt-in additive feature, no new process or interface agreement needed) | no change needed |
+
+Gate: user confirms the docs (S6 gate) before S7 commits or pushes.
 
 ## Out of scope
 

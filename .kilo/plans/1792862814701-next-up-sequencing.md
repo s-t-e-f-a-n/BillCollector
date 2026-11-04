@@ -660,6 +660,27 @@ Grounds:
    summary skipped per the 2026-11-01 publication-routine correction (no
    Discussion entries from PRs). Plan doc archived to `completed/` +
    README + sequencing refs. **No open PRs on the GitHub mirror.**
+- Issue #59 (Bourse Direct adapter execution boundary) — maintainer
+  decision posted 2026-11-04 (comment 6644532027, 23:08:24Z): shape
+  **accepted**. Reviewed the issue body + reference implementation
+  flowcool/BillCollector#89 (head `739355b`, base pinned to `4a9bffc`,
+  13 files +900/−12): all six #51 boundaries hold — fixed trusted
+  catalog path with ownership/mode checks, literal `CHAINS` parsed
+  without import/execution at the load/save/run-start gates, C3 surface
+  validation of every chain, source frozen at run start before
+  display/vault/browser (race test proves the admitted run keeps its
+  code), native final-session proof gate (locator visible +
+  `login_succeeded`), bounded same-origin redirect-free reads, one
+  automatic attempt, redacted errors, shipped `notice_identity` rule
+  (regeneration vs material correction proven), no C4/C8/schema change.
+  Notes posted: provider-specific identity contract is hard-coded in the
+  engine (doc it); baseline drift — #57/#58 are now on `main` and touch
+  the same engine files, so upstream integration is a **separate PR
+  against the mirror, rebased onto current `main`** (standard pr-review
+  S1–S7; the Dockerfile mode-normalization hunk puts S5's
+  deployment-validation block in scope for that PR). Issue stays open
+  until the engine PR is delivered, then closes with the link.
+  flowcool rebases the provider candidate on the reviewed engine commit.
 
 ## Explicitly not doing
 

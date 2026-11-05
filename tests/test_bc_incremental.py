@@ -238,9 +238,9 @@ class IncrementalCollectionTests(_Base):
                         page, context, listing, save, options), ["saved"])
                     save.assert_called_once_with("file")
 
-    def test_option_is_strictly_boolean_and_zip_is_not_implemented(self):
+    def test_incremental_is_boolean_and_unknown_unpack_is_rejected(self):
         for options in ({"incremental": "yes"}, {"incremental": 1},
-                        {"incremental": None}, {"unpack": "pdf"}):
+                        {"incremental": None}, {"unpack": "zip"}):
             with self.subTest(options=options), self.assertRaises(collection.CollectionError):
                 self.collect(["one"], options={**self.options, **options})
 

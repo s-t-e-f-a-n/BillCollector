@@ -242,7 +242,9 @@ def test_detachment_is_not_success(portal):
     portal.detached = True
     portal.options['download_options']['timeout_ms'] = 1200
     portal.open()
-    with pytest.raises(collection.CollectionError, match='timeout'):
+    # The total deadline or a Playwright call can expire first; both fail closed.
+    with pytest.raises(collection.CollectionError,
+                       match='calendar (total timeout expired|browser operation failed)'):
         portal.collect()
     assert len(portal.run.files_downloaded) == 2
 

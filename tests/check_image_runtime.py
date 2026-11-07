@@ -65,6 +65,42 @@ def check_headed_browser():
         stop_process(display)
 
 
+def check_novnc():
+    # Exercise the shipped static client, Xvfb, x11vnc and websocket bridge.
+    # Serving vnc.html alone would miss a broken JavaScript import or RFB path.
+    sys.path.insert(0, "/apps")
+    from billcollector.display import start_display_stack, stop_display_stack
+
+    children = start_display_stack(98, websockify_port=6098)
+    try:
+        deadline = time.monotonic() + 30
+        url = "http://127.0.0.1:6098/vnc_lite.html"
+        while True:
+            try:
+                with urllib.request.urlopen(url, timeout=2) as response:  # nosec B310
+                    assert response.status == 200
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("noVNC web client did not start") from None
+                time.sleep(0.1)
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(chromium_sandbox=True)
+            try:
+                page = browser.new_page()
+                page.goto(url)
+                page.wait_for_function(
+                    "document.getElementById('status').textContent.startsWith('Connected to ')",
+                    timeout=30000,
+                )
+                assert page.locator("canvas").count() == 1
+            finally:
+                browser.close()
+        print("PASS noVNC browser client and websocket/RFB connection", flush=True)
+    finally:
+        stop_display_stack(children)
+
+
 def check_ui(checkout):
     with tempfile.TemporaryFile(mode="w+") as log:
         process = subprocess.Popen(
@@ -99,6 +135,9 @@ def main():
     if sys.argv[1:] == ["--headed"]:
         check_browser(headless=False)
         return
+    if sys.argv[1:] == ["--novnc"]:
+        check_novnc()
+        return
     if sys.argv[1:]:
         raise ValueError("This check accepts no runtime or vault inputs")
     for key in list(os.environ):
@@ -107,6 +146,7 @@ def main():
     # Dependency consistency is checked during the build, before pip is removed.
     check_browser(headless=True)
     check_headed_browser()
+    subprocess.run([sys.executable, __file__, "--novnc"], check=True, timeout=90)
     with tempfile.TemporaryDirectory(prefix="billcollector-image-") as directory:
         checkout = Path(directory)
         shutil.copytree(

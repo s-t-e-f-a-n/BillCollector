@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
-from billcollector import db as bcd  # noqa: E402
+from billcollector import config, db as bcd  # noqa: E402
 
 
 class ProfileResetTests(unittest.TestCase):
@@ -291,7 +291,9 @@ class DatabaseTests(unittest.TestCase):
             self.assertEqual(t["enabled"], 0, "imported tasks start disabled")
             self.assertEqual(t["status"], "idle")
             self.assertEqual(t["cron"], "0 0 1 * *")
-            self.assertTrue(t["recipe_file"].endswith(".yaml"))
+            # recipe_file is left NULL: the runner resolves the overlay-aware
+            # recipe path at run time (no stale built-in snapshot stored).
+            self.assertIsNone(t["recipe_file"])
 
     def test_ini_import_is_one_time(self):
         ini = Path(self.tmp.name) / "s2.ini"
@@ -322,6 +324,44 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(tasks, {("svca", "u1"), ("svcb", "u2")})
         self.assertEqual(self.db.import_ini([ini], force=True), 0)
         self.assertEqual(len(self.db.list_tasks()), 2)
+
+    def test_reconcile_recipe_files_resets_builtin_snapshots(self):
+        # Older rows captured the built-in default at creation; the startup
+        # reconciliation resets them to NULL so the runner's overlay-aware
+        # run-time resolution takes effect.
+        id1 = self.db.create_task("svca", "u1")
+        id2 = self.db.create_task("svcb", "u2")
+        for tid, svc in ((id1, "svca"), (id2, "svcb")):
+            self.db.conn.execute(
+                "UPDATE Task SET recipe_file=? WHERE id=?",
+                (str(config.recipe_builtin_path_for(svc)), tid))
+        self.db.conn.commit()
+        self.db.reconcile_recipe_files()
+        for tid in (id1, id2):
+            self.assertIsNone(self.db.get_task(tid)["recipe_file"])
+
+    def test_reconcile_recipe_files_preserves_an_explicit_override(self):
+        # A manually stored non-default path is not the auto-populated default
+        # and is preserved by the reconciliation.
+        tid = self.db.create_task("svca", "u1")
+        custom = str(config.recipe_builtin_path_for("svca")) + ".custom.yaml"
+        self.db.conn.execute(
+            "UPDATE Task SET recipe_file=? WHERE id=?", (custom, tid))
+        self.db.conn.commit()
+        self.db.reconcile_recipe_files()
+        self.assertEqual(self.db.get_task(tid)["recipe_file"], custom)
+
+    def test_reconcile_recipe_files_is_idempotent(self):
+        tid = self.db.create_task("svca", "u1")
+        self.db.conn.execute(
+            "UPDATE Task SET recipe_file=? WHERE id=?",
+            (str(config.recipe_builtin_path_for("svca")), tid))
+        self.db.conn.commit()
+        self.db.reconcile_recipe_files()
+        self.assertIsNone(self.db.get_task(tid)["recipe_file"])
+        # A second pass is a no-op (the row is already NULL).
+        self.db.reconcile_recipe_files()
+        self.assertIsNone(self.db.get_task(tid)["recipe_file"])
 
     def test_settings_get_set_and_defaults(self):
         self.assertEqual(self.db.get_setting("missing_key"), None)

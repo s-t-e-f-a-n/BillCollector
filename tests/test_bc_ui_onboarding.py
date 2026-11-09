@@ -358,7 +358,8 @@ async def test_add_task_creates_a_disabled_task_with_derived_paths(
     assert task is not None
     assert task["enabled"] == 0
     assert task["cron"] == "0 6 * * *"
-    assert task["recipe_file"].endswith("recipe-pw__onb-svc.yaml")
+    # recipe_file is NULL: the runner resolves the overlay-aware path at run time.
+    assert task["recipe_file"] is None
     assert task["profile_dir"].endswith("onb-svc_onb-user1")
     assert synced == [task["id"]]
     assert user.notify.contains("Task onb-svc / onb-user1 added")

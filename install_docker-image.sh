@@ -2,8 +2,9 @@
 
 # Build the BillCollector docker image and set up the bind-mount targets for
 # the NAS deployment. Besides the batch mount targets it creates + chowns the
-# daemon compose bind paths (apps/data, apps/browser/profiles) that Docker
-# would otherwise auto-create root-owned at the first `docker compose up`.
+# daemon compose bind paths (apps/data, apps/browser/profiles, apps/recipes)
+# that Docker would otherwise auto-create root-owned at the first
+# `docker compose up`.
 #
 # The mount targets (paperless consumer folder + database folder) are NOT
 # hardcoded. They are resolved in this order:
@@ -147,7 +148,7 @@ if [ "$SETUP_MOUNTS" = "1" ]; then
     # above does not cover. A missing folder is auto-created root-owned by
     # Docker at the first `docker compose up`, and the non-root daemon cannot
     # write into it (startup PermissionError in config.ensure_dirs).
-    for dir in "apps/data" "apps/browser/profiles"; do
+    for dir in "apps/data" "apps/browser/profiles" "apps/recipes"; do
         path="$SCRIPT_DIR/$dir"
         mkdir -p "$path"
         if ! chown -R "${APP_UID}:${APP_GID}" "$path"; then

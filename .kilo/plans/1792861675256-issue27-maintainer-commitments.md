@@ -136,7 +136,24 @@ on dev.
   export/restore or durable history provided.
 - Blocks U09 (guided repair with revert) — the audit explicitly says resolve
   F02 first.
-- Status: design not started.
+- Status: done 2026-11-09 (W2 of
+  `1793836337863-ghcr-release-recipes-plan.md`). The accepted design is an
+  optional user recipe overlay: `BC_RECIPE_EXTRA_DIR` (set to `/apps/recipes`
+  in the reference Compose deployment, mounted from `./apps/recipes`) holds
+  per-service files that shadow built-ins of the same name. The UI recipe
+  editor loads the effective recipe and saves into the overlay, so a synthetic
+  UI edit survives container recreation with identical content (the mounted
+  folder is host-side). Tasks no longer store a `recipe_file` snapshot (new
+  rows NULL; startup reconciliation in `cli.serve` resets auto-populated
+  built-in rows, an explicit non-default path is preserved), and the runner
+  resolves the overlay-aware path at run time, so a shadow added after task
+  creation takes effect. Packaged-update interaction documented: built-ins
+  update with the image; a shadow persists across upgrades and keeps winning
+  until updated or deleted (no auto-merge). Durable history/export documented:
+  the mounted folder is the durable store (export = copy the directory); a
+  git-checkout mount + the git auto-commit switch gives per-edit history.
+  Acceptance met; public docs: `doc/RECIPE_AUTHORING.md` (mounted-directory
+  section), `doc/QUICKSTART.md`, README.
 
 ### C6 — F03: noVNC access path (P1, design first)
 
@@ -230,17 +247,18 @@ when picked up). O01 stays deferred per #21.
 
 ## Status
 
-C1–C4 and C8 delivered; remaining C5 (F02 recipe-storage design), C6 (F03
-noVNC access design), C7 (F05 protected-login conversion — schedule with
-the remaining Stage 1b portal windows). Plan stays Active until C5–C7 are
-delivered.
+C1–C5 and C8 delivered; remaining C6 (F03 noVNC access design), C7 (F05
+protected-login conversion — schedule with the remaining Stage 1b portal
+windows). Plan stays Active until C6–C7 are delivered.
 
 Timeline: plan created 2026-10-24 (triage decision posted on issue #27,
 comment 6387035799); C2 (F09) + C1 (F04) done 2026-10-24; C3 (F08 contract)
 done 2026-10-24 (`doc/RECIPE_METHODS.md`, commit `5745e59`, issue #27
 comment 6388757576); C4 (F06) done 2026-11-02 (Gitea `main` `67b5b38` /
 GitHub `21ef9f3`); C8 (F10) done 2026-11-03 (Gitea `main` `2485719` /
-GitHub `eb06503`). Issue #24 closed as completed 2026-11-03 (maintainer,
+GitHub `eb06503`); C5 (F02) done 2026-11-09 (recipe overlay volume on dev,
+W2 of `1793836337863-ghcr-release-recipes-plan.md`). Issue #24 closed as
+completed 2026-11-03 (maintainer,
 comment 6597460209); issue #26 closed 2026-10-27 (PR #34 delivered). The PR
 chain that delivered the #24/#26 lanes is recorded in
 `completed/1792862814701-next-up-sequencing.md` (archived as consumed

@@ -10,6 +10,7 @@ Compose service includes a pinned seccomp profile. See
 
 - [What is BillCollector?](#what-is-billcollector)
 - [How does it work?](#how-does-it-work)
+- [Your data stays local](#your-data-stays-local)
 - [Contributing](#contributing)
 - [Quick Start](#quick-start)
   - [Prerequisites](#prerequisites)
@@ -63,6 +64,15 @@ For each run, BillCollector scripts the service, gets the secret login data from
 Every step of every service run is recorded in a local SQLite database (`apps/db/bc.db`): the method chain that was executed, the interactive elements that were found on the page, and the result. This makes failed runs diagnosable and is the foundation for the planned self-healing/assisted-repair features. A failed service/user pair aborts only its own run: the remaining services continue, every started run is finalized in the DB, and the process exits with code 1 if any pair failed. A second concurrent start of the legacy batch path (overlapping cron starts, two manual runs) is rejected by a `flock` guard; the daemon rejects a double start of a task by its run claim.
 
 With a document-processing document management system (DMS) such as Paperless ngx in place, the downloaded file is consumed, automatically analyzed, tagged, and sorted.
+
+## Your data stays local
+
+BillCollector runs entirely on your hardware and keeps your data there:
+
+- **Credentials never touch disk or the image.** Login data is read from your Vaultwarden vault at run time through the Bitwarden API and substituted into the browser session in memory; nothing is written into the image, the download folder, or the local database.
+- **No telemetry.** The daemon sends no usage, run, or diagnostic data anywhere. Its only outbound calls are to the portals it collects from, your vault API, and - when you opt in - the ntfy push server.
+- **Notifications are opt-in.** A fresh installation sends no pushes; you enable them by setting an ntfy topic in Settings, and you can run your own push server instead of the public ntfy.sh.
+- **Your documents stay yours.** Collected documents land in a local download folder you own, ready for consumption by your own document management system.
 
 ## Contributing
 
@@ -171,28 +181,36 @@ Steps to follow:
 
 ### Installing the Daemon
 
-Now that we have done a good job installing all the prerequisites, we are focusing on installing the BillCollector daemon which is as simple as follows:
+Now that we have done a good job installing all the prerequisites, we are focusing on installing the BillCollector daemon. There are two paths:
 
-1. Download this git repository to a folder in your local docker environment assuming a Linux bash terminal, e.g., `git clone https://github.com/s-t-e-f-a-n/BillCollector.git`.
+- **Run the published image** - pull the prebuilt image from the GitHub Container Registry; no git clone and no local build needed.
+- **Build from source** - clone the repository and build the image on the host (maintainer, NAS, and development setups).
 
-2. Create the data folders the container user (UID/GID 1000 by default, or your `APP_UID`/`APP_GID`) writes to - **before** the first `up`, because Docker would create a missing bind-mount folder root-owned, and the container could not write into it:
+Both paths share the same host setup: the data folders the container writes to and the `apps/.env` configuration.
+
+#### Host setup (both paths)
+
+1. Create the data folders the container user (UID/GID 1000 by default, or your `APP_UID`/`APP_GID`) writes to - **before** the first `up`, because Docker would create a missing bind-mount folder root-owned, and the container could not write into it:
 
    ```bash
-   mkdir -p apps/Downloads apps/db apps/data apps/browser/profiles
-   sudo chown -R 1000:1000 apps/Downloads apps/db apps/data apps/browser
+   mkdir -p apps/Downloads apps/db apps/data apps/browser/profiles apps/recipes
+   sudo chown -R 1000:1000 apps/Downloads apps/db apps/data apps/browser apps/recipes
    ```
 
-   (Use your own uid/gid if you override `APP_UID`/`APP_GID` in the root `.env`.)
+   (Use your own uid/gid if you override `APP_UID`/`APP_GID` in the root `.env`.) The folders are the compose bind targets: downloads, the SQLite database, runtime data, per-task browser profiles, and the [user recipe overlay](#web-service-config) (it may stay empty: it only holds recipes you add or update yourself).
 
-3. Create the app configuration the container reads read-only at `/apps/.env` (a missing file makes Docker create a *directory* instead, which breaks the mount):
+2. Create the app configuration the container reads read-only at `/apps/.env` (a missing file makes Docker create a *directory* instead, which breaks the mount). The build-from-source path copies the example from the checkout; the published-image path fetches it:
 
    ```bash
+   # build from source: from the checkout
    cp apps/.env.example apps/.env
+   # run the published image: without a checkout
+   curl -fsSL -o apps/.env https://raw.githubusercontent.com/s-t-e-f-a-n/BillCollector/main/apps/.env.example
    ```
 
    and set `BW_API_URL` to the HTTP URL of your local `bw serve` API (e.g., `http://<local-ip>:8087`; it must resolve only to loopback/private addresses, HTTPS is refused). See [Vaultwarden and Bitwarden](#vaultwarden-and-bitwarden).
 
-4. Optionally, create a root `.env` with the compose variables - all of them have defaults, the file is optional: `TZ` (daemon calendar dates and cron schedules, default `UTC`), `BC_UI_PORT` (published UI port, default `8766`), `NTFY_HOST` (push server for the ntfy notifications, default `https://ntfy.sh`), `NTFY_BASE_URL` (LAN-absolute deep links, with the bundled ntfy), `APP_UID`/`APP_GID` (container user).
+3. Optionally, create a root `.env` with the compose variables - all of them have defaults, the file is optional: `TZ` (daemon calendar dates and cron schedules, default `UTC`), `BC_UI_PORT` (published UI port, default `8766`), `NTFY_HOST` (push server for the ntfy notifications, default `https://ntfy.sh`), `NTFY_BASE_URL` (LAN-absolute deep links, with the bundled ntfy), `APP_UID`/`APP_GID` (container user).
 
    Set `TZ=Europe/Zurich`, for example, to use local dates and schedules.
    Compose reads `TZ` from the shell first, then the root `.env`; an unset
@@ -207,15 +225,83 @@ Now that we have done a good job installing all the prerequisites, we are focusi
    After changing the Compose setting, recreate the daemon with
    `docker compose up -d billcollector` and check the task schedules.
 
-5. On your Linux console enter `docker compose up -d --build` which builds the docker image `billcollector:latest` from the root `Dockerfile` and starts the daemon (`python3 -m billcollector serve`). The image runs as a non-root user (UID/GID 1000, overridable at build time with the `APP_UID`/`APP_GID` build args).
+#### Run the published image
+
+1. Pull the prebuilt image. The sample tag in the docs is updated with each release:
+
+   ```bash
+   docker pull ghcr.io/s-t-e-f-a-n/billcollector:<latest-release-tag>
+   ```
+
+2. Save the compose file below as `docker-compose.yml` in the project folder. It is the reference service from the repository's `docker-compose.yml` without its `build:` section; the pinned Chromium seccomp profile it references is fetched from the repository too:
+
+   ```bash
+   mkdir -p docker
+   curl -fsSL -o docker/chromium-seccomp.json \
+     https://raw.githubusercontent.com/s-t-e-f-a-n/BillCollector/main/docker/chromium-seccomp.json
+   ```
+
+   ```yaml
+   services:
+     billcollector:
+       image: ghcr.io/s-t-e-f-a-n/billcollector:<latest-release-tag>
+       container_name: billcollector
+       restart: unless-stopped
+       init: true
+       security_opt:
+         - seccomp=./docker/chromium-seccomp.json
+       command: ["python3", "-m", "billcollector", "serve"]
+       environment:
+         TZ: ${TZ:-UTC}
+         BC_UI_HOST: "0.0.0.0"
+         NTFY_HOST: ${NTFY_HOST:-https://ntfy.sh}
+         BC_RECIPE_EXTRA_DIR: /apps/recipes
+       ports:
+         - "${BC_UI_PORT:-8766}:8000"
+         - "6080-6095:6080-6095"
+       volumes:
+         - ./apps/.env:/apps/.env:ro
+         - ./apps/Downloads:/apps/Downloads
+         - ./apps/db:/apps/db
+         - ./apps/data:/apps/data
+         - ./apps/browser/profiles:/apps/browser/profiles
+         - ./apps/recipes:/apps/recipes
+       extra_hosts:
+         - "host.docker.internal:host-gateway"
+       healthcheck:
+         test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/_alive', timeout=5)"]
+         interval: 30s
+         timeout: 10s
+         retries: 3
+         start_period: 30s
+   ```
+
+   (With a checkout of the repository you do not need this file: use the reference `docker-compose.yml` plus a small override that sets the `image:` and resets the `build:` section to null.)
+
+3. Start the daemon and check the health endpoint:
+
+   ```bash
+   docker compose up -d
+   curl --fail --silent --show-error http://127.0.0.1:8766/_alive
+   ```
+
+   The published image is built with the default container user (UID/GID 1000); give that identity ownership of the folders as in the host setup.
+
+#### Build from source
+
+1. Download this git repository to a folder in your local docker environment assuming a Linux bash terminal, e.g., `git clone https://github.com/s-t-e-f-a-n/BillCollector.git`.
+
+2. On your Linux console enter `docker compose up -d --build` which builds the docker image `billcollector:latest` from the root `Dockerfile` and starts the daemon (`python3 -m billcollector serve`). The image runs as a non-root user (UID/GID 1000, overridable at build time with the `APP_UID`/`APP_GID` build args).
 
    Python dependencies are validated during the image build. The final container does not include `pip` or `wheel`; update `apps/requirements.txt` and rebuild the image when changing dependencies. Local virtual environments keep their installers.
 
-6. Open the published UI port in your browser (default `http://<your-host>:8766/`). The first start shows a set-password form (or seeds the password from `BC_UI_PASSWORD` in `apps/.env`); afterwards you sign in with that password.
+#### First start (both paths)
 
-7. Walk the **onboarding wizard**: check and save your vault API URL (or skip it and fix it later in Settings), review the tasks imported from your INI file (or add a new task), enable the tasks the daemon should run on schedule, and finish.
+1. Open the published UI port in your browser (default `http://<your-host>:8766/`). The first start shows a set-password form (or seeds the password from `BC_UI_PASSWORD` in `apps/.env`); afterwards you sign in with that password.
 
-8. Collect your first document: on the **Dashboard** press **Run now** for an enabled task - watch the run live (session page, noVNC tab) until it reaches `success`; the document appears on the Downloads page and in the consumer folder. Every step is driven from the browser, no shell access to the daemon needed.
+2. Walk the **onboarding wizard**: check and save your vault API URL (or skip it and fix it later in Settings), review the tasks imported from your INI file (or add a new task), enable the tasks the daemon should run on schedule, and finish.
+
+3. Collect your first document: on the **Dashboard** press **Run now** for an enabled task - watch the run live (session page, noVNC tab) until it reaches `success`; the document appears on the Downloads page and in the consumer folder. Every step is driven from the browser, no shell access to the daemon needed.
 
 ### Notifications (ntfy)
 
@@ -254,7 +340,7 @@ From the compose file (`docker-compose.yml`):
 
 - **UI port** `${BC_UI_PORT:-8766}:8000` - the daemon UI.
 - **noVNC live view** websockify ports `6080-6095` - one port per allocated Xvfb display (websockify port = `6080 + (display - display_start)`); the range matches the default Settings `display_start=99` / `display_count=16` - change them together if you change the display range.
-- **Volumes**: `./apps/.env` (read-only), `./apps/Downloads`, `./apps/db`, `./apps/data`, `./apps/browser/profiles` (profiles only - mounting all of `apps/browser` would hide the Chromium build installed in the image).
+- **Volumes**: `./apps/.env` (read-only), `./apps/Downloads`, `./apps/db`, `./apps/data`, `./apps/browser/profiles` (profiles only - mounting all of `apps/browser` would hide the Chromium build installed in the image), `./apps/recipes` (the user recipe overlay, read-write - the UI recipe editor saves there).
 - **`host.docker.internal:host-gateway`** - reach host-local services (Vaultwarden, `bw serve`, the mock portal) from the container as `http://host.docker.internal:<port>`. Vaultwarden itself stays a prerequisite in its own compose stack.
 - `restart: unless-stopped`, `init: true`, a health check on `/_alive`, and the non-root user from the `APP_UID`/`APP_GID` build args.
 
@@ -287,7 +373,7 @@ For a cron-style single-shot run without the daemon, `python3 -m billcollector r
 First and once, for the basic configuration you need to adapt the `.env` file located in the `/apps` folder. Use the `.env.example` as a template (the Quick Start does this in step 3):
 
 - `cp apps/.env.example apps/.env`
-- The Docker wrapper mounts `apps/.env` read-only at `/apps/.env`; credentials are excluded from the image and Python retains dotenv quoting/interpolation. For direct `docker run`, mount the same file read-only. `.env` changes take effect at the next run without a rebuild; INI files and recipes are still baked into the image and need a rebuild (legacy step 4 of [Legacy Batch Mode](#legacy-batch-mode-deprecated)).
+- The Docker wrapper mounts `apps/.env` read-only at `/apps/.env`; credentials are excluded from the image and Python retains dotenv quoting/interpolation. For direct `docker run`, mount the same file read-only. `.env` changes take effect at the next run without a rebuild. Built-in INI files and recipes are baked into the image and update with it (the legacy batch path still needs a rebuild for changes - legacy step 4 of [Legacy Batch Mode](#legacy-batch-mode-deprecated)); to add or shadow a per-service recipe without a rebuild, use the user recipe overlay (the `apps/recipes` folder mounted by the reference Compose deployment).
 - define the .env-variables:
   - `BW_API_URL=<http-URL of your local bw serve API e.g., http://<local-ip>:8087>`; it must resolve only to loopback/private addresses, HTTPS is refused
   - `BW_API_HOST=127.0.0.1:8087` (optional): Host header for a `bw serve` in another container
@@ -360,7 +446,8 @@ The BillCollector configuration for each web service from which you want to retr
      - `graceful: true` on a step: a failure of that step is recorded (log + DB) and the run continues with the next step; without it, a failure aborts the service's run (after three attempts, in daemon mode the run pauses for your help instead - see [Using the Web UI](#using-the-web-ui)).
      - A `wait_user` step: an explicit pause point for operator input (e.g., a CAPTCHA you have to solve by hand). It can carry an optional `prompt` and an optional `until` locator (the pause completes when that element appears, or on resume); the step is consumed, not re-executed.
       - There is a YAML schema named `recipe-pw-schema.yaml` which includes the rules to be followed by the YAML recipes. In daemon mode, validation goes beyond the schema: every method chain is checked against the installed Playwright (method names, argument names and types, properties, reserved `wait_user` options), and unknown methods and unsupported variables are rejected before vault or browser access, with errors that identify the service and step without argument values - the supported surface is documented in the [recipe method contract](doc/RECIPE_METHODS.md).
-    - In daemon mode the recipe can also be edited in the UI [recipe editor](#using-the-web-ui) (schema and method-chain validation, optional git auto-commit) - handy when a portal changes and a paused run links you straight to the failing recipe.
+     - In daemon mode the recipe can also be edited in the UI [recipe editor](#using-the-web-ui) (schema and method-chain validation, optional git auto-commit) - handy when a portal changes and a paused run links you straight to the failing recipe.
+     - In the reference Compose deployment, `apps/recipes` is mounted as a **user recipe overlay** (`BC_RECIPE_EXTRA_DIR`): a file of the same name shadows the built-in recipe, and the UI editor saves into it, so recipes can be added or updated without a rebuild - see [Adding or updating recipes via the mounted directory](doc/RECIPE_AUTHORING.md#adding-or-updating-recipes-via-the-mounted-directory).
 
 > 💡 **Tip**  
 > When creating new recipes, make use of AI, e.g., let yourself be helped by Copilot - that speeds up creating the YAML recipe 🚀.
@@ -537,6 +624,8 @@ The `Dockerfile` orders the expensive, rarely-changing steps (python3/pip `apt` 
 - A `requirements.txt` change re-runs `pip3 install` and the steps after it, but not the python3 `apt` step or the base image.
 
 The deployed commit is recorded in the deploy log (`deploy_remote.sh` prints `git log -1`) rather than as an image label.
+
+The published-image workflow (`.github/workflows/publish.yml`) is the one exception: it passes `VERSION` - the release tag - as a build arg on every publication. The image `LABEL` block is kept at the **end** of the `Dockerfile` for exactly this reason, so a per-tag `VERSION` invalidates only the final metadata layer and a new tag still reuses the pip/playwright build cache. The tag is carried as the `org.opencontainers.image.version` label of the published image.
 
 ## Development & Deployment
 

@@ -346,9 +346,11 @@ class Database:
                 for user in users:
                     if self.get_task_by_service_user(service, user) is not None:
                         continue
+                    # recipe_file is left NULL: the runner resolves the
+                    # (overlay-aware) recipe path at run time, so the column
+                    # is not a stale snapshot of the built-in path.
                     self.create_task(
                         service, user,
-                        recipe_file=str(config.recipe_path_for(service)),
                         enabled=False, cron=default_cron,
                         profile_dir=str(config.profile_dir_for(service, user)))
                     created += 1
@@ -356,6 +358,27 @@ class Database:
             "INSERT OR REPLACE INTO Settings (key, value) VALUES ('ini_imported', '1')")
         self.conn.commit()
         return created
+
+    def reconcile_recipe_files(self):
+        """Reset ``Task.recipe_file`` to NULL where it holds the auto-populated
+        built-in default for the service.
+
+        Newer tasks store NULL (the runner resolves the overlay-aware path at
+        run time); older rows captured the built-in path at creation. Resetting
+        those to NULL keeps the column from being a stale snapshot and lets a
+        recipe overlay (``BC_RECIPE_EXTRA_DIR``) shadow take effect for
+        existing tasks. An explicitly stored non-default path (manual DB edit)
+        is preserved. Idempotent."""
+        for row in self.conn.execute(
+                "SELECT id, service, recipe_file FROM Task").fetchall():
+            stored = row["recipe_file"]
+            if stored is None:
+                continue
+            if stored == str(config.recipe_builtin_path_for(row["service"])):
+                self.conn.execute(
+                    "UPDATE Task SET recipe_file=NULL, updated_at=? WHERE id=?",
+                    (now(), row["id"]))
+        self.conn.commit()
 
     # ---- Run --------------------------------------------------------------
     def create_run(self, task_id, pid=None, display=None, novnc_port=None,

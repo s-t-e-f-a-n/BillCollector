@@ -305,8 +305,11 @@ def save_recipe(path, text: str) -> tuple:
     path = Path(path)
     tmp = None
     try:
+        # The overlay dir may not exist yet on a first save (it is normally
+        # created by config.ensure_dirs); create it as needed.
+        path.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp",
-                                   dir=str(path.parent))
+                                    dir=str(path.parent))
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(text)
         os.replace(tmp, path)

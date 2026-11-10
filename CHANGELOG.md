@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v0.5] - 2026-11-11
+
 ### Added
 
 - Opt-in `download_all` option `unpack: pdf` validates a bounded ZIP with one

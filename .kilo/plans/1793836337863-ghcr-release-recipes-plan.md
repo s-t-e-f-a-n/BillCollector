@@ -53,7 +53,9 @@ three next steps + docs + roadmap triage.
 1. New `.github/workflows/publish.yml`:
    - Triggers: `push: tags: ["v*"]` (matches the existing tag convention) and
      `workflow_dispatch` (maintainer dry-run).
-   - `permissions: { contents: read, packages: read, packages: write }`.
+    - `permissions: { contents: read, packages: write }` — one `packages`
+      key only (write implies read; a duplicate key is rejected by GitHub's
+      workflow schema, as found in the first live run).
    - Single job on `ubuntu-latest`, `platforms: linux/amd64` only:
      `docker/setup-buildx-action` → `docker/login-action` (registry `ghcr.io`,
      `GITHUB_TOKEN`) → `docker/build-push-action`:

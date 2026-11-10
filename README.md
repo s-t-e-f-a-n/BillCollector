@@ -230,7 +230,7 @@ Both paths share the same host setup: the data folders the container writes to a
 1. Pull the prebuilt image. The sample tag in the docs is updated with each release:
 
    ```bash
-   docker pull ghcr.io/s-t-e-f-a-n/billcollector:<latest-release-tag>
+    docker pull ghcr.io/s-t-e-f-a-n/billcollector:v0.5
    ```
 
 2. Save the compose file below as `docker-compose.yml` in the project folder. It is the reference service from the repository's `docker-compose.yml` without its `build:` section; the pinned Chromium seccomp profile it references is fetched from the repository too:
@@ -244,7 +244,7 @@ Both paths share the same host setup: the data folders the container writes to a
    ```yaml
    services:
      billcollector:
-       image: ghcr.io/s-t-e-f-a-n/billcollector:<latest-release-tag>
+        image: ghcr.io/s-t-e-f-a-n/billcollector:v0.5
        container_name: billcollector
        restart: unless-stopped
        init: true

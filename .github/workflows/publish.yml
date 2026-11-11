@@ -27,9 +27,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # On a tag push the image is published under the pinned tag only
-      # (no `latest` alias; the README sample tag is updated per release).
-      # On a workflow dispatch the build runs on the runner and is loaded
+      # Tags: the pinned ref name on every run (the release tag on a tag
+      # push, the branch name on workflow_dispatch), plus a `latest` alias on
+      # tag pushes only. The semver tag type rejects the repo's `vX.Y` tags
+      # (it requires full MAJOR.MINOR.PATCH), so the raw type carries the ref
+      # name verbatim.
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+
+      # On a tag push, the image is published under both the pinned tag and `latest`.
+      # On a workflow_dispatch, the build runs on the runner and is loaded
       # locally only, so a dry run verifies the build without publishing.
       - name: Build and push the image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
@@ -38,8 +51,9 @@ jobs:
           platforms: linux/amd64
           build-args: |
             VERSION=${{ github.ref_name }}
-          tags: ghcr.io/s-t-e-f-a-n/billcollector:${{ github.ref_name }}
-          cache-from: type=registry,ref=ghcr.io/s-t-e-f-a-n/billcollector/cache:latest
-          cache-to: type=registry,ref=ghcr.io/s-t-e-f-a-n/billcollector/cache:latest,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/cache:latest
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/cache:latest,mode=max
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           load: ${{ !startsWith(github.ref, 'refs/tags/') }}

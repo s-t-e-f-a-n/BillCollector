@@ -1,5 +1,18 @@
 # GHCR release pipeline, published-image quickstart, and recipe overlay volume
 
+> Status: DELIVERED (2026-11-11) — W2 on dev (`dbb162b`, `17f17d6`,
+> `f1f449d`), W1 (`af2c144` + fix `ae8b653`), W3 (`1b0ce7e`); release-time
+> step 5 done: `v0.5` cut on Gitea `main` (`ad65a46`, regression
+> VERDICT: PASS 7/7 on the exact tip), sanitized tag pushed to GitHub
+> (mirror `10a7820`), first live GHCR publish green (run `42926722649`,
+> all steps incl. "Build and push the image"), package public —
+> unauthenticated registry token + `tags/list` + `v0.5` manifest all 200,
+> README sample tag pinned to `v0.5`. Pre-existing `latest`/`main`/
+> `sha-e076598` tags (July-2026 image, pre-pipeline, built by the old
+> `container.yml` workflow from mirror commit `e076598a`) removed from
+> the package 2026-11-11 (user, GitHub web UI); registry `tags/list`
+> verified to show only `v0.5` afterwards.
+
 Source: `.private/notes.txt` — (1) "User Centric: Immediate Next Steps" (GHCR
 pipeline, quickstart docs, mounted recipes volume) and (2) a 4-phase
 consumer-platform vision (triaged in W4; no code). User-confirmed scope: the

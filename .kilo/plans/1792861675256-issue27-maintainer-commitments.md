@@ -137,7 +137,7 @@ on dev.
 - Blocks U09 (guided repair with revert) — the audit explicitly says resolve
   F02 first.
 - Status: done 2026-11-09 (W2 of
-  `1793836337863-ghcr-release-recipes-plan.md`). The accepted design is an
+  `completed/1793836337863-ghcr-release-recipes-plan.md`). The accepted design is an
   optional user recipe overlay: `BC_RECIPE_EXTRA_DIR` (set to `/apps/recipes`
   in the reference Compose deployment, mounted from `./apps/recipes`) holds
   per-service files that shadow built-ins of the same name. The UI recipe
@@ -257,7 +257,7 @@ done 2026-10-24 (`doc/RECIPE_METHODS.md`, commit `5745e59`, issue #27
 comment 6388757576); C4 (F06) done 2026-11-02 (Gitea `main` `67b5b38` /
 GitHub `21ef9f3`); C8 (F10) done 2026-11-03 (Gitea `main` `2485719` /
 GitHub `eb06503`); C5 (F02) done 2026-11-09 (recipe overlay volume on dev,
-W2 of `1793836337863-ghcr-release-recipes-plan.md`). Issue #24 closed as
+W2 of `completed/1793836337863-ghcr-release-recipes-plan.md`). Issue #24 closed as
 completed 2026-11-03 (maintainer,
 comment 6597460209); issue #26 closed 2026-10-27 (PR #34 delivered). The PR
 chain that delivered the #24/#26 lanes is recorded in

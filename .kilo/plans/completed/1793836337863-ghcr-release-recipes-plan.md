@@ -261,10 +261,12 @@ the triage of the vision:
   noVNC routing) and C7 (F05 conversions) lanes, everything marked out of
   scope in W4.
 
-## Open questions (non-blocking, decide at implementation)
+## Open questions (resolved)
 
-- Push a `latest` alias on tag push as well? Current decision: **no** (pinned
-  tags only).
-- First live GHCR publication: `workflow_dispatch` verification now, or wait
-  for the next release tag? Recommend the dispatch dry-run during this work,
-  real tag at the next release.
+- Push a `latest` alias on tag push as well? Decided **no** at planning
+  (pinned tags only). Changed 2026-11-11 (user): `publish.yml` now publishes
+  the pinned tag **and** `latest` on every tag push, via
+  `docker/metadata-action` raw tag lines (the semver tag type rejects the
+  repo's `vX.Y` tags — it requires full MAJOR.MINOR.PATCH).
+- First live GHCR publication: done at the `v0.5` tag push (run
+  `42926722649`, verified in the status header above).

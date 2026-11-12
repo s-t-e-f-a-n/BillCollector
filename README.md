@@ -295,6 +295,8 @@ Both paths share the same host setup: the data folders the container writes to a
 
    Python dependencies are validated during the image build. The final container does not include `pip` or `wheel`; update `apps/requirements.txt` and rebuild the image when changing dependencies. Local virtual environments keep their installers.
 
+   The image keeps Ubuntu's noVNC browser assets in `/usr/share/novnc` and serves them through the existing websockify process. The package copyright is retained at `/usr/share/doc/novnc/copyright`. A separate build stage extracts these files without installing the noVNC package's Node.js and Pillow tooling. The browser client and live view stay available. Copied assets are not registered in the runtime dpkg inventory, so an OS-package scan does not track noVNC itself. Check the build's downloaded noVNC version when updating this client.
+
 #### First start (both paths)
 
 1. Open the published UI port in your browser (default `http://<your-host>:8766/`). The first start shows a set-password form (or seeds the password from `BC_UI_PASSWORD` in `apps/.env`); afterwards you sign in with that password.

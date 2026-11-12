@@ -1,4 +1,13 @@
-FROM ubuntu:24.04
+FROM ubuntu:24.04 AS base
+
+# Only the noVNC browser assets are used at runtime. Extract the signed Ubuntu
+# package without installing its Node.js/Pillow documentation/build dependencies.
+FROM base AS novnc-assets
+WORKDIR /novnc-package
+RUN apt-get update && apt-get download novnc && \
+    dpkg-deb --extract novnc_*.deb /novnc-assets
+
+FROM base AS runtime
 
 ARG TARGETARCH
 ARG APP_UID=1000
@@ -39,11 +48,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 libcups2 libdbus-1-3 libdrm2 libegl1 libgbm1 libglib2.0-0 \
     libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libx11-6 libx11-xcb1 libxcb1 \
     libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libxshmfence1 \
-    xvfb x11vnc websockify novnc \
+    xvfb x11vnc websockify \
     fonts-noto-color-emoji fonts-unifont libfontconfig libfreetype6 \
     xfonts-cyrillic xfonts-scalable fonts-ipafont-gothic fonts-wqy-zenhei \
     fonts-tlwg-loma-otf fonts-ubuntu \
     && rm -rf /var/lib/apt/lists/*
+
+# Serve the same Ubuntu noVNC client through the existing websockify process.
+COPY --from=novnc-assets /novnc-assets/usr/share/novnc /usr/share/novnc
+COPY --from=novnc-assets /novnc-assets/usr/share/doc/novnc/copyright /usr/share/doc/novnc/copyright
 
 # Validate installed dependencies before removing build-only Python installers.
 # Keep runtime libraries and headed/debug browser support intact.

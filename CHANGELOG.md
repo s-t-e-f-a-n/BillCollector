@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- The image runtime check opens the actual noVNC browser client and verifies its
+  websocket/RFB connection. The image extracts Ubuntu's noVNC static assets and
+  copyright without installing its unused Node.js/Pillow tooling. (issue #63)
+
+
 ## [v0.5] - 2026-11-11
 
 ### Added

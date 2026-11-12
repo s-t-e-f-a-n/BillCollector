@@ -33,8 +33,28 @@ DOWNLOAD_DIR = _path("BC_DOWNLOAD_DIR", APP_DIR / "Downloads")
 
 # Recipes stay as git-versioned YAML on disk (decision 7).
 RECIPE_DIR = APP_DIR / "recipes_playwright"
+# RECIPE_SCHEMA stays bound to the built-in dir: the schema/contract is
+# core-owned; a schema file inside the overlay is ignored.
 RECIPE_SCHEMA = RECIPE_DIR / "recipe-pw-schema.yaml"
 RECIPE_PREFIX = "recipe-pw__"
+
+
+def _recipe_extra_dir() -> Path | None:
+    """The optional user recipe overlay directory, or ``None`` when
+    ``BC_RECIPE_EXTRA_DIR`` is unset/empty. When set, per-service recipes are
+    shadowed by files in this directory and UI recipe edits are saved into it;
+    when ``None`` every recipe path is the built-in (``RECIPE_DIR``) one and
+    behavior is unchanged."""
+    raw = os.environ.get("BC_RECIPE_EXTRA_DIR")
+    if raw is None:
+        return None
+    raw = str(raw).strip()
+    return Path(raw) if raw else None
+
+
+# Optional user recipe overlay (see :func:`_recipe_extra_dir`). Refreshed by
+# :func:`load_env` so a value loaded from ``apps/.env`` at startup is honored.
+RECIPE_EXTRA_DIR = _recipe_extra_dir()
 
 # INI files imported into Tasks on first daemon start (decision 7 / M1 item 2).
 INI_FILES = (APP_DIR / "bc_default.ini", APP_DIR / "bc_test.ini")
@@ -64,15 +84,19 @@ def ensure_dirs() -> None:
     """Create the runtime directories the daemon writes to."""
     for d in (DATA_DIR, DB_DIR, LOG_DIR, DISPLAY_DIR, RUN_DIR, DOWNLOAD_DIR, PROFILE_ROOT):
         d.mkdir(parents=True, exist_ok=True)
+    if RECIPE_EXTRA_DIR is not None:
+        RECIPE_EXTRA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_env() -> None:
     """Load apps/.env into os.environ (without clobbering exported values)."""
     from dotenv import load_dotenv
 
+    global RECIPE_EXTRA_DIR
     env_file = APP_DIR / ".env"
     if env_file.exists():
         load_dotenv(env_file, override=False)
+    RECIPE_EXTRA_DIR = _recipe_extra_dir()
 
 
 def env(name: str, default=None):
@@ -114,9 +138,54 @@ def chromium_args() -> list[str]:
     return args
 
 
+def recipe_filename_for(service: str) -> str:
+    """Per-service recipe file name, e.g. recipe-pw__winsim.yaml
+    (lowercased, spaces -> underscores)."""
+    return f"{RECIPE_PREFIX}{service.lower().replace(' ', '_')}.yaml"
+
+
 def recipe_path_for(service: str) -> Path:
-    """Path of the per-service recipe file, e.g. recipe-pw__winsim.yaml."""
-    return RECIPE_DIR / f"{RECIPE_PREFIX}{service.lower().replace(' ', '_')}.yaml"
+    """Path of the per-service recipe file, e.g. recipe-pw__winsim.yaml.
+
+    When the recipe overlay (``BC_RECIPE_EXTRA_DIR``) is set and holds a file
+    for the service, that shadow path wins; otherwise the built-in path is
+    used. The same normalization as before (lowercase, spaces -> underscores)."""
+    name = recipe_filename_for(service)
+    if RECIPE_EXTRA_DIR is not None and (RECIPE_EXTRA_DIR / name).exists():
+        return RECIPE_EXTRA_DIR / name
+    return RECIPE_DIR / name
+
+
+def recipe_builtin_path_for(service: str) -> Path:
+    """The built-in (image) recipe path, ignoring any overlay."""
+    return RECIPE_DIR / recipe_filename_for(service)
+
+
+def recipe_save_path_for(service: str) -> Path:
+    """Where a UI recipe edit of the service is written.
+
+    When the overlay is set, saves always land in the overlay (a save of a
+    built-in service shadows it); when unset, saves go to the built-in path
+    (today's behavior)."""
+    name = recipe_filename_for(service)
+    if RECIPE_EXTRA_DIR is not None:
+        return RECIPE_EXTRA_DIR / name
+    return RECIPE_DIR / name
+
+
+def resolve_recipe_path(stored: str | None, service: str) -> str:
+    """The effective recipe path for a run (the runner's run-time resolution).
+
+    A task's stored ``recipe_file`` wins only when it is set, is not the
+    auto-populated built-in default for the service, and the file exists;
+    otherwise the overlay-aware :func:`recipe_path_for` is used. So a shadow
+    added after task creation takes effect for existing tasks, and a stale
+    built-in snapshot (stored before the column stopped being auto-populated)
+    never hides a shadow. An explicit non-default path still wins."""
+    builtin = str(recipe_builtin_path_for(service))
+    if stored and stored != builtin and Path(stored).exists():
+        return stored
+    return str(recipe_path_for(service))
 
 
 def profile_dir_for(service: str, user: str) -> Path:

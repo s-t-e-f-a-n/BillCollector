@@ -1,0 +1,45 @@
+name: Publish Image
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Log in to the GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # On a tag push the image is published under the pinned tag only
+      # (no `latest` alias; the README sample tag is updated per release).
+      # On a workflow dispatch the build runs on the runner and is loaded
+      # locally only, so a dry run verifies the build without publishing.
+      - name: Build and push the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          platforms: linux/amd64
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          tags: ghcr.io/s-t-e-f-a-n/billcollector:${{ github.ref_name }}
+          cache-from: type=registry,ref=ghcr.io/s-t-e-f-a-n/billcollector/cache:latest
+          cache-to: type=registry,ref=ghcr.io/s-t-e-f-a-n/billcollector/cache:latest,mode=max
+          push: ${{ startsWith(github.ref, 'refs/tags/') }}
+          load: ${{ !startsWith(github.ref, 'refs/tags/') }}

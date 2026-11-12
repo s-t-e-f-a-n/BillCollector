@@ -17,8 +17,8 @@
 #   missing bind-mount folder root-owned, and the container could not
 #   write into it:
 #
-#     mkdir -p apps/Downloads apps/db apps/data apps/browser/profiles
-#     sudo chown -R 1000:1000 apps/Downloads apps/db apps/data apps/browser
+#     mkdir -p apps/Downloads apps/db apps/data apps/browser/profiles apps/recipes
+#     sudo chown -R 1000:1000 apps/Downloads apps/db apps/data apps/browser apps/recipes
 #
 #   (Use your own uid/gid, or APP_UID/APP_GID from the root .env.)
 #
@@ -62,6 +62,10 @@ services:
       # Push server for pause notifications: the public ntfy.sh unless the
       # bundled ntfy profile is in use (see the header).
       NTFY_HOST: ${NTFY_HOST:-https://ntfy.sh}
+      # Optional user recipe overlay: drop in or update per-service recipes
+      # without a rebuild; a same-named file shadows a built-in (see the
+      # README / doc/RECIPE_AUTHORING.md).
+      BC_RECIPE_EXTRA_DIR: /apps/recipes
     ports:
       # Published UI port (BC_UI_PORT in the root .env, default 8766)
       - "${BC_UI_PORT:-8766}:8000"
@@ -77,6 +81,9 @@ services:
       # Per-task browser profiles only - mounting all of apps/browser would
       # hide the Chromium build installed in the image.
       - ./apps/browser/profiles:/apps/browser/profiles
+      # User recipe overlay (read-write: the UI recipe editor writes there).
+      # Built-in recipes stay in the image at /apps/recipes_playwright.
+      - ./apps/recipes:/apps/recipes
     extra_hosts:
       # Reach host-local services (the mock portal, Vaultwarden, bw serve)
       - "host.docker.internal:host-gateway"

@@ -6,12 +6,6 @@ ARG APP_GID=1000
 ARG VERSION=dev
 ARG SOURCE=https://github.com/s-t-e-f-a-n/BillCollector
 
-LABEL org.opencontainers.image.title="BillCollector" \
-    org.opencontainers.image.description="Collect documents from web portals using Playwright recipes" \
-    org.opencontainers.image.source="${SOURCE}" \
-    org.opencontainers.image.version="${VERSION}" \
-    org.opencontainers.image.licenses="MIT"
-
 # Leave TZ to runtime configuration; the daemon defaults to UTC when absent.
 ENV HOME="/home/billcollector" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 
@@ -30,7 +24,9 @@ RUN if [[ "${TARGETARCH:-amd64}" != "amd64" ]]; then \
 # Install the Python dependencies and the browser BEFORE the application
 # code: BuildKit reuses every layer whose inputs and stage environment are
 # unchanged, so a code-only deploy re-runs only the final app COPY + chown
-# (seconds) instead of the network-bound pip/playwright steps.
+# (seconds) instead of the network-bound pip/playwright steps. The image
+# LABEL (which carries the per-tag VERSION) is likewise kept at the end of
+# the file, so a tag change invalidates only that final metadata layer.
 COPY apps/requirements.txt .
 RUN pip3 install -r requirements.txt --break-system-packages
 RUN python3 -m playwright install --with-deps chromium ffmpeg
@@ -70,6 +66,15 @@ USER ${APP_UID}:${APP_GID}
 
 # Expose the download folder as a volume
 VOLUME ["/apps/Downloads"]
+
+# Image metadata. Kept after the final COPY/chown/USER so a per-tag VERSION
+# build arg invalidates only this layer, never the pip/playwright/app layers
+# (BuildKit cache reuse).
+LABEL org.opencontainers.image.title="BillCollector" \
+    org.opencontainers.image.description="Collect documents from web portals using Playwright recipes" \
+    org.opencontainers.image.source="${SOURCE}" \
+    org.opencontainers.image.version="${VERSION}" \
+    org.opencontainers.image.licenses="MIT"
 
 # Entry point
 CMD ["/bin/bash"]

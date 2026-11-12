@@ -1103,7 +1103,8 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
             print("runner: task login is blocked or unresolved; no run started", file=sys.stderr)
             return 1
 
-        recipe_file = task["recipe_file"] or str(config.recipe_path_for(task["service"]))
+        recipe_file = config.resolve_recipe_path(
+            task["recipe_file"], task["service"])
         ok, error, _text, recipe = load_recipe(recipe_file)
         if not ok:
             print(f"runner: {error}", file=sys.stderr)

@@ -127,9 +127,10 @@ def open_task_dialog(db: Database, scheduler: TaskScheduler, refresh,
                               type="warning")
                     return
                 recipe = config.recipe_path_for(service)
+                # recipe_file left NULL: the runner resolves the
+                # overlay-aware path at run time.
                 new_id = db.create_task(
                     service, user,
-                    recipe_file=str(recipe),
                     enabled=enabled, cron=cron, date_window_days=window,
                     profile_dir=str(config.profile_dir_for(service, user)))
                 scheduler.sync_task(new_id)

@@ -441,7 +441,8 @@ async def test_add_task_dialog_creates_a_task(user, testdb, tmp_path, monkeypatc
     assert task["cron"] == "0 0 1 * *"
     assert task["status"] == "idle"
     assert task["date_window_days"] == 30
-    assert task["recipe_file"].endswith("recipe-pw__svc-c.yaml")
+    # recipe_file is NULL: the runner resolves the overlay-aware path at run time.
+    assert task["recipe_file"] is None
     assert task["profile_dir"].endswith("svc-c_user9")
     # Every create goes through the scheduler hook (C7.1).
     assert synced == [task["id"]]

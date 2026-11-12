@@ -21,7 +21,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps"))
 
-from billcollector import recipes  # noqa: E402
+from billcollector import config, recipes  # noqa: E402
 
 VALID = """\
 $schema: "recipe-pw-schema.yaml"
@@ -444,6 +444,150 @@ def test_apply_candidate_rewritten_document_validates():
         assert out is not None
         ok, error, _parsed = recipes.validate_recipe(yaml.safe_dump(out))
         assert ok is True, error
+
+
+# --- Recipe overlay (BC_RECIPE_EXTRA_DIR) -----------------------------
+
+def test_recipe_path_for_uses_built_in_when_overlay_unset(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "RECIPE_EXTRA_DIR", None)
+    built_in = tmp_path / "builtin"
+    built_in.mkdir()
+    monkeypatch.setattr(config, "RECIPE_DIR", built_in)
+    assert config.recipe_path_for("Winsim") == \
+        built_in / "recipe-pw__winsim.yaml"
+
+
+def test_recipe_path_for_prefers_a_present_shadow(tmp_path, monkeypatch):
+    built_in = tmp_path / "builtin"
+    extra = tmp_path / "extra"
+    built_in.mkdir()
+    extra.mkdir()
+    monkeypatch.setattr(config, "RECIPE_DIR", built_in)
+    monkeypatch.setattr(config, "RECIPE_EXTRA_DIR", extra)
+    # No shadow present -> built-in resolves even though the overlay is set.
+    assert config.recipe_path_for("Winsim") == \
+        built_in / "recipe-pw__winsim.yaml"
+    # A shadow present -> the extra path wins.
+    (extra / "recipe-pw__winsim.yaml").write_text(VALID, encoding="utf-8")
+    assert config.recipe_path_for("Winsim") == \
+        extra / "recipe-pw__winsim.yaml"
+
+
+def test_validate_recipe_ignores_a_schema_file_in_the_overlay(
+        tmp_path, monkeypatch):
+    # A schema file inside the overlay must be ignored: validation always uses
+    # the built-in config.RECIPE_SCHEMA (the contract is core-owned).
+    extra = tmp_path / "extra"
+    extra.mkdir()
+    # A deliberately broken schema in the overlay; if it were ever used, the
+    # valid recipe below would fail to validate against it.
+    (extra / "recipe-pw-schema.yaml").write_text(
+        "type: object\nrequired: [does-not-exist]\n", encoding="utf-8")
+    monkeypatch.setattr(config, "RECIPE_EXTRA_DIR", extra)
+    ok, error, _data = recipes.validate_recipe(VALID)
+    assert ok is True, error
+
+
+def test_recipe_save_path_for_targets_the_overlay_when_set(
+        tmp_path, monkeypatch):
+    built_in = tmp_path / "builtin"
+    extra = tmp_path / "extra"
+    built_in.mkdir()
+    monkeypatch.setattr(config, "RECIPE_DIR", built_in)
+    monkeypatch.setattr(config, "RECIPE_EXTRA_DIR", extra)
+    # A save of a built-in service shadows it (lands in the overlay).
+    assert config.recipe_save_path_for("Winsim") == \
+        extra / "recipe-pw__winsim.yaml"
+
+
+def test_recipe_save_path_for_falls_back_to_built_in_when_unset(
+        tmp_path, monkeypatch):
+    built_in = tmp_path / "builtin"
+    built_in.mkdir()
+    monkeypatch.setattr(config, "RECIPE_DIR", built_in)
+    monkeypatch.setattr(config, "RECIPE_EXTRA_DIR", None)
+    assert config.recipe_save_path_for("Winsim") == \
+        built_in / "recipe-pw__winsim.yaml"
+
+
+def test_save_recipe_creates_the_overlay_dir_as_needed(
+        tmp_path, monkeypatch):
+    extra = tmp_path / "does-not-exist-yet"
+    monkeypatch.setattr(config, "RECIPE_EXTRA_DIR", extra)
+    save_path = config.recipe_save_path_for("Winsim")
+    ok, error = recipes.save_recipe(save_path, VALID)
+    assert ok is True, error
+    assert save_path.read_text(encoding="utf-8") == VALID
+
+
+def test_resolve_recipe_path_unstored_uses_overlay_aware_path(
+        tmp_path, monkeypatch):
+    built_in = tmp_path / "builtin"
+    extra = tmp_path / "extra"
+    built_in.mkdir()
+    extra.mkdir()
+    monkeypatch.setattr(config, "RECIPE_DIR", built_in)
+    monkeypatch.setattr(config, "RECIPE_EXTRA_DIR", extra)
+    # A new task (stored NULL) resolves the overlay-aware path: with a shadow
+    # present the shadow wins.
+    (extra / "recipe-pw__winsim.yaml").write_text(VALID, encoding="utf-8")
+    assert config.resolve_recipe_path(None, "Winsim") == \
+        str(extra / "recipe-pw__winsim.yaml")
+    (extra / "recipe-pw__winsim.yaml").unlink()
+    assert config.resolve_recipe_path(None, "Winsim") == \
+        str(built_in / "recipe-pw__winsim.yaml")
+
+
+def test_resolve_recipe_path_stale_built_in_snapshot_lets_shadow_win(
+        tmp_path, monkeypatch):
+    # An old task still carries the built-in default path in recipe_file; a
+    # shadow added later must win (the runner's run-time resolution).
+    built_in = tmp_path / "builtin"
+    extra = tmp_path / "extra"
+    built_in.mkdir()
+    extra.mkdir()
+    monkeypatch.setattr(config, "RECIPE_DIR", built_in)
+    monkeypatch.setattr(config, "RECIPE_EXTRA_DIR", extra)
+    built_in_path = built_in / "recipe-pw__winsim.yaml"
+    built_in_path.write_text(VALID, encoding="utf-8")
+    stale = str(built_in_path)
+    (extra / "recipe-pw__winsim.yaml").write_text(VALID, encoding="utf-8")
+    assert config.resolve_recipe_path(stale, "Winsim") == \
+        str(extra / "recipe-pw__winsim.yaml")
+    # Without a shadow the built-in default still resolves (same as before).
+    (extra / "recipe-pw__winsim.yaml").unlink()
+    assert config.resolve_recipe_path(stale, "Winsim") == stale
+
+
+def test_resolve_recipe_path_explicit_override_still_wins(
+        tmp_path, monkeypatch):
+    built_in = tmp_path / "builtin"
+    extra = tmp_path / "extra"
+    built_in.mkdir()
+    extra.mkdir()
+    monkeypatch.setattr(config, "RECIPE_DIR", built_in)
+    monkeypatch.setattr(config, "RECIPE_EXTRA_DIR", extra)
+    custom = tmp_path / "custom" / "recipe-pw__winsim.yaml"
+    custom.parent.mkdir()
+    custom.write_text(VALID, encoding="utf-8")
+    # A non-default stored path that exists wins over the overlay.
+    assert config.resolve_recipe_path(str(custom), "Winsim") == str(custom)
+    # A non-default stored path that does not exist falls back.
+    missing = tmp_path / "custom" / "nope.yaml"
+    assert config.resolve_recipe_path(str(missing), "Winsim") == \
+        str(built_in / "recipe-pw__winsim.yaml")
+
+
+def test_recipe_extra_dir_none_when_env_unset_or_blank(monkeypatch):
+    monkeypatch.delenv("BC_RECIPE_EXTRA_DIR", raising=False)
+    assert config._recipe_extra_dir() is None
+    monkeypatch.setenv("BC_RECIPE_EXTRA_DIR", "   ")
+    assert config._recipe_extra_dir() is None
+
+
+def test_recipe_extra_dir_reads_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("BC_RECIPE_EXTRA_DIR", str(tmp_path / "overlay"))
+    assert config._recipe_extra_dir() == tmp_path / "overlay"
 
 
 if __name__ == "__main__":

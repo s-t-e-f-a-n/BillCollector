@@ -269,9 +269,10 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                             f"Task {service} / {user_ or '—'} already "
                             "exists", type="warning")
                         return
+                    # recipe_file left NULL: the runner resolves the
+                    # overlay-aware path at run time.
                     new_id = db.create_task(
                         service, user_,
-                        recipe_file=str(config.recipe_path_for(service)),
                         enabled=bool(enabled_switch.value), cron=cron,
                         profile_dir=str(
                             config.profile_dir_for(service, user_)))

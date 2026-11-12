@@ -19,6 +19,39 @@ Use one service per task recipe. Use a relative `$schema` reference to
 elsewhere, pass the schema explicitly to the validator. Do not commit a
 workstation-specific `/home/...` schema path.
 
+## Adding or updating recipes via the mounted directory
+
+The reference Compose deployment mounts `apps/recipes` on the host as a user
+recipe overlay (the container variable `BC_RECIPE_EXTRA_DIR` points at it). It
+lets you add recipes for services the image does not ship, or update a shipped
+recipe, without a rebuild:
+
+- **Naming.** Use the same convention as the built-in recipes:
+  `recipe-pw__<serviceName>.yaml`, the service name lowercased with spaces
+  replaced by underscores (service `ExampleMobile` ->
+  `apps/recipes/recipe-pw__examplemobile.yaml`).
+- **Precedence.** At run time a file in the overlay wins over the built-in
+  recipe of the same name (a shadow). A service with a file in neither place
+  fails before vault or browser access, as today. Built-in recipes stay
+  maintainer-owned and update with the image; a shadow you keep wins across
+  image upgrades until you update or delete it - there is no auto-merge.
+- **Save behavior.** The UI recipe editor loads the effective recipe (the
+  shadow when present) and saves into the overlay: saving a built-in service
+  writes its shadow, which then wins from the next run. With no overlay
+  configured (a direct `python -m billcollector` run without
+  `BC_RECIPE_EXTRA_DIR`), saves go to the built-in location, as before.
+- **Durable history and export.** The mounted folder is the durable store -
+  exporting your recipes is copying the directory. For per-edit history, mount
+  a git checkout instead of a plain folder and keep the Settings git
+  auto-commit switch on: the editor commits each save to that checkout. A
+  plain mounted folder - and the image itself, which ships without a `.git` -
+  gives the auto-commit switch nothing to commit to.
+- **Invalid overlay files fail loudly.** An overlay file that does not
+  validate fails the service at load/run time with the usual structured
+  error; the built-in recipe is not silently used as a fallback. A schema file
+  inside the overlay is ignored - validation always uses the built-in
+  `recipe-pw-schema.yaml`.
+
 ## Chain locators and actions
 
 Each step starts from the Page. Methods run in order. A returned locator or

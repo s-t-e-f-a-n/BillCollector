@@ -160,6 +160,9 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
         build_layout()
 
         path = config.recipe_path_for(service)
+        # UI edits are written to the overlay save path (a save of a built-in
+        # service shadows it); the editor still loads the effective path.
+        save_path = config.recipe_save_path_for(service)
         _ok, _error, text, old_data = load_recipe(path)
         state = "" if path.exists() else " (missing)"
         tasks = [t for t in db.list_tasks() if t["service"] == service]
@@ -347,7 +350,7 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
                 ui.notify("Recipe does not validate; nothing saved",
                           type="negative")
                 return
-            ok, error = save_recipe(path, editor.value)
+            ok, error = save_recipe(save_path, editor.value)
             if not ok:
                 set_result(error, False)
                 ui.notify(error, type="negative")
@@ -356,7 +359,7 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
             if (db.get_setting("git_commit_enabled") or "").strip().lower() \
                     in _TRUTHY:
                 ok, out = gitcommit.git_commit(
-                    [str(path)], f"recipe({service}): {summary}")
+                    [str(save_path)], f"recipe({service}): {summary}")
                 if ok:
                     set_result(f"Saved and committed: {summary}.", True)
                 else:
@@ -364,7 +367,7 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
                     ui.notify(f"Git commit failed: {out}", type="negative")
                     return
             else:
-                set_result(f"Saved {path.name}.", True)
+                set_result(f"Saved {save_path.name}.", True)
             render_tree()
             build_run_section()
 

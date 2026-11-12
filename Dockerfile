@@ -56,6 +56,10 @@ COPY --chown=${APP_UID}:${APP_GID} apps/. .
 # the whole /apps tree (app code, browser, downloads) and $HOME to the
 # non-root app user
 RUN mkdir -p /apps/Downloads "$HOME" && chown -R ${APP_UID}:${APP_GID} /apps "$HOME"
+# The adapter is trusted executable application code. Normalize its mode even
+# when the build context was created with a group-writable umask.
+RUN find /apps/recipes_playwright -type f -name 'bourse_direct_adapter.py' \
+    -exec chmod go-w {} +
 
 # Run as the non-root app user (numeric, no user account needed)
 USER ${APP_UID}:${APP_GID}

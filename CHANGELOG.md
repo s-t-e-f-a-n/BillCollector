@@ -67,6 +67,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Opt-in daemon `replacement_calendar` action for bounded monthly
   replacement-calendar traversal (issue #37). Months come from the run-start
   date context (issue #26). The legacy batch runner refuses the action.
+- Daemon-only `bourse_direct` adapter boundary for one trusted,
+  C3-validated catalog source. The adapter reuses native login, run-start
+  dates, authenticated request reads, notice identity and original delivery.
+  The legacy batch runner refuses this action. (issue #51)
 
 - Input-triggered protected login submissions (issue #36): a login phase
   `submit` chain may now end with `fill`, for portals that submit when a

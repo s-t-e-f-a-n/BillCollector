@@ -34,7 +34,9 @@ RUN python3 -m playwright install --with-deps chromium ffmpeg
 # Install dependencies (the per-run display stack: Xvfb virtual screens +
 # x11vnc + websockify/noVNC live view, and git for recipe auto-commits)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    apt libapt-pkg6.0t64 \
     fonts-liberation fonts-dejavu-core fonts-dejavu-mono git \
+    libbrotli1 libcares2 libpcre2-8-0 zlib1g \
     libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libatspi2.0-0 \
     libcairo2 libcups2 libdbus-1-3 libdrm2 libegl1 libgbm1 libglib2.0-0 \
     libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libx11-6 libx11-xcb1 libxcb1 \

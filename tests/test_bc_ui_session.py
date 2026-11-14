@@ -19,9 +19,9 @@ percentages, the ``n · role · name`` element select, the badge-tap
 selection, the per-action protocol arguments (``click n``, ``fill n +
 text``, ``press key``, ``drag n + dx + dy``), the ``resume`` and
 ``cancel`` dispatch (the cancel requires the confirmation), the
-ControlError degrade (a notify, never a crash), the empty-elements
-noVNC hint (decision 1), and the noVNC iframe carrying the run's
-websockify port (decision 6). The ``running`` view is tested against a
+ ControlError degrade (a notify, never a crash), the empty-elements
+ noVNC hint (decision 1), and the noVNC iframe's same-origin
+ ``/vnc/<port>/`` src (decision 6, C6). The ``running`` view is tested against a
 real runfiles tree (the PageStatus step strip), the ``ended`` view with
 a seeded ``pause_context``.
 
@@ -151,16 +151,6 @@ def test_pause_context_summary_degrades_on_missing_or_corrupt():
         {"pause_context": "{not json"}) is None
     assert session.pause_context_summary(
         {"pause_context": "[1, 2]"}) is None  # not a dict
-
-
-# ---- NOVNC_SRC_SCRIPT (the iframe src patcher, M3 decision 6) ------------
-
-def test_novnc_src_script_builds_an_absolute_url():
-    """The noVNC iframe ``src`` must be an absolute URL: the patcher
-    prefixes the ``http://`` scheme to ``window.location.hostname`` (websockify
-    serves the noVNC client on plain HTTP). A relative URL (the M3 Wave 1
-    pass regression) is resolved against the session page and 404s."""
-    assert "'http://' + window.location.hostname" in session.NOVNC_SRC_SCRIPT
 
 
 # ---- fixtures and seeds --------------------------------------------------
@@ -435,7 +425,10 @@ async def test_waiting_view_renders_the_overlay_and_novnc(user, testdb,
         3: "3 · button · Verify",
     }
     (html,) = user.find(marker="session-novnc").elements
-    assert 'data-novnc-port="6081"' in html.content
+    # C6: the iframe src is a same-origin URL on the UI port (the daemon
+    # serves the client and tunnels the WebSocket under the UI session).
+    assert ("src='/vnc/6081/vnc.html?autoconnect=true"
+            "&path=vnc/6081/websockify'") in html.content
     # The initial fetch hit the stub (screenshot + elements).
     assert ("screenshot", {}) in client.calls
     assert ("elements", {}) in client.calls
@@ -656,7 +649,8 @@ async def test_running_view_shows_step_screenshots_and_no_action_bar(
     await user.should_not_see(marker="session-actionbar")
     await user.should_not_see(marker="session-elem-select")
     (html,) = user.find(marker="session-novnc").elements
-    assert 'data-novnc-port="6082"' in html.content
+    assert ("src='/vnc/6082/vnc.html?autoconnect=true"
+            "&path=vnc/6082/websockify'") in html.content
 
 
 # ---- the ended view (M3 decision 3, the last pause context) ---------------

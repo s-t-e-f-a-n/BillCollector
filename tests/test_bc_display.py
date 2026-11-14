@@ -158,9 +158,12 @@ class DisplayStackTests(DisplayTestBase):
                 99, websockify_port=None, binaries=self._stub_binaries())
             try:
                 # the websockify child is the spawn targeting the localhost
-                # RFB port; its listen port defaults to 6080 for :99
+                # RFB port; its listen port defaults to 6080 for :99 and
+                # C6: it binds loopback explicitly (the daemon proxies
+                # /vnc/<port>/ on the UI port under the UI session; the
+                # websockify port is not published)
                 ws_args = next(a for a in spawned if "127.0.0.1:5999" in a)
-                self.assertIn(6080, ws_args)
+                self.assertIn("127.0.0.1:6080", ws_args)
             finally:
                 display.stop_display_stack(children)
 

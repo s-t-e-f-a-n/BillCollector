@@ -33,14 +33,16 @@ editor with the run's failure context preloaded
 (``/recipes/<service>?run=<run_id>``), where the candidate picker is
 the primary repair path.
 
-The noVNC tab (M3 decision 6) is a full-size iframe whose ``src`` is
-built *client-side* (the ``NOVNC_SRC_SCRIPT`` body script) from
-``window.location.hostname`` and the run's websockify port (the
-iframe's ``data-novnc-port`` attribute) - one URL works for a
-localhost operator and a LAN operator (websockify listens on all
-interfaces, x11vnc is ``-localhost``). The RFB password (the
-``vnc_password`` setting) is entered in noVNC's own prompt, never in
-the URL.
+The noVNC tab (M3 decision 6, C6) is a full-size iframe whose ``src``
+is a same-origin URL on the UI port -
+``/vnc/<port>/vnc.html?autoconnect=true&path=vnc/<port>/websockify``
+(C6: the daemon serves the noVNC client and tunnels the RFB WebSocket
+under the UI session; no noVNC ports are published). The query string
+is what the noVNC client needs to connect its WebSocket to the same
+origin - the session cookie rides the upgrade automatically, so one
+URL works for localhost, LAN, and phone operators alike. The RFB
+password (the ``vnc_password`` setting, the optional second layer) is
+entered in noVNC's own prompt, never in the URL.
 
 The Run row's pause columns are not cleared when a pause resolves (a
 resume keeps ``pause_reason`` / ``pause_context`` so the ended view can
@@ -92,37 +94,6 @@ BADGE_CLASSES = (
     "absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600 "
     "text-white text-xs font-bold w-6 h-6 flex items-center justify-center "
     "cursor-pointer z-10")
-
-# The noVNC src patcher (M3 decision 6): registered once per page via
-# ui.add_body_html (ui.html cannot carry scripts). A MutationObserver
-# finds every noVNC iframe (the state bodies are re-rendered on state
-# changes, so the iframe may appear after the script ran) and sets its
-# src from window.location.hostname + data-novnc-port - one URL works
-# for a localhost operator and a LAN operator.
-NOVNC_SRC_SCRIPT = """
-<script>
-(function () {
-  function patch(frame) {
-    var port = frame.getAttribute('data-novnc-port');
-    if (port && !frame.getAttribute('src')) {
-      frame.src = 'http://' + window.location.hostname + ':' + port +
-        '/vnc.html?autoconnect=true';
-    }
-  }
-  function patchAll() {
-    document.querySelectorAll('iframe[data-novnc-port]').forEach(patch);
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', patchAll);
-  } else {
-    patchAll();
-  }
-  new MutationObserver(patchAll).observe(document.body,
-    {childList: true, subtree: true});
-})();
-</script>
-"""
-
 
 def control_sock_alive(run) -> bool:
     """Whether the run's control socket is live: its file (bound while
@@ -194,15 +165,16 @@ def overlay_pct(rect, img_w: int, img_h: int) -> tuple[float, float] | None:
 
 
 def novnc_iframe_html(port: int) -> str:
-    """The noVNC tab's iframe (M3 decision 6): the noVNC web client,
-    whose ``src`` is built *client-side* (the page-level
-    ``NOVNC_SRC_SCRIPT``) from ``window.location.hostname`` and the
-    run's websockify port (``data-novnc-port``) - one URL works for a
-    localhost operator and a LAN operator (websockify listens on all
-    interfaces, x11vnc is ``-localhost``). The RFB password is entered
-    in noVNC's own prompt - never in the URL."""
-    return (f"<iframe data-novnc-port=\"{port}\" "
-            "class='w-full rounded' "
+    """The noVNC tab's iframe (M3 decision 6, C6): the noVNC web
+    client served by the daemon at ``/vnc/<port>/`` on the UI port
+    (the UI session gate - no noVNC ports are published). The query
+    string is what the client needs to connect its WebSocket to the
+    same origin (``autoconnect``, and the tunnel's ``path`` - no
+    leading slash, the client prefixes it). The RFB password (the
+    ``vnc_password`` setting, the optional second layer) is entered in
+    noVNC's own prompt - never in the URL."""
+    return (f"<iframe src='/vnc/{port}/vnc.html?autoconnect=true"
+            f"&path=vnc/{port}/websockify' class='w-full rounded' "
             "style='height: 70vh; border: 1px solid #cbd5e1; "
             "background: #0f172a;'></iframe>")
 
@@ -298,9 +270,6 @@ def register_session(db: Database) -> None:
         if redirect is not None:
             return redirect
         build_layout()
-        # The noVNC iframes of the alive states get their src client-side
-        # (M3 decision 6): one URL works for localhost and LAN operators.
-        ui.add_body_html(NOVNC_SRC_SCRIPT)
         run = db.get_run(run_id)
         if run is None:
             ui.label(f"Unknown run id: {run_id} (404)").classes("text-red-600")
@@ -486,10 +455,10 @@ def register_session(db: Database) -> None:
                 render_running_steps(refs)
 
         def render_novnc(run) -> None:
-            """The noVNC tab (M3 decision 6): the client-host iframe
-            while the run is alive (rendered only in the running and
-            waiting states). No port on the row (no display was
-            allocated) -> a hint instead of a dead iframe."""
+            """The noVNC tab (M3 decision 6, C6): the same-origin
+            iframe while the run is alive (rendered only in the
+            running and waiting states). No port on the row (no display
+            was allocated) -> a hint instead of a dead iframe."""
             port = run["novnc_port"]
             if port is None:
                 ui.label("noVNC is not available for this run.") \

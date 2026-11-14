@@ -6,9 +6,11 @@
 #
 # billcollector
 #   The daemon. NiceGUI UI on the published BC_UI_PORT (default 8766,
-#   container port 8000) plus the per-run noVNC live view on 6080-6095
-#   (one websockify port per Xvfb display; the range matches the default
-#   Settings display_start=99 / display_count=16 - change them together).
+#   container port 8000). The per-run noVNC live view is served by the
+#   daemon at /vnc/<port>/ on the UI port, authenticated by the UI
+#   session - no noVNC ports are published (the per-run websockify
+#   children bind loopback inside the container and are reached through
+#   the daemon's /vnc/<port>/websockify tunnel).
 #   Built from the root Dockerfile and tagged billcollector:latest, the
 #   same image the legacy BillCollector.sh batch wrapper runs.
 #
@@ -67,10 +69,10 @@ services:
       # README / doc/RECIPE_AUTHORING.md).
       BC_RECIPE_EXTRA_DIR: /apps/recipes
     ports:
-      # Published UI port (BC_UI_PORT in the root .env, default 8766)
+      # The UI port is the only published port: the per-run noVNC live
+      # view is served by the daemon at /vnc/<port>/ on this port,
+      # authenticated by the UI session (no noVNC ports are published).
       - "${BC_UI_PORT:-8766}:8000"
-      # Per-run noVNC live view (websockify), one port per Xvfb display
-      - "6080-6095:6080-6095"
     volumes:
       # Read-only app config; a missing file makes Docker create a
       # directory, so `cp apps/.env.example apps/.env` before the first up.

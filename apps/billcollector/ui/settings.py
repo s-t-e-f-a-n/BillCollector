@@ -38,7 +38,9 @@ FIELDS = (
      "Base for the pause deep links; keep the loopback default or set a "
      "LAN-absolute URL (e.g. http://<nas-lan-ip>:8766) so links open on a "
      "phone on your network."),
-    ("vnc_password", "VNC password", "password", ""),
+    ("vnc_password", "VNC password", "password",
+     "Optional second layer (RFB auth) for non-standard deployments that "
+     "publish the websockify ports; the supported path is the UI session."),
     ("vault_api_url", "Vault API URL", "optional_text",
      "Empty: use the BW_API_URL environment value."),
     ("vault_api_host", "Vault API host", "optional_text",

@@ -26,6 +26,9 @@ wired in here. M2 D4: ``config.RUN_DIR`` is exposed as the ``runfiles``
    page (``/settings``, the Settings-table fields of locked decision 12)
    is registered. M3 S1.1: the session page (``/runs/<run_id>``, the ntfy
    deep-link target; M3 decision 2) replaces the M2 dashboard redirect.
+   C6: the noVNC live-view proxy (``/vnc/<port>/`` on the UI port, the
+   UI session gate - no noVNC ports are published) is registered from
+   ``vncproxy``.
 """
 
 import logging
@@ -38,6 +41,7 @@ from nicegui import ui
 from ..db import Database
 from ..orchestrator import Orchestrator
 from ..scheduler import TaskScheduler
+from ..vncproxy import register_vnc_proxy
 from .auth import register_auth
 from .dashboard import register_dashboard
 from .downloads import register_downloads
@@ -173,6 +177,7 @@ def build_app(db: Database, orchestrator: Orchestrator,
     register_downloads(db, orchestrator)
     register_settings(db)
     register_runfiles(nicegui_app)
+    register_vnc_proxy(nicegui_app, db)
 
 
 def start(host: str, port: int) -> None:

@@ -76,7 +76,10 @@ DEFAULT_SETTINGS = {
     "ntfy_topic": "",
     "download_dir": str(DOWNLOAD_DIR),
     "download_recovery_timeout_seconds": "300",
-    "vnc_password": "",                  # empty: noVNC is localhost-only, no auth
+    # Empty: no RFB auth. The supported noVNC path is the UI session; this is
+    # the optional second layer only for non-standard deployments that publish
+    # the websockify ports.
+    "vnc_password": "",
 }
 
 

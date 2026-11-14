@@ -6,9 +6,12 @@ runner allocates a display number from the configured range
 (``display_start`` .. ``display_start + display_count - 1``), claims it
 with an atomic lockfile under ``data/displays/``, and owns the child
 process stack (Xvfb + x11vnc + websockify) that gives the run its virtual
-screen and the noVNC fallback channel. The display is released when the
-run finishes; a lock left behind by a crashed run is freed by the
-orchestrator's startup cleanup (C7.4).
+screen and the noVNC channel. The websockify child binds loopback
+(C6: the daemon's UI serves the noVNC live view at ``/vnc/<port>/`` on
+the UI port under the UI session and tunnels this port - no noVNC port
+is published). The display is released when the run finishes; a lock
+left behind by a crashed run is freed by the orchestrator's startup
+cleanup (C7.4).
 
 The runner allocates the display (not the orchestrator) so that the
 standalone ``python -m billcollector run <task_id>`` works without the
@@ -214,8 +217,11 @@ def start_display_stack(display, rfb_auth_file=None, websockify_port=None,
     - ``x11vnc -display :N -rfbport 5900+N -localhost`` - password auth
       only when an rfb auth file is given (default: localhost-only, no
       auth; the setting is empty by default),
-    - ``websockify <port> 127.0.0.1:5900+N`` - the noVNC channel, serving
-      the noVNC web client when the apt ``novnc`` package is present.
+    - ``websockify 127.0.0.1:<port> 127.0.0.1:5900+N`` - the noVNC
+      channel, loopback-bound (C6: the daemon's UI serves the noVNC
+      live view at ``/vnc/<port>/`` on the UI port under the UI session
+      and tunnels this port; no noVNC port is published), serving the
+      noVNC web client when the apt ``novnc`` package is present.
 
     ``binaries`` may override the binary per role ({"Xvfb", "x11vnc",
     "websockify"}) for tests. Returns the list of child Popen objects
@@ -249,7 +255,8 @@ def start_display_stack(display, rfb_auth_file=None, websockify_port=None,
             vnc_args += ["-nopw"]
         children.append(_spawn(bins["x11vnc"], *vnc_args, env=env))
 
-        ws_args = [websockify_port, f"127.0.0.1:{VNC_BASE_PORT + display}"]
+        ws_args = [f"127.0.0.1:{websockify_port}",
+                   f"127.0.0.1:{VNC_BASE_PORT + display}"]
         if NOVNC_WEB_DIR.is_dir():
             ws_args = ["--web", str(NOVNC_WEB_DIR), *ws_args]
         children.append(_spawn(bins["websockify"], *ws_args, env=env))

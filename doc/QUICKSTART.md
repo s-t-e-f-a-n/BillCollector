@@ -100,9 +100,9 @@ Finish onboarding:
    Shipped INI files contain no active personal accounts.
 3. **Finish:** check the summary, then finish onboarding.
 
-The UI password protects the daemon UI. It does not configure the separate
-noVNC channel. The loopback override above deliberately leaves that channel
-unpublished while its deployment design is under review.
+The UI password protects the daemon UI. The UI session authenticates the
+noVNC live view too - there is no separate channel: the per-run live view is
+served by the daemon on the UI port at `/vnc/<port>/`.
 
 ## Collect the first document
 
@@ -147,8 +147,6 @@ docker compose -p billcollector-local -f docker-compose.yml -f compose.local.yam
   directory); mounting a git checkout instead of a plain folder enables the
   git auto-commit history. See [Adding or updating recipes via the mounted
   directory](RECIPE_AUTHORING.md#adding-or-updating-recipes-via-the-mounted-directory).
-- The separate noVNC routing/authentication design remains maintainer-owned
-  (issue #27 F03). This guide qualifies local UI access only.
 - Broader pre-run method validation (C3/F08) and empty-run semantics must be
   checked against the public version you install. Do not assume approval means
   integration.

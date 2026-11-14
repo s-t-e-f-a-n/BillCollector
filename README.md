@@ -256,10 +256,9 @@ Both paths share the same host setup: the data folders the container writes to a
          BC_UI_HOST: "0.0.0.0"
          NTFY_HOST: ${NTFY_HOST:-https://ntfy.sh}
          BC_RECIPE_EXTRA_DIR: /apps/recipes
-       ports:
-         - "${BC_UI_PORT:-8766}:8000"
-         - "6080-6095:6080-6095"
-       volumes:
+        ports:
+          - "${BC_UI_PORT:-8766}:8000"
+        volumes:
          - ./apps/.env:/apps/.env:ro
          - ./apps/Downloads:/apps/Downloads
          - ./apps/db:/apps/db
@@ -339,7 +338,7 @@ The vault API can also be configured from the UI (the onboarding wizard's vault 
 From the compose file (`docker-compose.yml`):
 
 - **UI port** `${BC_UI_PORT:-8766}:8000` - the daemon UI.
-- **noVNC live view** websockify ports `6080-6095` - one port per allocated Xvfb display (websockify port = `6080 + (display - display_start)`); the range matches the default Settings `display_start=99` / `display_count=16` - change them together if you change the display range.
+- **noVNC live view** - no separate noVNC ports: the per-run live view is served by the daemon at `/vnc/<port>/` on the UI port, authenticated by the UI session (one loopback-bound websockify port per allocated Xvfb display, `6080 + (display - display_start)`, reached through the daemon's `/vnc/<port>/websockify` tunnel).
 - **Volumes**: `./apps/.env` (read-only), `./apps/Downloads`, `./apps/db`, `./apps/data`, `./apps/browser/profiles` (profiles only - mounting all of `apps/browser` would hide the Chromium build installed in the image), `./apps/recipes` (the user recipe overlay, read-write - the UI recipe editor saves there).
 - **`host.docker.internal:host-gateway`** - reach host-local services (Vaultwarden, `bw serve`, the mock portal) from the container as `http://host.docker.internal:<port>`. Vaultwarden itself stays a prerequisite in its own compose stack.
 - `restart: unless-stopped`, `init: true`, a health check on `/_alive`, and the non-root user from the `APP_UID`/`APP_GID` build args.
@@ -542,7 +541,7 @@ What happens:
 
 - The run uses the same engine as the daemon: the task's recipe, the vault credentials, the per-task browser profile, and the per-step DB recording.
 - The browser runs headful on an allocated virtual display (Xvfb, from the configured range - default `:99`), so no physical display is needed. The display stack must be installed on the dev host: `install_local.sh` already installs `xvfb`; additionally `sudo apt install x11vnc websockify novnc`.
-- The run's browser is viewable in your browser over noVNC: open `http://localhost:<websockify port>/vnc.html` (websockify serves the noVNC web client from the `novnc` apt package). The port is printed in the log line `Display stack started for :N (x11vnc port ..., websockify port ...)`; websockify port = `6080 + (display - display_start)`.
+- The run's browser is viewable over noVNC. When the run goes through the daemon, the session page's noVNC tab shows the live browser (same-origin, UI-session-authenticated). In a standalone F5 debug run, websockify serves the noVNC web client (the `novnc` apt package) on loopback - open `http://localhost:<websockify port>/vnc.html` on the dev host. The port is printed in the log line `Display stack started for :N (x11vnc port ..., websockify port ...)`; websockify port = `6080 + (display - display_start)`.
 - `--debug` pauses before every step: `Step N: <description> [press Enter to continue]` on stdin - step through the portal and watch what the engine sees. A closed stdin (EOF) logs once and continues without pausing.
 - Every step is recorded in the SQLite DB (`apps/db/bc.db`) together with the interactive elements that were found on the page - use these records to identify and fix failing steps.
 

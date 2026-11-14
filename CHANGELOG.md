@@ -13,6 +13,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - GHCR release images are now also published under the `latest` tag alongside
   the pinned release tag on every `v*` tag push.
+- The per-run noVNC live view is no longer exposed on published websockify
+  ports (`6080-6095`). It is now served by the daemon at `/vnc/<port>/` on the
+  UI port, authenticated by the UI session - an unauthenticated client can no
+  longer view or control a live browser through any published path. Existing
+  compose files should drop the old `6080-6095:6080-6095` port lines.
+- The `vnc_password` setting is re-scoped: it is now the optional second layer
+  (RFB auth) for non-standard deployments that deliberately publish the
+  websockify ports; the supported path is the UI session.
 
 ## [v0.5] - 2026-11-11
 

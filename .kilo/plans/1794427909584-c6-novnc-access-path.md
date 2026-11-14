@@ -1,9 +1,11 @@
 # C6 — F03: noVNC access path (design first)
 
-> Status: DESIGN (2026-11-11) — specified below, pending user confirmation.
-> Implementation follows as W1–W3 after confirmation. Delivery of C6 in
-> `.kilo/plans/1792861675256-issue27-maintainer-commitments.md` ("design
-> not started") is the target this plan closes.
+> Status: W1–W3 complete (2026-11-11) — code, tests, compose and docs are in
+> place and the C6 tests pass (ruff + pytest). The live check and the
+> deployment-process validation (deploy skill) remain the user-gated gates
+> before the NAS rollout. Delivery of C6 in
+> `.kilo/plans/1792861675256-issue27-maintainer-commitments.md` is marked
+> done.
 
 Source: the C6 commitment in
 `.kilo/plans/1792861675256-issue27-maintainer-commitments.md` (F03 from

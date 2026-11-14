@@ -166,7 +166,20 @@ on dev.
   intervention remains usable.
 - Changes the reference Compose deployment (`docker-compose.yml:63`); needs
   the deployment-process validation (deploy skill) before NAS rollout.
-- Status: design not started.
+- Status: done 2026-11-11 (`.kilo/plans/1794427909584-c6-novnc-access-path.md`).
+  The chosen design is authentication through the UI session: no noVNC ports
+  are published. The daemon serves the per-run live view at `/vnc/<port>/` on
+  the UI port, gated by the existing UI session (the client files are
+  session-gated HTTP routes; the RFB WebSocket is an independently
+  session-checked tunnel with a live-Run port allowlist). The per-run
+  websockify now binds loopback and `docker-compose.yml` publishes only the UI
+  port, so an unauthenticated client cannot view or control a live browser
+  through any published path; the session page (the ntfy deep-link target)
+  keeps the noVNC tab usable for localhost, LAN and phone operators.
+  `vnc_password` is re-scoped as the optional second layer (RFB auth) for
+  non-standard published-port deployments. Acceptance met; public docs:
+  README, doc/QUICKSTART.md, doc/TROUBLESHOOTING.md, CHANGELOG (Unreleased).
+  The deployment-process validation (deploy skill) still gates the NAS rollout.
 
 ### C7 — F05: protected-login conversion (P1, slow)
 
@@ -247,9 +260,9 @@ when picked up). O01 stays deferred per #21.
 
 ## Status
 
-C1–C5 and C8 delivered; remaining C6 (F03 noVNC access design), C7 (F05
-protected-login conversion — schedule with the remaining Stage 1b portal
-windows). Plan stays Active until C6–C7 are delivered.
+C1–C6 and C8 delivered; remaining C7 (F05 protected-login conversion —
+schedule with the remaining Stage 1b portal windows). Plan stays Active until
+C7 is delivered.
 
 Timeline: plan created 2026-10-24 (triage decision posted on issue #27,
 comment 6387035799); C2 (F09) + C1 (F04) done 2026-10-24; C3 (F08 contract)
@@ -257,7 +270,10 @@ done 2026-10-24 (`doc/RECIPE_METHODS.md`, commit `5745e59`, issue #27
 comment 6388757576); C4 (F06) done 2026-11-02 (Gitea `main` `67b5b38` /
 GitHub `21ef9f3`); C8 (F10) done 2026-11-03 (Gitea `main` `2485719` /
 GitHub `eb06503`); C5 (F02) done 2026-11-09 (recipe overlay volume on dev,
-W2 of `completed/1793836337863-ghcr-release-recipes-plan.md`). Issue #24 closed as
+W2 of `completed/1793836337863-ghcr-release-recipes-plan.md`); C6 (F03) done
+2026-11-11 (noVNC access path: no noVNC ports published, the per-run live
+view served at `/vnc/<port>/` on the UI port under the UI session;
+`.kilo/plans/1794427909584-c6-novnc-access-path.md`). Issue #24 closed as
 completed 2026-11-03 (maintainer,
 comment 6597460209); issue #26 closed 2026-10-27 (PR #34 delivered). The PR
 chain that delivered the #24/#26 lanes is recorded in

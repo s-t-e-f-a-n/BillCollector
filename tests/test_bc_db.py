@@ -5,6 +5,7 @@ import configparser
 import sqlite3
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -418,6 +419,119 @@ class DatabaseTests(unittest.TestCase):
         # Finalized: no longer active nor waiting, even though pause_reason is set.
         self.assertEqual(self.db.list_waiting_runs(), [])
         self.assertEqual([r["id"] for r in self.db.list_active_runs()], [rid2])
+
+
+class ConcurrentAccessTests(unittest.TestCase):
+    """Regression (C6 noVNC incident): the daemon shares ONE sqlite3
+    connection across threads (event loop, anyio workers, APScheduler).
+    Without the Database lock, concurrent execute/fetch corrupts the
+    statement state and surfaces IndexError / InterfaceError inside
+    get_setting() - which killed the vncproxy port check and left the
+    noVNC tab stuck on "waiting to connect". This test hammers the same
+    connection from several threads and requires zero errors plus intact
+    data afterwards."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.db = bcd.Database(path=self.root / "test.db")
+        self.errors = []
+        self.error_lock = threading.Lock()
+
+    def tearDown(self):
+        self.db.close()
+        self.tmp.cleanup()
+
+    def _record(self, exc):
+        with self.error_lock:
+            self.errors.append(f"{type(exc).__name__}: {exc}")
+
+    def test_hammer_from_multiple_threads_is_error_free(self):
+        iters = 2000
+        stop = threading.Event()
+
+        def settings_worker():
+            for i in range(iters):
+                try:
+                    self.db.set_setting("display_start", str(99 + i % 4))
+                    self.assertEqual(
+                        self.db.get_setting("display_count"), "16")
+                except BaseException as e:
+                    self._record(e)
+                    return
+                if stop.is_set():
+                    return
+
+        def tasks_worker():
+            for i in range(iters):
+                try:
+                    tid = self.db.create_task(
+                        "svc-hammer", f"user-{i}")
+                    self.db.update_task(tid, enabled=True)
+                    self.db.set_task_status(tid, "idle")
+                    self.assertIsNotNone(self.db.get_task(tid))
+                except BaseException as e:
+                    self._record(e)
+                    return
+                if stop.is_set():
+                    return
+
+        def runs_worker():
+            tid = self.db.create_task("svc-runs", "u1")
+            for i in range(iters):
+                try:
+                    rid = self.db.create_run(
+                        tid, display=99 + (i % 16),
+                        novnc_port=6080 + (i % 16))
+                    self.assertTrue(self.db.has_live_novnc_port(6080 + (i % 16)))
+                    self.db.list_active_runs()
+                    self.db.update_run(rid, result="success", ended_at="now")
+                    self.assertFalse(self.db.has_live_novnc_port(6080 + (i % 16)))
+                except BaseException as e:
+                    self._record(e)
+                    return
+                if stop.is_set():
+                    return
+
+        def readers_worker():
+            for i in range(iters):
+                try:
+                    self.db.list_tasks()
+                    self.db.list_runs()
+                    self.db.list_downloads()
+                    self.db.get_setting("ntfy_topic")
+                    self.db.known_source_keys(1)
+                    self.db.list_page_status(1)
+                except BaseException as e:
+                    self._record(e)
+                    return
+                if stop.is_set():
+                    return
+
+        threads = [
+            threading.Thread(target=settings_worker, daemon=True),
+            threading.Thread(target=tasks_worker, daemon=True),
+            threading.Thread(target=runs_worker, daemon=True),
+            threading.Thread(target=readers_worker, daemon=True),
+            threading.Thread(target=settings_worker, daemon=True),
+            threading.Thread(target=readers_worker, daemon=True),
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=60)
+
+        self.assertEqual(
+            self.errors, [],
+            "concurrent access to the shared connection raised: "
+            + "; ".join(self.errors[:5]))
+        # Data integrity: every hammer task is retrievable and the live-run
+        # bookkeeping survived the interleaving.
+        tasks = self.db.list_tasks()
+        self.assertTrue(any(t["service"] == "svc-hammer" for t in tasks))
+        self.assertTrue(any(t["service"] == "svc-runs" for t in tasks))
+        for run in self.db.list_active_runs():
+            self.fail(f"a run stayed active after the hammer: {run['id']}")
 
 
 if __name__ == "__main__":

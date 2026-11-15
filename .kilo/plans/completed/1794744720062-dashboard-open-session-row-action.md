@@ -1,11 +1,11 @@
 # Dashboard — per-row "Open session" action (option C)
 
-> Status: IMPLEMENTED (2026-11-15) — W1–W4 in place (code + tests); ruff +
-> full pytest green, review approved. UI-only change, single file
+> Status: DELIVERED (2026-11-15) — W1–W4 in place (code + tests); ruff +
+> full pytest green, review approved; manual check passed (the user
+> confirmed the action in both run states). UI-only change, single file
 > (`apps/billcollector/ui/dashboard.py`) + one test file. Label decided:
 > **"Open session"** (not "Session") to match the task-detail link and avoid
-> colliding with the dashboard's existing "Session" column. The plan's
-> manual check (both run states in a browser) remains user-gated.
+> colliding with the dashboard's existing "Session" column.
 
 Source: the user chose **option C** from the four dashboard options presented
 in the prior session (make the step-strip label a link / a persistent

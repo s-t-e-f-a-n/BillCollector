@@ -49,10 +49,7 @@ def _port_allowed(db: Database, port: int) -> bool:
     if not (display.WEBSOCKIFY_BASE_PORT <= port
             < display.WEBSOCKIFY_BASE_PORT + count):
         return False
-    row = db.conn.execute(
-        "SELECT 1 FROM Run WHERE novnc_port = ? AND result IS NULL LIMIT 1",
-        (port,)).fetchone()
-    return row is not None
+    return db.has_live_novnc_port(port)
 
 
 def _client_file(path: str) -> Path | None:

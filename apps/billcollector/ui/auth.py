@@ -53,9 +53,8 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def get_password_hash(db: Database):
     """The stored password hash, or None when no password has been set yet."""
-    row = db.conn.execute(
-        "SELECT value FROM Settings WHERE key='ui_password_hash'").fetchone()
-    return row["value"] if row is not None and row["value"] else None
+    value = db.get_setting("ui_password_hash")
+    return value if value else None
 
 
 def set_password_hash(db: Database, hashed: str) -> None:
@@ -113,10 +112,9 @@ def get_session_secret(db: Database) -> str:
     Must run before the first request is served: the SessionMiddleware is
     built with it and changing it later would invalidate every open session.
     """
-    row = db.conn.execute(
-        "SELECT value FROM Settings WHERE key='session_secret'").fetchone()
-    if row is not None and row["value"]:
-        return row["value"]
+    value = db.get_setting("session_secret")
+    if value:
+        return value
     secret = secrets.token_hex(32)
     db.set_setting("session_secret", secret)
     logger.info("ui session secret generated and persisted")

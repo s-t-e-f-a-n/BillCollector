@@ -15,7 +15,11 @@ D3.2 adds the run actions: the row **Run now** / **Stop** buttons route
 through the ``rowaction`` CustomEvent to ``orchestrator.start_run`` /
 ``stop_run`` (stubbed), and the toolbar **Run (filtered)** button
 enqueues exactly the enabled, non-active tasks in the filtered set
-(disabled and active tasks are skipped and reported in a notify).
+(disabled and active tasks are skipped and reported in a notify). The
+row **Open session** button navigates same-tab to the run's session
+page: the tests pin the row's ``active_run_id`` (the newest
+result-IS-NULL run per task, ``None`` for idle rows) and the
+rowaction-to-``/runs/<run_id>`` navigation.
 
 D3.3 adds the task management dialogs: the toolbar **Add task** button
 (create: service/user/cron/enabled, the derived recipe file shown
@@ -356,6 +360,44 @@ async def test_stop_calls_stop_run(user, testdb, tmp_path, monkeypatch):
                 "Stop did not call stop_run")
     assert stopped == [seed["running"]]
     assert started == []
+
+
+async def test_open_session_row_carries_the_active_run_id(user, testdb,
+                                                          tmp_path):
+    """The row's active_run_id is the task's newest result-IS-NULL run
+    (the Open session button's target), resolved in build_rows (the
+    body-slot template cannot query the DB)."""
+    seed = _seed(testdb, tmp_path)
+    await _login(user, testdb)
+    await user.open("/")
+
+    rows = {r["id"]: r for r in _table_rows(user)}
+    assert rows[seed["running"]]["active_run_id"] == seed["run_running"]
+    # The waiting seed run is created inline, so fetch its id to pin the
+    # exact resolution (not just non-None).
+    waiting_run = next(r["id"] for r in testdb.list_active_runs()
+                       if r["task_id"] == seed["waiting"])
+    assert rows[seed["waiting"]]["active_run_id"] == waiting_run
+    assert rows[seed["idle"]]["active_run_id"] is None
+
+
+async def test_open_session_row_action_navigates_to_the_session_page(
+        user, testdb, tmp_path):
+    """Row Open session navigates same-tab to the run's session page
+    (``/runs/<run_id>``, mirroring the row-click navigation test)."""
+    seed = _seed(testdb, tmp_path)
+    await _login(user, testdb)
+    await user.open("/")
+
+    user.find(kind=ui.table).trigger(
+        "rowaction",
+        {"action": "session", "id": seed["run_running"],
+         "task": "svc-b / user1"})
+    # The navigation is a background page load: allow a few extra retries.
+    # The session page header ``Run <run_id>`` is the assertion target
+    # (run_running has result IS NULL and no pause: it renders the
+    # running state).
+    await user.should_see(f"Run {seed['run_running']}", retries=10)
 
 
 async def test_run_filtered_enqueues_only_enabled_tasks(user, testdb, tmp_path,

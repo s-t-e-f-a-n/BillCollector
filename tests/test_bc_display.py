@@ -167,6 +167,29 @@ class DisplayStackTests(DisplayTestBase):
             finally:
                 display.stop_display_stack(children)
 
+    def test_x11vnc_is_started_with_forever(self):
+        # Plain x11vnc exits when the last viewer disconnects, which broke
+        # the second NoVNC connect of a run (websockify then failed to
+        # dial the RFB port with ECONNREFUSED): the stack must pass
+        # -forever.
+        spawned = []
+        real_spawn = display._spawn
+
+        def recording_spawn(binary, *args, env=None):
+            spawned.append(args)
+            return real_spawn(binary, *args, env=env)
+
+        with mock.patch.object(display, "_wait_for_x_display"), \
+                mock.patch.object(display, "_spawn", recording_spawn):
+            children = display.start_display_stack(
+                99, websockify_port=6080, binaries=self._stub_binaries())
+            try:
+                vnc_args = next(a for a in spawned if "-rfbport" in a)
+                self.assertIn("-forever", vnc_args)
+                self.assertIn("-localhost", vnc_args)
+            finally:
+                display.stop_display_stack(children)
+
     def test_stack_children_get_a_wayland_free_env(self):
         # WSLg sessions export WAYLAND_DISPLAY and x11vnc refuses to
         # start against it, so no child may inherit the variable.

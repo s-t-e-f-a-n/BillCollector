@@ -1,14 +1,18 @@
 # C6 noVNC rollout — step-by-step instructions (user-gated)
 
-> Status: Step 1 done, Step 2 partially validated (2026-11-16) — the C6
-> change set (`28b8c32` + `2c5e0a0` + `2197ae8`, plan status `8ef3758`)
-> plus the noVNC 2nd-connect fix (`10e21a3` + `422e9f3`) are committed and
-> pushed to Gitea `origin/dev` (in sync). NAS live check passed 2026-11-16:
-> the noVNC tab shows the live browser and the reconnect repro passed
-> (item 5). Remaining Step 2 items: 2 (`docker port` → UI port only),
-> 6 (unauthenticated `GET /vnc/…` → 307), 7 (optional ntfy deep link).
-> Then Step 3 (deploy skill, user-gated) and Step 4 close-out (archive both
-> C6 plans).
+> Status: DELIVERED (2026-11-16) — all four steps complete:
+> - Step 1: the C6 change set (`28b8c32` + `2c5e0a0` + `2197ae8`, plan
+>   status `8ef3758`) plus the noVNC 2nd-connect fix (`10e21a3` +
+>   `422e9f3`) committed and pushed to Gitea `origin/dev`.
+> - Step 2: validated on the NAS — UI-only publish (item 2), noVNC tab +
+>   reconnect repro (items 3–5), unauthenticated `GET /vnc/…` → 307 (item
+>   6); item 7 (ntfy deep link) optional, the path is unchanged and
+>   auth-gated.
+> - Step 3: v0.6 released (Gitea `main` `bb5a72b` / GitHub `bc85894`, tag
+>   on both lineages) and deployed to the NAS (container recreated healthy
+>   on the v0.6 image).
+> - Step 4: both C6 plans archived to `completed/`; cross-references
+>   refreshed.
 >
 > History: W1–W3 (code / tests / compose / docs / plan status) completed
 > 2026-11-11 and validated (ruff clean; full suite 857 passed / 11 skipped;
@@ -22,7 +26,8 @@
 > Step 2's validation must include the reconnect repro (item 5).
 
 Source: the Validation section of
-`.kilo/plans/1794427909584-c6-novnc-access-path.md` (the user-gated gates)
+`.kilo/plans/completed/1794427909584-c6-novnc-access-path.md` (the
+user-gated gates)
 and the C6 commitment in
 `.kilo/plans/1792861675256-issue27-maintainer-commitments.md` (deployment-
 process validation before the NAS rollout).

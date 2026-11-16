@@ -166,7 +166,7 @@ on dev.
   intervention remains usable.
 - Changes the reference Compose deployment (`docker-compose.yml:63`); needs
   the deployment-process validation (deploy skill) before NAS rollout.
-- Status: done 2026-11-11 (`.kilo/plans/1794427909584-c6-novnc-access-path.md`).
+- Status: done 2026-11-11 (`.kilo/plans/completed/1794427909584-c6-novnc-access-path.md`);
   The chosen design is authentication through the UI session: no noVNC ports
   are published. The daemon serves the per-run live view at `/vnc/<port>/` on
   the UI port, gated by the existing UI session (the client files are
@@ -177,9 +177,11 @@ on dev.
   through any published path; the session page (the ntfy deep-link target)
   keeps the noVNC tab usable for localhost, LAN and phone operators.
   `vnc_password` is re-scoped as the optional second layer (RFB auth) for
-  non-standard published-port deployments. Acceptance met; public docs:
-  README, doc/QUICKSTART.md, doc/TROUBLESHOOTING.md, CHANGELOG (Unreleased).
-  The deployment-process validation (deploy skill) still gates the NAS rollout.
+   non-standard published-port deployments. Acceptance met; public docs:
+   README, doc/QUICKSTART.md, doc/TROUBLESHOOTING.md, CHANGELOG.
+   Deployment-process validation done 2026-11-16 (deploy skill): v0.6
+   released (Gitea `main` `bb5a72b` / GitHub `bc85894`, tag on both
+   lineages) and deployed to the NAS (container healthy on the v0.6 image).
 
 ### C7 — F05: protected-login conversion (P1, slow)
 
@@ -273,7 +275,9 @@ GitHub `eb06503`); C5 (F02) done 2026-11-09 (recipe overlay volume on dev,
 W2 of `completed/1793836337863-ghcr-release-recipes-plan.md`); C6 (F03) done
 2026-11-11 (noVNC access path: no noVNC ports published, the per-run live
 view served at `/vnc/<port>/` on the UI port under the UI session;
-`.kilo/plans/1794427909584-c6-novnc-access-path.md`). Issue #24 closed as
+released as v0.6 2026-11-16, Gitea `main` `bb5a72b` / GitHub `bc85894`;
+`.kilo/plans/completed/1794427909584-c6-novnc-access-path.md`). Issue #24
+closed as
 completed 2026-11-03 (maintainer,
 comment 6597460209); issue #26 closed 2026-10-27 (PR #34 delivered). The PR
 chain that delivered the #24/#26 lanes is recorded in

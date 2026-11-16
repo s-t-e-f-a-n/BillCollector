@@ -1,9 +1,12 @@
 # C6 — F03: noVNC access path (design first)
 
-> Status: W1–W3 complete (2026-11-11) — code, tests, compose and docs are in
-> place and the C6 tests pass (ruff + pytest). The live check and the
-> deployment-process validation (deploy skill) remain the user-gated gates
-> before the NAS rollout. Delivery of C6 in
+> Status: DELIVERED (2026-11-16) — W1–W3 complete 2026-11-11 (code/tests/
+> docs, full suite green); live validation passed on the NAS (noVNC tab +
+> reconnect + UI-only publish + unauthenticated 307); deployment-process
+> validation done via the deploy skill: v0.6 released 2026-11-16 (Gitea
+> `main` `bb5a72b` / GitHub `bc85894`, tag on both lineages) and deployed to
+> the NAS (container healthy on the v0.6 image). Archived to `completed/`.
+> Delivery of C6 in
 > `.kilo/plans/1792861675256-issue27-maintainer-commitments.md` is marked
 > done.
 
@@ -231,6 +234,19 @@ the Status section: remaining = C7 only).
   is the reference `docker-compose.yml` (`install_docker-image.sh` builds
   the image, `docker compose up` starts the container), so the compose
   change is the rollout vehicle.
+
+### Results (2026-11-16)
+
+- Live check on the NAS (2026-11-16, user): the noVNC tab shows the live
+  browser under a logged-in session; the reconnect repro (dashboard → run
+  → noVNC tab) connects again; `docker port` publishes only the UI port
+  (`8766->8000`); unauthenticated `GET /vnc/6080/` (and out-of-range
+  `/vnc/6099/`) → `307` with `location: /login`.
+- Deployment-process validation (deploy skill): Stage 1 green at the
+  promoted commit (ruff clean; pytest 861 passed / 11 skipped; full
+  regression harness 7/7 pairs); v0.6 promoted `dev` → Gitea `main`
+  (`bb5a72b`, ff-only), GitHub mirror `bc85894` with tag v0.6, NAS
+  container recreated healthy on the v0.6 image.
 
 ## Risks / notes
 

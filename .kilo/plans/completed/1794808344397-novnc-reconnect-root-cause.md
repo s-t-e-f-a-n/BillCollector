@@ -8,7 +8,8 @@ NAS validation passed with the user's exact repro. Archived to
 **Symptom (NAS, reproducible):** start a service run -> open NoVNC: OK ->
 navigate to the dashboard -> open the run again -> NoVNC: no connection.
 
-**Related:** `1794655634347-c6-novnc-rollout-steps.md` (C6 rollout).
+**Related:** `completed/1794655634347-c6-novnc-rollout-steps.md` (C6 rollout,
+also archived 2026-11-16).
 **Sessions:** `ses_e1eb13874ffevZcOUGp5bwFzyD` (v5 tunnel repro), the
 2026-11-16 session (live proof).
 

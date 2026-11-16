@@ -5,6 +5,12 @@
 > 2026-11-11 and validated (ruff clean; full suite 857 passed / 11 skipped;
 > compose YAML valid with the UI port as the only published port). The
 > complete C6 change set sits uncommitted on `dev`.
+>
+> 2026-11-16: the second-NoVNC-connect failure (x11vnc exited with the last
+> viewer; re-entry failed with `1011 Failed to connect to downstream
+> server`) is fixed on `dev` with `-forever` — root cause + validation:
+> `.kilo/plans/1794808344397-novnc-reconnect-root-cause.md`. Step 2's
+> validation must include the reconnect repro (item 5).
 
 Source: the Validation section of
 `.kilo/plans/1794427909584-c6-novnc-access-path.md` (the user-gated gates)
@@ -45,13 +51,17 @@ Docker-capable machine.
    (**Run now**, e.g. the winsim task).
 4. Session page → **noVNC tab**: it must show the live browser while the
    run is alive.
-5. From a second machine, logged out:
+5. **Reconnect repro** (regression check for the x11vnc `-forever` fix):
+   from the session page navigate to the dashboard, open the run again —
+   the noVNC tab must connect again (before the fix this failed with
+   "Failed to connect to downstream server").
+6. From a second machine, logged out:
    `curl -sI http://<host>:<UI_PORT>/vnc/6080/` → expect `307` with
    `Location: /login`; an incognito tab on the session page must not
    render the VNC view.
-6. (Optional, phone path) open the ntfy deep link over the LAN → the
+7. (Optional, phone path) open the ntfy deep link over the LAN → the
    noVNC tab works.
-7. Report the results back to the session; they are recorded in the
+8. Report the results back to the session; they are recorded in the
    C6 plan's Validation section.
 
 ## Step 3 — release + NAS rollout (deploy skill, user-gated)

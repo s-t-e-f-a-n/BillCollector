@@ -1,7 +1,9 @@
 # NoVNC "second connect" failure — root cause & fix plan
 
-**Status:** root cause established (live A/B proof, 2026-11-16). Fix pending
-(S4–S8 below).
+**Status:** DELIVERED (2026-11-16) — root cause established (live A/B
+proof), fix + test on `dev` (`10e21a3`, `422e9f3`), full suite green,
+NAS validation passed with the user's exact repro. Archived to
+`completed/`.
 
 **Symptom (NAS, reproducible):** start a service run -> open NoVNC: OK ->
 navigate to the dashboard -> open the run again -> NoVNC: no connection.
@@ -82,8 +84,9 @@ listening no restart logic is needed anywhere.
 - [x] **S6** Validate: full suite green — `PYTHONPATH=apps
       apps/.venv/bin/python -m pytest tests/ -q` -> 861 passed, 11
       skipped (env-gated), 142 subtests passed.
-- [ ] **S7** NAS validation with the user's exact repro: run a service ->
-      NoVNC OK -> dashboard -> re-open the run -> NoVNC still connects.
+- [x] **S7** NAS validation with the user's exact repro — passed
+      2026-11-16 (NAS on `dev@fffd304`: 1st NoVNC connect OK, dashboard,
+      re-open the run, NoVNC connects again).
 - [x] **S8** Commit + push to Gitea `origin/dev` (user-gated), update the
       C6 rollout plan doc, tidy the `/tmp/kilo/tunnel_repro/` leftovers.
 

@@ -8,9 +8,10 @@
 >
 > 2026-11-16: the second-NoVNC-connect failure (x11vnc exited with the last
 > viewer; re-entry failed with `1011 Failed to connect to downstream
-> server`) is fixed on `dev` with `-forever` — root cause + validation:
-> `.kilo/plans/1794808344397-novnc-reconnect-root-cause.md`. Step 2's
-> validation must include the reconnect repro (item 5).
+> server`) is fixed on `dev` with `-forever` — root cause + validation
+> (DELIVERED, NAS check passed 2026-11-16):
+> `.kilo/plans/completed/1794808344397-novnc-reconnect-root-cause.md`.
+> Step 2's validation must include the reconnect repro (item 5).
 
 Source: the Validation section of
 `.kilo/plans/1794427909584-c6-novnc-access-path.md` (the user-gated gates)

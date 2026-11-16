@@ -9,6 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Per-row "Open session" action on the dashboard task table: it deep-links
+  to the run's session page (the same page the ntfy deep link targets), so a
+  paused or running run can be opened directly from the dashboard.
+
 ### Changed
 
 - GHCR release images are now also published under the `latest` tag alongside
@@ -21,6 +27,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The `vnc_password` setting is re-scoped: it is now the optional second layer
   (RFB auth) for non-standard deployments that deliberately publish the
   websockify ports; the supported path is the UI session.
+
+### Fixed
+
+- Concurrent access to the shared sqlite connection is now serialized; the
+  noVNC tab no longer hangs in "waiting to connect" on live runs while the
+  UI polls the run state.
+- x11vnc is now started with `-forever` so the display stack survives the
+  last noVNC viewer disconnecting; a second connect to the noVNC tab (e.g.
+  leaving the session page and returning) works without restarting the run.
 
 ## [v0.5] - 2026-11-11
 

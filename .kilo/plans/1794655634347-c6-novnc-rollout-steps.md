@@ -1,10 +1,18 @@
 # C6 noVNC rollout — step-by-step instructions (user-gated)
 
-> Status: PENDING (2026-11-14) — instructions for the remaining C6 steps,
-> after W1–W3 (code / tests / compose / docs / plan status) were completed
+> Status: Step 1 done, Step 2 partially validated (2026-11-16) — the C6
+> change set (`28b8c32` + `2c5e0a0` + `2197ae8`, plan status `8ef3758`)
+> plus the noVNC 2nd-connect fix (`10e21a3` + `422e9f3`) are committed and
+> pushed to Gitea `origin/dev` (in sync). NAS live check passed 2026-11-16:
+> the noVNC tab shows the live browser and the reconnect repro passed
+> (item 5). Remaining Step 2 items: 2 (`docker port` → UI port only),
+> 6 (unauthenticated `GET /vnc/…` → 307), 7 (optional ntfy deep link).
+> Then Step 3 (deploy skill, user-gated) and Step 4 close-out (archive both
+> C6 plans).
+>
+> History: W1–W3 (code / tests / compose / docs / plan status) completed
 > 2026-11-11 and validated (ruff clean; full suite 857 passed / 11 skipped;
-> compose YAML valid with the UI port as the only published port). The
-> complete C6 change set sits uncommitted on `dev`.
+> compose YAML valid with the UI port as the only published port).
 >
 > 2026-11-16: the second-NoVNC-connect failure (x11vnc exited with the last
 > viewer; re-entry failed with `1011 Failed to connect to downstream

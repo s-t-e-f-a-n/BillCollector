@@ -214,9 +214,13 @@ def start_display_stack(display, rfb_auth_file=None, websockify_port=None,
     """Spawn the per-run display stack for one display:
 
     - ``Xvfb :N`` (the virtual screen, default 1280x1024x24),
-    - ``x11vnc -display :N -rfbport 5900+N -localhost`` - password auth
-      only when an rfb auth file is given (default: localhost-only, no
-      auth; the setting is empty by default),
+    - ``x11vnc -display :N -rfbport 5900+N -localhost -forever`` -
+      password auth only when an rfb auth file is given (default:
+      localhost-only, no auth; the setting is empty by default).
+      ``-forever`` keeps the VNC server listening after the noVNC viewer
+      disconnects (plain x11vnc exits with the last viewer, which broke
+      the second NoVNC connect of a run: websockify then failed to dial
+      the RFB port with ECONNREFUSED),
     - ``websockify 127.0.0.1:<port> 127.0.0.1:5900+N`` - the noVNC
       channel, loopback-bound (C6: the daemon's UI serves the noVNC
       live view at ``/vnc/<port>/`` on the UI port under the UI session
@@ -248,7 +252,7 @@ def start_display_stack(display, rfb_auth_file=None, websockify_port=None,
         _wait_for_x_display(display)
 
         vnc_args = ["-display", f":{display}", "-rfbport",
-                    VNC_BASE_PORT + display, "-localhost"]
+                    VNC_BASE_PORT + display, "-localhost", "-forever"]
         if rfb_auth_file is not None:
             vnc_args += ["-rfbauth", str(rfb_auth_file)]
         else:

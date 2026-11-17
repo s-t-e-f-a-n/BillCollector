@@ -4,8 +4,8 @@
 The operator's home page (spec: gui-concept-dashboard-spec, "Dashboard
 specification"): a toolbar with the service/status filters, the
 ``[N waiting]`` badge and the **Run (filtered)** button, one table row
-per task (status color-coded, ``waiting`` rows highlighted,
-``running``/``waiting`` sorted first) with a per-row icon action column
+per task (status color-coded, ``waiting`` rows highlighted, rows keep
+their service/user position) with a per-row icon action column
 - the morphing **Run/Pause** button (play/pause icon, a hover tooltip
 carries the action text), **Stop**, **Edit** and **View run**
 (navigates same-tab to the run's session page, ``/runs/<run_id>``; a
@@ -209,8 +209,9 @@ def build_rows(db: Database, scheduler: TaskScheduler,
                service: str = "All", status: str = "All") -> list[dict]:
     """One display row per task, filtered and sorted per the spec.
 
-    ``running``/``waiting`` rows come first, then service/user; the
-    hidden ``id``/``service``/``user`` fields carry the row key (the
+    Rows are sorted by service/user only - a task keeps its row position
+    while it runs (``running``/``waiting`` rows do not jump to the top);
+    the hidden ``id``/``service``/``user`` fields carry the row key (the
     table's ``row_key``) and the sort order. ``active_run_id`` carries
     the task's newest active run (``result IS NULL``; ``None`` when the
     task has no live run) and ``latest_run_id`` the task's newest Run
@@ -247,8 +248,7 @@ def build_rows(db: Database, scheduler: TaskScheduler,
             "active_run_id": active_by_task.get(task["id"]),
             "latest_run_id": latest["id"] if latest else None,
         })
-    rows.sort(key=lambda r: (0 if r["status"] in ("running", "waiting") else 1,
-                             r["service"], r["user"] or ""))
+    rows.sort(key=lambda r: (r["service"], r["user"] or ""))
     return rows
 
 

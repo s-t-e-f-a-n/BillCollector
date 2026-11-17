@@ -52,12 +52,17 @@ async def _login(user, testdb) -> None:
     assert response.headers["location"] == "/"
 
 
-def _stub_orchestrator(monkeypatch, started: list, stopped: list) -> None:
+def _stub_orchestrator(monkeypatch, started: list, stopped: list,
+                       paused: list = None) -> None:
     """Replace the orchestrator's run actions with recording stubs.
 
     The patch targets the class methods so it reaches the production
     orchestrator the main file wired in (the test and the runpy'd main
-    file share the ``billcollector.orchestrator`` module)."""
+    file share the ``billcollector.orchestrator`` module). ``pause_run``
+    is the sync manual-pause signal (the morphing Run/Pause button, N5)."""
+    if paused is None:
+        paused = []
+
     async def fake_start(self, task_id):
         started.append(task_id)
         return True
@@ -66,8 +71,13 @@ def _stub_orchestrator(monkeypatch, started: list, stopped: list) -> None:
         stopped.append(task_id)
         return True
 
+    def fake_pause(self, task_id):
+        paused.append(task_id)
+        return True
+
     monkeypatch.setattr(Orchestrator, "start_run", fake_start)
     monkeypatch.setattr(Orchestrator, "stop_run", fake_stop)
+    monkeypatch.setattr(Orchestrator, "pause_run", fake_pause)
 
 
 async def _wait(predicate, message: str, timeout: float = 2.0) -> None:
@@ -175,8 +185,9 @@ async def test_run_history_header_appends_the_collection_outcome(
 
 
 async def test_action_buttons_follow_the_task_status(user, testdb, tmp_path):
-    """While the task is running: Run now and Reset profile are
-    disabled, Stop is enabled (D4.1/D4.4)."""
+    """While the task is running: the Run button morphs into the Pause
+    button and stays enabled (N5: it only disables while waiting or
+    login-blocked), Stop is enabled, Reset profile is disabled."""
     task = testdb.create_task("svc-r", "user1", enabled=True)
     testdb.create_run(task)
     testdb.set_task_status(task, "running")
@@ -188,7 +199,8 @@ async def test_action_buttons_follow_the_task_status(user, testdb, tmp_path):
     (run_btn,) = user.find(marker="detail-run").elements
     (stop_btn,) = user.find(marker="detail-stop").elements
     (reset_btn,) = user.find(marker="detail-reset").elements
-    assert run_btn.enabled is False
+    assert run_btn.enabled is True
+    assert run_btn.icon == "pause"
     assert stop_btn.enabled is True
     assert reset_btn.enabled is False
 
@@ -209,6 +221,50 @@ async def test_detail_run_now_routes_to_start_run(user, testdb, tmp_path,
                 "detail Run now did not call start_run")
     assert started == [seed["task"]]
     assert stopped == []
+
+
+async def test_detail_run_while_running_routes_to_pause_run(user, testdb,
+                                                            tmp_path,
+                                                            monkeypatch):
+    """The morphed Run/Pause button: while the task is running the click
+    sends the manual-pause signal (sync ``orchestrator.pause_run``) and
+    never starts a run (N5)."""
+    task = testdb.create_task("svc-pa", "user1", enabled=True)
+    testdb.create_run(task)
+    testdb.set_task_status(task, "running")
+    started, stopped, paused = [], [], []
+    _stub_orchestrator(monkeypatch, started, stopped, paused)
+    await _login(user, testdb)
+    await user.open(f"/tasks/{task}")
+
+    (run_btn,) = user.find(marker="detail-run").elements
+    assert run_btn.enabled is True
+    user.find(marker="detail-run").click()
+    await _wait(lambda: task in paused,
+                "detail Run (running) did not call pause_run")
+    assert paused == [task]
+    assert started == []
+    assert stopped == []
+
+
+async def test_run_history_renders_a_view_run_link_per_run(user, testdb,
+                                                           tmp_path):
+    """Every history run expansion carries its View run link to the
+    session page (``/runs/<run_id>``, the run-review target, N5); a task
+    without runs has no such link (the Recipe link stays)."""
+    seed = _seed_detail(testdb, tmp_path)
+    bare = testdb.create_task("svc-vr", "user1", enabled=True)
+    await _login(user, testdb)
+    await user.open(f"/tasks/{seed['task']}")
+
+    (link,) = user.find(marker=f"detail-view-run-{seed['run']}").elements
+    assert link.props["href"] == f"/runs/{seed['run']}"
+    assert "View run" in link.text
+
+    await user.open(f"/tasks/{bare}")
+    run_links = [e for e in user.find(kind=ui.link).elements
+                 if str(e.props.get("href", "")).startswith("/runs/")]
+    assert run_links == []
 
 
 async def test_detail_stop_routes_to_stop_run(user, testdb, tmp_path,

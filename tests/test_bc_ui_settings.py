@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
-"""UI tests for the settings page (M2 chunk D6.3).
+"""UI tests for the settings page (M2 chunk D6.3; restructured
+2026-11-17: grouped cards, one Save).
 
 Uses ``nicegui.testing.User`` (no browser), the same pattern as the
 other UI tests: the main file builds the production wiring against a
-fresh temp DB (``BC_UI_TEST_DB``). Covers the D6.1 contract: each field
-writes its own Settings row (round-trip: the row is written and a
-reloaded page shows the value), the git auto-commit switch round-trips
-``true``/``false``, and the password change validates length/match and
-then rejects the old password while accepting the new one.
+fresh temp DB (``BC_UI_TEST_DB``). Covers the single-Save contract:
+the fields are grouped into cards and one Save validates every field
+and writes all values all-or-nothing (round-trip: a reloaded page
+shows the values); an invalid field writes nothing and notifies the
+failing keys' names; the git auto-commit switch round-trips
+``true``/``false`` through the same Save; and the password change
+(its own action, not the single Save) validates length/match and then
+rejects the old password while accepting the new one.
 """
 
 import os
@@ -78,37 +82,60 @@ async def test_settings_page_shows_the_current_values(user, testdb):
     TEXT_FIELDS,
     ids=[key for key, _v, _s in TEXT_FIELDS],
 )
-async def test_field_round_trip_writes_its_settings_row(
+async def test_single_save_writes_all_fields_and_round_trips(
         user, testdb, key, new_value, stored):
-    """Editing a field and saving writes exactly its Settings row; a
-    reloaded page shows the new value (D6.1/D6.3)."""
+    """Editing a field and pressing the one Save writes every Settings
+    row (the edited field's new value, the others' current values); a
+    reloaded page shows the new value (the single-Save contract)."""
     await _login(user, testdb)
     await user.open("/settings")
 
     _field(user, key).value = new_value
-    user.find(marker=f"set-save-{key}").click()
+    user.find(marker="set-save").click()
 
     assert testdb.get_setting(key) == stored
-    assert user.notify.contains(f"{key} saved")
+    assert user.notify.contains("Settings saved")
 
     await user.open("/settings")  # reload: the value comes from the table
     assert _field(user, key).value == new_value
 
 
-async def test_invalid_field_values_are_rejected(user, testdb):
-    """Non-integer or non-positive numbers and empty required fields
-    write nothing (D6.1)."""
+async def test_invalid_values_write_nothing_and_name_the_keys(user, testdb):
+    """Invalid fields make the whole Save write nothing (all-or-
+    nothing) and the notify lists the failing keys' names."""
+    await _login(user, testdb)
+    await user.open("/settings")
+
+    _field(user, "ntfy_topic").value = "bc-topic-would-be"
+    _field(user, "pause_deadline_seconds").value = "not-a-number"
+    _field(user, "max_concurrency").value = "0"
+    user.find(marker="set-save").click()
+
+    assert user.notify.contains(
+        "invalid: pause_deadline_seconds, max_concurrency")
+    # Nothing was written: the untouched field's edit is dropped too.
+    assert testdb.get_setting("pause_deadline_seconds") == "1800"
+    assert testdb.get_setting("max_concurrency") == "1"
+    assert testdb.get_setting("ntfy_topic") == ""
+
+
+async def test_valid_save_after_fixing_the_field(user, testdb):
+    """Once the invalid fields are fixed, the same Save writes
+    everything (no stale rejection)."""
     await _login(user, testdb)
     await user.open("/settings")
 
     _field(user, "pause_deadline_seconds").value = "not-a-number"
-    user.find(marker="set-save-pause_deadline_seconds").click()
-    assert testdb.get_setting("pause_deadline_seconds") == "1800"
-    assert user.notify.contains("pause_deadline_seconds: invalid value")
+    user.find(marker="set-save").click()
+    assert user.notify.contains("invalid: pause_deadline_seconds")
 
-    _field(user, "max_concurrency").value = "0"
-    user.find(marker="set-save-max_concurrency").click()
-    assert testdb.get_setting("max_concurrency") == "1"
+    _field(user, "pause_deadline_seconds").value = "2700"
+    _field(user, "ntfy_topic").value = "bc-topic-after-fix"
+    user.find(marker="set-save").click()
+
+    assert user.notify.contains("Settings saved")
+    assert testdb.get_setting("pause_deadline_seconds") == "2700"
+    assert testdb.get_setting("ntfy_topic") == "bc-topic-after-fix"
 
 
 async def test_ntfy_topic_is_opt_in(user, testdb):
@@ -121,55 +148,55 @@ async def test_ntfy_topic_is_opt_in(user, testdb):
     await user.open("/settings")
 
     _field(user, "ntfy_topic").value = "my-phone-topic"
-    user.find(marker="set-save-ntfy_topic").click()
+    user.find(marker="set-save").click()
     assert testdb.get_setting("ntfy_topic") == "my-phone-topic"
-    assert user.notify.contains("ntfy_topic saved")
+    assert user.notify.contains("Settings saved")
 
     _field(user, "ntfy_topic").value = "   "
-    user.find(marker="set-save-ntfy_topic").click()
+    user.find(marker="set-save").click()
     assert testdb.get_setting("ntfy_topic") == ""
-    assert user.notify.contains("ntfy_topic saved")
+    assert user.notify.contains("Settings saved")
 
 
 async def test_git_commit_switch_round_trips(user, testdb):
-    """The switch stores ``true``/``false`` and a reloaded page shows
-    the stored state (D6.1)."""
+    """The switch stores ``true``/``false`` via the single Save and a
+    reloaded page shows the stored state."""
     await _login(user, testdb)
     await user.open("/settings")
 
     (switch,) = user.find(marker="set-git_commit_enabled").elements
     assert switch.value is False  # the default
     switch.value = True
-    user.find(marker="set-save-git_commit_enabled").click()
+    user.find(marker="set-save").click()
     assert testdb.get_setting("git_commit_enabled") == "true"
 
     await user.open("/settings")
     (switch,) = user.find(marker="set-git_commit_enabled").elements
     assert switch.value is True
     switch.value = False
-    user.find(marker="set-save-git_commit_enabled").click()
+    user.find(marker="set-save").click()
     assert testdb.get_setting("git_commit_enabled") == "false"
 
 
 async def test_vault_fields_round_trip_and_allow_empty(user, testdb):
-    """The vault fields write their Settings rows; clearing one is valid
-    (empty = environment fallback), unlike the required text fields
-    (M4 C1)."""
+    """The vault fields write their Settings rows through the single
+    Save; clearing one is valid (empty = environment fallback), unlike
+    the required text fields (M4 C1)."""
     await _login(user, testdb)
     await user.open("/settings")
 
     assert _field(user, "vault_api_url").value == ""
     _field(user, "vault_api_url").value = "http://192.168.1.20:6100"
-    user.find(marker="set-save-vault_api_url").click()
+    user.find(marker="set-save").click()
     assert testdb.get_setting("vault_api_url") == "http://192.168.1.20:6100"
-    assert user.notify.contains("vault_api_url saved")
+    assert user.notify.contains("Settings saved")
 
     _field(user, "vault_api_url").value = "   "
-    user.find(marker="set-save-vault_api_url").click()
+    user.find(marker="set-save").click()
     assert testdb.get_setting("vault_api_url") == ""
 
     _field(user, "vault_api_host").value = "vault.local"
-    user.find(marker="set-save-vault_api_host").click()
+    user.find(marker="set-save").click()
     assert testdb.get_setting("vault_api_host") == "vault.local"
 
     await user.open("/settings")  # reload: the value comes from the table
@@ -178,8 +205,9 @@ async def test_vault_fields_round_trip_and_allow_empty(user, testdb):
 
 async def test_password_change_rejects_the_old_and_accepts_the_new(
         user, testdb):
-    """The change form writes the new bcrypt hash; the old password is
-    rejected at login, the new one accepted (D6.1/D6.3)."""
+    """The change form (its own action, not the single Save) writes the
+    new bcrypt hash; the old password is rejected at login, the new one
+    accepted."""
     await _login(user, testdb)
     await user.open("/settings")
 
@@ -203,7 +231,7 @@ async def test_password_change_rejects_the_old_and_accepts_the_new(
 
 async def test_password_change_validates_length_and_match(user, testdb):
     """Too-short and mismatched passwords are rejected with a notify
-    and the stored hash is left untouched (D6.1)."""
+    and the stored hash is left untouched."""
     await _login(user, testdb)
     await user.open("/settings")
 

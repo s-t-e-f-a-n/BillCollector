@@ -107,7 +107,8 @@ def _set_filter(user, marker: str, value: str) -> None:
     select.value = value
 
 
-def _stub_orchestrator(monkeypatch, started: list, stopped: list) -> None:
+def _stub_orchestrator(monkeypatch, started: list, stopped: list,
+                       paused: list = None) -> None:
     """Replace the orchestrator's run actions with recording stubs (D3.2).
 
     The patch targets the class methods rather than the instance so it
@@ -115,7 +116,11 @@ def _stub_orchestrator(monkeypatch, started: list, stopped: list) -> None:
     test and the runpy'd main file share the same
     ``billcollector.orchestrator`` module (and hence class object). The
     stubs record the task id and return ``True`` so the row-action
-    handlers take their success path (no warning notify)."""
+    handlers take their success path (no warning notify). ``pause_run``
+    is the sync manual-pause signal (the morphing row button, N4)."""
+    if paused is None:
+        paused = []
+
     async def fake_start(self, task_id):
         started.append(task_id)
         return True
@@ -124,8 +129,13 @@ def _stub_orchestrator(monkeypatch, started: list, stopped: list) -> None:
         stopped.append(task_id)
         return True
 
+    def fake_pause(self, task_id):
+        paused.append(task_id)
+        return True
+
     monkeypatch.setattr(Orchestrator, "start_run", fake_start)
     monkeypatch.setattr(Orchestrator, "stop_run", fake_stop)
+    monkeypatch.setattr(Orchestrator, "pause_run", fake_pause)
 
 
 async def _wait(predicate, message: str, timeout: float = 2.0) -> None:
@@ -362,12 +372,35 @@ async def test_stop_calls_stop_run(user, testdb, tmp_path, monkeypatch):
     assert started == []
 
 
-async def test_open_session_row_carries_the_active_run_id(user, testdb,
-                                                          tmp_path):
-    """The row's active_run_id is the task's newest result-IS-NULL run
-    (the Open session button's target), resolved in build_rows (the
-    body-slot template cannot query the DB)."""
+async def test_pause_calls_pause_run(user, testdb, tmp_path, monkeypatch):
+    """The morphing row button (running state) dispatches action 'pause'
+    and routes to the sync ``orchestrator.pause_run`` (the manual-pause
+    signal, N4)."""
     seed = _seed(testdb, tmp_path)
+    started, stopped, paused = [], [], []
+    _stub_orchestrator(monkeypatch, started, stopped, paused)
+    await _login(user, testdb)
+    await user.open("/")
+
+    user.find(kind=ui.table).trigger(
+        "rowaction", {"action": "pause", "id": seed["running"],
+                      "task": "svc-b / user1"})
+    await _wait(lambda: seed["running"] in paused,
+                "Pause did not call pause_run")
+    assert paused == [seed["running"]]
+    assert started == []
+    assert stopped == []
+
+
+async def test_row_carries_the_active_and_latest_run_ids(user, testdb,
+                                                          tmp_path):
+    """The row's run ids, resolved in build_rows (the body-slot template
+    cannot query the DB): active_run_id is the task's newest
+    result-IS-NULL run (None without a live run) and latest_run_id its
+    newest Run row at all (None for a task that never ran) - together
+    the View run button's target (active first, latest for ended runs)."""
+    seed = _seed(testdb, tmp_path)
+    never = testdb.create_task("svc-d", "user1", enabled=True)
     await _login(user, testdb)
     await user.open("/")
 
@@ -379,19 +412,28 @@ async def test_open_session_row_carries_the_active_run_id(user, testdb,
                        if r["task_id"] == seed["waiting"])
     assert rows[seed["waiting"]]["active_run_id"] == waiting_run
     assert rows[seed["idle"]]["active_run_id"] is None
+    # latest_run_id: the newest Run row at all - for the running and
+    # waiting rows the same run as active_run_id, for the idle row its
+    # finished run, for the never-run task None.
+    assert rows[seed["running"]]["latest_run_id"] == seed["run_running"]
+    assert rows[seed["waiting"]]["latest_run_id"] == waiting_run
+    assert rows[seed["idle"]]["latest_run_id"] == seed["run_idle"]
+    assert rows[never]["latest_run_id"] is None
+    assert rows[never]["active_run_id"] is None
 
 
-async def test_open_session_row_action_navigates_to_the_session_page(
+async def test_view_run_row_action_navigates_to_the_session_page(
         user, testdb, tmp_path):
-    """Row Open session navigates same-tab to the run's session page
-    (``/runs/<run_id>``, mirroring the row-click navigation test)."""
+    """Row View run navigates same-tab to the run's session page
+    (``/runs/<run_id>``, mirroring the row-click navigation test; the
+    payload id is the run id - active first, else the newest finished)."""
     seed = _seed(testdb, tmp_path)
     await _login(user, testdb)
     await user.open("/")
 
     user.find(kind=ui.table).trigger(
         "rowaction",
-        {"action": "session", "id": seed["run_running"],
+        {"action": "view-run", "id": seed["run_running"],
          "task": "svc-b / user1"})
     # The navigation is a background page load: allow a few extra retries.
     # The session page header ``Run <run_id>`` is the assertion target

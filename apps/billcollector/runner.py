@@ -30,6 +30,16 @@ A shutdown signal (SIGTERM from the daemon, Ctrl+C on the standalone
 runner; C7.5) interrupts the run gracefully: the handler raises
 RunInterrupted, the teardown reaps the display stack and releases the
 claim, and the run ends ``result=interrupted``.
+
+A manual pause request (the UI Pause button; the orchestrator's
+``pause_run``) arrives as SIGUSR1 to this process only: the handler
+just sets the module flag, and the step loop in :func:`_run_recipe`
+consumes it at the next step boundary (a ``manual``-reason
+pause_loop). A resume continues at that step; a cancel or a deadline
+timeout aborts the run with their terminal outcome. Edge semantics:
+a flag set after the last step is dropped (the run completes
+normally), and a flag set while a portal pause is active takes effect
+at the next boundary after the resume.
 """
 
 import fcntl
@@ -80,6 +90,12 @@ _COLLECTION_METHODS = frozenset({
     "click_until_absent", "download_all", "replacement_calendar",
 })
 
+# Manual pause request (UI Pause button): the SIGUSR1 handler sets this
+# flag; the step loop of _run_recipe consumes it at the next step
+# boundary (pause with reason=manual). Reset at the start of each run
+# (_run_task), so a signal that lands between runs never carries over.
+MANUAL_PAUSE_REQUESTED = False
+
 
 def _collection_methods_in(step):
     return {
@@ -112,7 +128,8 @@ class PauseOutcomeAbort(Exception):
 
 
 def _install_signal_handlers() -> None:
-    """Turn SIGTERM/SIGINT into a graceful run interruption (C7.5).
+    """Turn SIGTERM/SIGINT into a graceful run interruption (C7.5) and
+    SIGUSR1 into a manual-pause request.
 
     The daemon's shutdown (and a Ctrl+C on the standalone runner) must
     take the run's whole teardown with it - display stack reap, claim
@@ -121,13 +138,23 @@ def _install_signal_handlers() -> None:
     A signal arriving inside a blocking Playwright call is handled as
     soon as that call returns; a daemon shutdown that outlasts the
     runner's grace period force-kills the runner's whole process group
-    instead (orchestrator.shutdown, C7.5)."""
+    instead (orchestrator.shutdown, C7.5).
+
+    SIGUSR1 is the manual-pause request (the UI Pause button): its
+    handler only sets the flag - the pause happens at the next step
+    boundary, where the browser state is stable (a mid-step pause would
+    leave the page half-acted-on)."""
 
     def _handler(signum, frame):
         raise RunInterrupted(f"received signal {signum}")
 
+    def _manual_pause(signum, frame):
+        global MANUAL_PAUSE_REQUESTED
+        MANUAL_PAUSE_REQUESTED = True
+
     signal.signal(signal.SIGTERM, _handler)
     signal.signal(signal.SIGINT, _handler)
+    signal.signal(signal.SIGUSR1, _manual_pause)
 
 
 def step_attempts(graceful: bool) -> int:
@@ -991,6 +1018,7 @@ def _run_recipe(ctx, recipe):
     Returns (files_downloaded, aborted, pause_outcome); pause_outcome is
     None or the terminal outcome of a cancel/timeout pause (C5.4). Every
     started run leaves the browser closed, even on abort."""
+    global MANUAL_PAUSE_REQUESTED
     files_downloaded = []
     aborted = False
     pause_outcome = None
@@ -1008,6 +1036,19 @@ def _run_recipe(ctx, recipe):
                 service_name = service.get("serviceName")
                 logger.info(f"Processing Service: {service_name} for {ctx.bcs.usr}.")
                 for step in sorted(service.get("steps", []), key=lambda x: x.get("step", 0)):
+                    if MANUAL_PAUSE_REQUESTED:
+                        # Manual pause request (SIGUSR1, the UI Pause
+                        # button): pause at this step boundary, where the
+                        # page is between steps. A resume continues with
+                        # this step; a cancel or deadline timeout aborts
+                        # the run with its terminal outcome.
+                        MANUAL_PAUSE_REQUESTED = False
+                        outcome = pause_loop(
+                            ctx, "manual",
+                            "Paused manually. Resume to continue at the "
+                            "next step.", None, None)
+                        if outcome != "resume":
+                            raise PauseOutcomeAbort(outcome)
                     if is_login(step):
                         _execute_login(ctx, step)
                         continue
@@ -1074,6 +1115,8 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
     config.load_env()
     _ensure_logging()
     _install_signal_handlers()
+    global MANUAL_PAUSE_REQUESTED
+    MANUAL_PAUSE_REQUESTED = False
 
     db = Database()
     try:

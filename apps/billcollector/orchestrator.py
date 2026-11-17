@@ -67,6 +67,13 @@ runner (SIGTERM the group, SIGKILL after STOP_TIMEOUT) and lets the
 runner's own handler / the monitor do the finalization, so a graceful
 runner result is never overwritten.
 
+The UI Pause button adds ``pause_run`` (manual pause): it sends SIGUSR1
+to the runner's pid only - never the process group (the Playwright node
+driver reserves SIGUSR1 for the V8 inspector) - and the runner's handler
+sets its flag so the run pauses at the next step boundary (the runner's
+own pause loop; resume/cancel happen on the session page). Like
+``stop_run`` it only signals; it never touches the Run row.
+
 Display allocation and the Xvfb/x11vnc/websockify stack are runner-owned
 (C6); the orchestrator never touches them, except for force-removing the
 stale lockfile of a dead run in ``cleanup_orphans``.
@@ -298,6 +305,27 @@ class Orchestrator:
             logger.warning("runner for task %s ignored SIGTERM; killing", task_id)
             self._signal_group(proc, signal.SIGKILL)
             await proc.wait()
+        return True
+
+    def pause_run(self, task_id: int) -> bool:
+        """Send the task's live runner a manual-pause request (the UI
+        Pause button): SIGUSR1 to the runner's pid only - never the
+        process group (the Playwright node driver reserves SIGUSR1 for
+        the V8 inspector; a group signal would hit the display-stack
+        children too).
+
+        The orchestrator only signals. The runner's handler sets a flag;
+        the run pauses at the next step boundary with its own pause loop
+        (reason=manual), and a resume/cancel happens on the session page
+        like any other pause. Returns False when the task has no live
+        runner (nothing to pause)."""
+        proc = self._processes.get(task_id)
+        if proc is None or proc.returncode is not None:
+            return False
+        try:
+            proc.send_signal(signal.SIGUSR1)
+        except ProcessLookupError:
+            return False
         return True
 
     async def retry_delivery(self, download_id: int) -> tuple[bool, str | None]:

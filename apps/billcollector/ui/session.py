@@ -496,21 +496,28 @@ def register_session(db: Database) -> None:
             refs["elem_select"].set_visibility(False)
             refs["elem_select"].on_value_change(
                 lambda _e: update_actionbar())
+            # Icon actions (hover tooltips carry the action text, R1).
             with ui.row().classes(
                     "w-full flex-wrap items-center gap-2") \
                     .mark("session-actionbar"):
-                refs["click_btn"] = ui.button("Click").props("no-caps") \
-                    .mark("session-click")
+                refs["click_btn"] = ui.button(icon="left_click") \
+                    .props("no-caps").mark("session-click")
+                with refs["click_btn"]:
+                    ui.tooltip("Click element")
                 refs["fill_input"] = ui.input("") \
                     .props("dense outlined").classes("w-40") \
                     .mark("session-fill-input")
-                refs["fill_btn"] = ui.button("Fill").props("no-caps") \
-                    .mark("session-fill")
+                refs["fill_btn"] = ui.button(icon="text_fields") \
+                    .props("no-caps").mark("session-fill")
+                with refs["fill_btn"]:
+                    ui.tooltip("Fill element")
                 refs["press_input"] = ui.input("") \
                     .props("dense outlined").classes("w-28") \
                     .mark("session-press-input")
-                refs["press_btn"] = ui.button("Press").props("no-caps") \
-                    .mark("session-press")
+                refs["press_btn"] = ui.button(icon="keyboard") \
+                    .props("no-caps").mark("session-press")
+                with refs["press_btn"]:
+                    ui.tooltip("Press key")
                 refs["drag_dx"] = ui.number("dx", value=0,
                                             format="%.0f") \
                     .props("dense outlined").classes("w-20") \
@@ -519,14 +526,16 @@ def register_session(db: Database) -> None:
                                             format="%.0f") \
                     .props("dense outlined").classes("w-20") \
                     .mark("session-drag-dy")
-                refs["drag_btn"] = ui.button("Drag").props("no-caps") \
-                    .mark("session-drag")
+                refs["drag_btn"] = ui.button(icon="open_with") \
+                    .props("no-caps").mark("session-drag")
+                with refs["drag_btn"]:
+                    ui.tooltip("Drag element")
             with ui.row().classes("w-full items-center gap-2") \
                     .mark("session-controls"):
-                refs["resume_btn"] = ui.button("Resume") \
+                refs["resume_btn"] = ui.button("Resume", icon="play_arrow") \
                     .props("no-caps color=primary") \
                     .mark("session-resume")
-                refs["cancel_btn"] = ui.button("Cancel") \
+                refs["cancel_btn"] = ui.button("Cancel run", icon="cancel") \
                     .props("no-caps color=negative") \
                     .mark("session-cancel")
 
@@ -536,8 +545,11 @@ def register_session(db: Database) -> None:
                          "cancelled.")
                 with ui.row().classes(
                         "w-full justify-end items-center gap-2"):
-                    ui.button("Go back", on_click=cancel_dialog.close) \
+                    go_back_btn = ui.button(icon="arrow_back",
+                                            on_click=cancel_dialog.close) \
                         .props("flat").mark("session-cancel-go-back")
+                    with go_back_btn:
+                        ui.tooltip("Go back")
                     cancel_ok = ui.button("Cancel run") \
                         .mark("session-cancel-confirm") \
                         .props("color=negative")
@@ -636,9 +648,10 @@ def register_session(db: Database) -> None:
                     repair_url = repair_recipe_url(
                         run, db.get_task(run["task_id"]))
                     if repair_url:
-                        ui.link("Repair recipe", repair_url) \
-                            .props("no-caps").classes("text-blue-700") \
-                            .mark("session-repair")
+                        with ui.link("Repair recipe", repair_url) \
+                                .props("no-caps").classes("text-blue-700") \
+                                .mark("session-repair"):
+                            ui.icon("build").classes("text-lg")
                 with ui.tabs().classes("w-full") as tabs:
                     ui.tab("Copilot").mark("session-copilot-tab")
                     ui.tab("noVNC").mark("session-novnc-tab")
@@ -732,9 +745,10 @@ def register_session(db: Database) -> None:
                 repair_url = repair_recipe_url(
                     run, db.get_task(run["task_id"]))
                 if repair_url:
-                    ui.link("Repair recipe", repair_url) \
-                        .props("no-caps").classes("text-blue-700") \
-                        .mark("session-repair")
+                    with ui.link("Repair recipe", repair_url) \
+                            .props("no-caps").classes("text-blue-700") \
+                            .mark("session-repair"):
+                        ui.icon("build").classes("text-lg")
                 if run["notes"]:
                     ui.label(f"Notes: {run['notes']}") \
                         .classes("text-grey-6").mark("session-notes")

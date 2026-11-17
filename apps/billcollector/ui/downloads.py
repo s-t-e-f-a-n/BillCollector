@@ -16,42 +16,50 @@ from nicegui import ui
 from ..db import Database
 from ..orchestrator import Orchestrator
 from .auth import require_auth
+from .format import table_column
 from .layout import build_layout
 
 # The width a filename is truncated to on the page.
 NAME_WIDTH = 40
 
+# The columns follow the shared table convention (``format.table_column``;
+# see the note in format.py): numeric columns (Run, Size) and Actions
+# right-aligned, technical cells (filename, SHA256, date) mono.
 COLUMNS = [
-    {"name": "task", "label": "Task", "field": "task"},
-    {"name": "run", "label": "Run", "field": "run"},
-    {"name": "filename", "label": "Filename", "field": "filename"},
-    {"name": "size", "label": "Size", "field": "size"},
-    {"name": "sha256", "label": "SHA256", "field": "sha256"},
-    {"name": "duplicate", "label": "Duplicate", "field": "duplicate"},
-    {"name": "delivery", "label": "Delivery", "field": "delivery"},
-    {"name": "date", "label": "Date", "field": "date"},
-    {"name": "actions", "label": "Actions", "field": "actions"},
+    table_column("task", "Task"),
+    table_column("run", "Run", align="right", mono=True),
+    table_column("filename", "Filename", mono=True),
+    table_column("size", "Size", align="right", mono=True),
+    table_column("sha256", "SHA256", mono=True),
+    table_column("duplicate", "Duplicate"),
+    table_column("delivery", "Delivery"),
+    table_column("date", "Date", mono=True),
+    table_column("actions", "Actions", align="right"),
 ]
 
 # A deduplicated download is rendered as an outlined badge (a plain
 # string cell cannot carry one): the slot draws the ``duplicate`` cell
 # as a ``q-badge`` whenever it is not ``—`` (the same slot pattern as
-# the dashboard's body). The per-row **Retry delivery** button (issue
-# #24 C8) appears only on retryable rows; as on the dashboard, the slot
+# the dashboard's body). The per-row **Retry delivery** icon button
+# (``refresh`` icon, a hover tooltip carries the action text; issue #24
+# C8) appears only on retryable rows; as on the dashboard, the slot
 # template is not a NiceGUI element, so the button dispatches a
 # bubbling DOM ``dlretry`` CustomEvent (``detail`` = the payload) that
 # the owning page binds on the table root with the same bare-``detail``
-# js_handler, and ``.stop`` keeps the click from reaching the row.
+# js_handler, and ``.stop`` keeps the click from reaching the row. The
+# default cell span carries the mono flag of the table convention.
 BODY = """
 <q-tr :props="props">
   <q-td v-for="col in props.cols" :key="col.name">
     <q-badge v-if="col.name === 'duplicate' && props.row[col.name] !== '—'"
              color="orange" outline>{{ props.row[col.name] }}</q-badge>
     <span v-else-if="col.name === 'actions'">
-      <q-btn v-if="props.row.retryable" size="sm" label="Retry delivery"
-             @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('dlretry', {detail: {id: props.row.id, task: props.row.task}, bubbles: true}))"/>
+      <q-btn v-if="props.row.retryable" size="sm" icon="refresh"
+             @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('dlretry', {detail: {id: props.row.id, task: props.row.task}, bubbles: true}))">
+        <q-tooltip>Retry delivery</q-tooltip>
+      </q-btn>
     </span>
-    <span v-else>{{ props.row[col.name] }}</span>
+    <span v-else :class="col.mono ? 'font-mono' : ''">{{ props.row[col.name] }}</span>
   </q-td>
 </q-tr>
 """
@@ -132,9 +140,14 @@ def open_download_retry(download_id: int, orchestrator: Orchestrator,
                  "document's sha256: the consumer may receive the "
                  "document again.")
         with ui.row().classes("w-full justify-end items-center gap-2"):
-            ui.button("Cancel", on_click=confirm.close).props("flat")
-            ok_btn = ui.button("Retry").mark("downloads-retry-confirm") \
+            cancel_btn = ui.button(icon="close", on_click=confirm.close) \
+                .props("flat")
+            with cancel_btn:
+                ui.tooltip("Cancel")
+            ok_btn = ui.button(icon="refresh").mark("downloads-retry-confirm") \
                 .props("color=primary")
+            with ok_btn:
+                ui.tooltip("Retry delivery")
 
     async def on_confirm(_e) -> None:
         ok, error = await orchestrator.retry_delivery(download_id)

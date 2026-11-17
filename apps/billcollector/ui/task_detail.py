@@ -3,19 +3,23 @@
 
 The operator's per-task page (``/tasks/<task_id>``; replaces the D2
 placeholder): the header (service/user, status, enabled/cron, recipe
-file), the run actions (**Run now** / **Stop** / **Reset profile** with
-a confirmation dialog, locked decision 8 / D3.4, **Recipe** -> the D5
-page), the pause section while a run is ``waiting`` (D4.1c; M3 S1.1
-adds the **Open session** link to the intervention page), the run
-history with per-run step rows and screenshot thumbnails (D4.1b), the
-task's downloads (D4.3), and the live log of the selected run (D4.1c,
-the shared D2.3 log pane).
+file), the icon run actions - the morphing **Run/Pause** button
+(play_arrow idle, pause while running; a hover tooltip carries the
+action text), **Stop**, **Reset profile** with a confirmation dialog
+(locked decision 8 / D3.4), **Clear login block**, and the **Recipe**
+link -> the D5 page - the pause section while a run is ``waiting``
+(D4.1c; M3 S1.1 adds the **Open session** link to the intervention
+page), the run history with a per-run **View run** link (the session
+page's live or ended view), per-run step rows and screenshot
+thumbnails (D4.1b), the task's downloads (D4.3), and the live log of
+the selected run (D4.1c, the shared D2.3 log pane).
 
-All run actions go through ``orchestrator.start_run`` / ``stop_run``
-(the same callbacks the scheduler uses); **Reset profile** goes through
-``db.reset_profile`` (rejected unless the task is idle). ``ui.timer``
-polls the DB (~2 s) and updates the status badge, the action button
-states, the pause section, and the history/downloads sections.
+All run actions go through ``orchestrator.start_run`` / ``stop_run`` /
+``pause_run`` (the same callbacks the scheduler uses); **Reset
+profile** goes through ``db.reset_profile`` (rejected unless the task
+is idle). ``ui.timer`` polls the DB (~2 s) and updates the status
+badge, the action button states (icon, tooltip, enabled), the pause
+section, and the history/downloads sections.
 """
 
 import json
@@ -33,7 +37,7 @@ from .downloads import BODY as DOWNLOAD_BODY
 from .downloads import COLUMNS as DOWNLOAD_COLUMNS
 from .downloads import build_download_rows
 from .downloads import open_download_retry
-from .format import deadline_text
+from .format import deadline_text, table_column
 from .layout import build_layout
 from .logpane import LogPane
 from .runfiles import runfile_url
@@ -113,18 +117,22 @@ def _pause_screenshot_url(run) -> str | None:
     return runfile_url(path)
 
 
+# The columns follow the shared table convention (``format.table_column``;
+# see the note in format.py): numeric cells (Step) right-aligned mono, the
+# technical Action cell mono.
 STEP_COLUMNS = [
-    {"name": "step", "label": "Step", "field": "step"},
-    {"name": "action", "label": "Action", "field": "action"},
-    {"name": "error", "label": "Error", "field": "error"},
-    {"name": "screenshot", "label": "Screenshot", "field": "screenshot"},
+    table_column("step", "Step", align="right", mono=True),
+    table_column("action", "Action", mono=True),
+    table_column("error", "Error"),
+    table_column("screenshot", "Screenshot"),
 ]
 
 # The screenshot cell is an image thumbnail (a plain string cell cannot
 # carry one): the slot renders ``props.row.screenshot`` as a ``q-img`` and
 # the click dispatches a bubbling ``stepshot`` CustomEvent (the same
 # pattern as the dashboard's ``rowaction``) that opens the full image in
-# a dialog.
+# a dialog. The default cell span carries the mono flag of the table
+# convention.
 STEP_BODY = """
 <q-tr :props="props">
   <q-td v-for="col in props.cols" :key="col.name">
@@ -132,7 +140,7 @@ STEP_BODY = """
            :src="props.row.screenshot"
            style="height: 4rem; cursor: pointer;"
            @click="$event.currentTarget.dispatchEvent(new CustomEvent('stepshot', {detail: {url: props.row.screenshot}, bubbles: true}))"/>
-    <span v-else>{{ props.row[col.name] }}</span>
+    <span v-else :class="col.mono ? 'font-mono' : ''">{{ props.row[col.name] }}</span>
   </q-td>
 </q-tr>
 """
@@ -146,7 +154,7 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
         redirect = require_auth(request)
         if redirect is not None:
             return redirect
-        build_layout()
+        build_layout(active="Tasks")
         task = db.get_task(task_id)
         if task is None:
             ui.label(f"Unknown task id: {task_id} (404)").classes("text-red-600")
@@ -169,20 +177,46 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
                  ).mark("detail-recipe-label")
 
         # ---- Actions ----------------------------------------------------
+        # Icon action buttons (hover tooltips carry the action text): the
+        # morphing Run/Pause button (play_arrow idle, pause while running -
+        # updated in the ~2 s refresh) starts or pauses the run; Stop and
+        # Reset profile and Clear login block are the D3/D3.4 actions.
         with ui.row().classes("items-center gap-2"):
-            run_btn = ui.button("Run now").mark("detail-run").props("color=primary")
-            stop_btn = ui.button("Stop").mark("detail-stop").props("color=negative")
-            reset_btn = ui.button("Reset profile").mark("detail-reset")
-            clear_login_btn = ui.button("Clear login block").mark("detail-login-clear")
-            ui.link("Recipe", f"/recipes/{task['service']}").mark("detail-recipe")
+            run_btn = ui.button(icon="play_arrow").mark("detail-run").props("color=primary")
+            with run_btn:
+                run_btn_tooltip = ui.tooltip("Run now")
+            stop_btn = ui.button(icon="stop").mark("detail-stop").props("color=negative")
+            with stop_btn:
+                ui.tooltip("Stop run")
+            reset_btn = ui.button(icon="restart_alt").mark("detail-reset")
+            with reset_btn:
+                ui.tooltip("Reset profile")
+            clear_login_btn = ui.button(icon="lock_open").mark("detail-login-clear")
+            with clear_login_btn:
+                ui.tooltip("Clear login block")
+            with ui.link("Recipe", f"/recipes/{task['service']}").mark("detail-recipe"):
+                ui.icon("description").classes("text-lg")
 
         recovery_input = ui.input(
             "Start date for this run (optional, YYYY-MM-DD)"
         ).mark("detail-date-from")
 
         async def on_run_now(_e) -> None:
-            """Row Run now: a manual one-off (works for disabled tasks,
-            the schedule is untouched), disabled while the task is active."""
+            """The morphing Run/Pause button: the click re-reads the task
+            status (the icon state can be a poll behind, so a stale icon
+            can never dispatch the wrong action) - running sends the
+            manual-pause signal (pause at the next step boundary), idle
+            starts a manual one-off (works for disabled tasks, the
+            schedule is untouched)."""
+            task = db.get_task(task_id)
+            if task is None:
+                return
+            if task["status"] == "running":
+                paused = orchestrator.pause_run(task_id)
+                if not paused:
+                    ui.notify("No live runner to pause", type="warning")
+                refresh()
+                return
             override = recovery_input.value
             try:
                 started = (await orchestrator.start_run(task_id, date_from=override)
@@ -327,6 +361,14 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
                     if run["collection_outcome"]:
                         label += f" · {run['collection_outcome']}"
                     with ui.expansion(label).classes("w-full"):
+                        # Run-review reachability: the session page's live
+                        # view while the run is open, its ended view after
+                        # it finishes (a navigation link, R5).
+                        with ui.row().classes("w-full justify-end"):
+                            with ui.link("View run",
+                                         f"/runs/{run['id']}"
+                                         ).mark(f"detail-view-run-{run['id']}"):
+                                ui.icon("open_in_browser").classes("text-lg")
                         if run["notes"]:
                             ui.label(f"Notes: {_tail(run['notes'], NOTES_TAIL)}"
                                      ).classes("text-grey-6").mark("detail-notes")
@@ -438,9 +480,10 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
         # ---- Refresh ----------------------------------------------------
         def refresh() -> None:
             """DB poll (~2 s): the status badge and the action button
-            states (Run now disabled while active, Stop enabled only
-            while running, Reset profile only while idle), plus the
-            history rebuild when the run set changed."""
+            states (the morphing Run/Pause icon, tooltip and enabled
+            state self-heal here; Stop enabled only while running,
+            Reset profile only while idle), plus the history rebuild
+            when the run set changed."""
             task = db.get_task(task_id)
             if task is None:
                 return
@@ -454,7 +497,19 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
             login_status.set_text(
                 f"Login: {login_state} · "
                 f"Unproven attempts: {task['login_failures']}/{task['login_failure_limit']}")
-            run_btn.set_enabled(status not in ("running", "waiting") and not blocked)
+            run_btn.icon = "pause" if status == "running" else "play_arrow"
+            if status == "running":
+                run_btn_tooltip.set_text("Pause at next step boundary")
+            elif status == "waiting":
+                run_btn_tooltip.set_text("Paused — resume via the session page")
+            elif blocked:
+                run_btn_tooltip.set_text("Run now (login blocked)")
+            else:
+                run_btn_tooltip.set_text("Run now")
+            # Enabled while running: the morphed Pause button sends the
+            # manual-pause signal. Disabled while waiting (a paused run
+            # resumes on the session page) or login-blocked.
+            run_btn.set_enabled(status != "waiting" and not blocked)
             clear_login_btn.set_enabled(status == "idle" and bool(task["login_locked"]))
             stop_btn.set_enabled(status == "running")
             reset_btn.set_enabled(status == "idle")

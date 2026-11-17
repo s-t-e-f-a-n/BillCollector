@@ -5,18 +5,22 @@ The operator's home page (spec: gui-concept-dashboard-spec, "Dashboard
 specification"): a toolbar with the service/status filters, the
 ``[N waiting]`` badge and the **Run (filtered)** button, one table row
 per task (status color-coded, ``waiting`` rows highlighted,
-``running``/``waiting`` sorted first) with a per-row **Run now** /
-**Stop** / **Open session** action column (Open session navigates
-same-tab to the run's session page, ``/runs/<run_id>``, while the row
-is running/waiting), and a live log pane that follows the selected run.
+``running``/``waiting`` sorted first) with a per-row icon action column
+- the morphing **Run/Pause** button (play/pause icon, a hover tooltip
+carries the action text), **Stop**, **Edit** and **View run**
+(navigates same-tab to the run's session page, ``/runs/<run_id>``; a
+live run opens the live session view, a finished one its ended view) -
+and a live log pane that follows the selected run.
 
 D3.2 run actions: all calls go through ``orchestrator.start_run`` /
-``stop_run`` (the same callbacks the scheduler uses). Row **Run now**
-works for disabled tasks too (manual one-off; the schedule is
-untouched) and is disabled while the task is active; **Stop** is
-enabled only while running. **Run (filtered)** enqueues all *enabled*
-tasks in the filtered set (the global semaphore serializes; skipped
-tasks are reported in a notify).
+``stop_run`` / ``pause_run`` (the same callbacks the scheduler uses).
+Row **Run now** works for disabled tasks too (manual one-off; the
+schedule is untouched); while the task is running the same button
+morphs into **Pause** (pause at the next step boundary) and is
+disabled while the row is waiting (a paused run resumes on the session
+page); **Stop** is enabled only while running. **Run (filtered)**
+enqueues all *enabled* tasks in the filtered set (the global semaphore
+serializes; skipped tasks are reported in a notify).
 
 D3.3 task management (``ui.tasks``): the toolbar **Add task** button
 opens the create dialog and a row **Edit** button opens the edit
@@ -42,6 +46,7 @@ from ..db import Database
 from ..orchestrator import Orchestrator
 from ..scheduler import TaskScheduler, job_id_for
 from .auth import require_auth
+from .format import table_column
 from .layout import build_layout
 from .logpane import LogPane
 from .runfiles import runfile_url
@@ -56,21 +61,30 @@ DOWNLOAD_NAME_WIDTH = 30
 # The DB poll interval of the dashboard refresh (~2 s per the spec).
 REFRESH_INTERVAL = 2.0
 
+# The column list follows the shared table convention
+# (``format.table_column``; see the note in format.py): numeric columns
+# and Actions right-aligned, the service/user pair labelled "Task",
+# technical cells mono.
 COLUMNS = [
-    {"name": "task", "label": "Service / User", "field": "task"},
-    {"name": "status", "label": "Status", "field": "status"},
-    {"name": "login", "label": "Login", "field": "login"},
-    {"name": "last_run", "label": "Last run", "field": "last_run"},
-    {"name": "next_run", "label": "Next run", "field": "next_run"},
-    {"name": "session", "label": "Session", "field": "session"},
-    {"name": "last_download", "label": "Last download", "field": "last_download"},
-    {"name": "actions", "label": "Actions", "field": "actions"},
+    table_column("task", "Task"),
+    table_column("status", "Status"),
+    table_column("login", "Login"),
+    table_column("last_run", "Last run", mono=True),
+    table_column("next_run", "Next run", mono=True),
+    table_column("session", "Session"),
+    table_column("last_download", "Last download", mono=True),
+    table_column("actions", "Actions", align="right"),
 ]
 
 # Custom row body: plain string cells cannot carry colors (or buttons),
 # so the cells are rendered through the QTable body slot - a color-coded
 # status badge, the highlight of waiting rows (spec), and the row action
-# buttons (**Run now** / **Stop** / **Edit** / **Open session**).
+# icon buttons: the morphing **Run/Pause** (play_arrow when idle, pause
+# while running - a paused run resumes on the session page, so the
+# button is disabled while waiting), **Stop**, **Edit** and **View run**
+# (the row's newest run, live or ended - a live run opens the live
+# session view, a finished run the ended view). Every icon button
+# carries a ``q-tooltip`` with the action text (mouse-over).
 #
 # The template must NOT be wrapped in <template v-slot="props">: NiceGUI
 # compiles the slot string with the Vue *runtime* compiler (nicegui.js),
@@ -88,30 +102,41 @@ COLUMNS = [
 # ``event.detail`` (the args-spec form would filter the event's fields
 # and arrive wrapped as ``{"detail": ...}``). ``.stop`` keeps the click
 # from reaching the row, so an action click never triggers the row's
-# task-detail navigation. The **Open session** button dispatches
-# ``action: 'session'`` with the row's ``active_run_id`` (the run id,
-# not the task id) and is enabled only while the row is running/waiting
-# and that id is set.
+# task-detail navigation. The **Run/Pause** button dispatches
+# ``action: 'pause'`` while the row is running (else ``'run'``) with the
+# row's task id; the **View run** button dispatches
+# ``action: 'view-run'`` with ``id: active_run_id || latest_run_id``
+# (the run id, not the task id) and is enabled whenever the task has
+# any run.
 ROW_BODY = """
 <q-tr :props="props" :class="props.row.status === 'waiting' ? 'bg-amber-100' : ''">
   <q-td v-for="col in props.cols" :key="col.name" :props="{ ...props, col: col }">
     <q-badge v-if="col.name === 'status'"
              :color="props.row.status === 'running' ? 'blue' : (props.row.status === 'waiting' ? 'orange' : 'grey')"
              outline>{{ props.row[col.name] }}</q-badge>
-     <span v-else-if="col.name === 'actions'">
-       <q-btn size="sm" color="primary" label="Run now"
-              :disable="props.row.login_blocked || props.row.status === 'running' || props.row.status === 'waiting'"
-              @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'run', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
-       <q-btn size="sm" color="negative" label="Stop"
-              :disable="props.row.status !== 'running'"
-              @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'stop', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
-       <q-btn size="sm" label="Edit"
-              @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'edit', id: props.row.id, task: props.row.task}, bubbles: true}))"/>
-       <q-btn size="sm" label="Open session"
-              :disable="!(props.row.status === 'running' || props.row.status === 'waiting') || !props.row.active_run_id"
-              @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'session', id: props.row.active_run_id, task: props.row.task}, bubbles: true}))"/>
-     </span>
-    <span v-else>{{ props.row[col.name] }}</span>
+      <span v-else-if="col.name === 'actions'">
+        <q-btn size="sm" color="primary"
+               :icon="props.row.status === 'running' ? 'pause' : 'play_arrow'"
+               :disable="props.row.status === 'waiting' || (props.row.status === 'idle' && props.row.login_blocked)"
+               @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: props.row.status === 'running' ? 'pause' : 'run', id: props.row.id, task: props.row.task}, bubbles: true}))">
+          <q-tooltip>{{ props.row.status === 'running' ? 'Pause at next step boundary' : (props.row.status === 'waiting' ? 'Paused — resume via the session page' : (props.row.login_blocked ? 'Run now (login blocked)' : 'Run now')) }}</q-tooltip>
+        </q-btn>
+        <q-btn size="sm" color="negative" icon="stop"
+               :disable="props.row.status !== 'running'"
+               @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'stop', id: props.row.id, task: props.row.task}, bubbles: true}))">
+          <q-tooltip>Stop run</q-tooltip>
+        </q-btn>
+        <q-btn size="sm" icon="edit"
+               @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'edit', id: props.row.id, task: props.row.task}, bubbles: true}))">
+          <q-tooltip>Edit task (cron, enabled)</q-tooltip>
+        </q-btn>
+        <q-btn size="sm" icon="open_in_browser"
+               :disable="!props.row.active_run_id && !props.row.latest_run_id"
+               @click.stop="$event.currentTarget.dispatchEvent(new CustomEvent('rowaction', {detail: {action: 'view-run', id: props.row.active_run_id || props.row.latest_run_id, task: props.row.task}, bubbles: true}))">
+          <q-tooltip>View run</q-tooltip>
+        </q-btn>
+      </span>
+    <span v-else :class="col.mono ? 'font-mono' : ''">{{ props.row[col.name] }}</span>
   </q-td>
 </q-tr>
 """
@@ -179,9 +204,13 @@ def build_rows(db: Database, scheduler: TaskScheduler,
     hidden ``id``/``service``/``user`` fields carry the row key (the
     table's ``row_key``) and the sort order. ``active_run_id`` carries
     the task's newest active run (``result IS NULL``; ``None`` when the
-    task has no live run) - the per-row **Open session** button's target
-    (the body-slot template cannot query the DB, so the id is resolved
-    here and only the button, not a cell, reads it)."""
+    task has no live run) and ``latest_run_id`` the task's newest Run
+    row at all (``None`` when the task never ran) - together they are
+    the per-row **View run** button's target (``active_run_id ||
+    latest_run_id``: a live run opens the live session view, a finished
+    one the ended view; the body-slot template cannot query the DB, so
+    the ids are resolved here and only the button, not a cell, reads
+    them)."""
     active_by_task = {}
     for run in db.list_active_runs():
         active_by_task[run["task_id"]] = run["id"]
@@ -207,6 +236,7 @@ def build_rows(db: Database, scheduler: TaskScheduler,
             "session": _session_cell(task, latest),
             "last_download": _download_cell(db, task["id"]),
             "active_run_id": active_by_task.get(task["id"]),
+            "latest_run_id": latest["id"] if latest else None,
         })
     rows.sort(key=lambda r: (0 if r["status"] in ("running", "waiting") else 1,
                              r["service"], r["user"] or ""))
@@ -251,8 +281,10 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
         waiting = sum(1 for r in rows if r["status"] == "waiting")
         waiting_badge = ui.badge(f"{waiting} waiting",
                                  color="orange" if waiting else "grey")
-        run_filtered_btn = ui.button("Run (filtered)").mark("run-filtered")
-        add_task_btn = ui.button("Add task").mark("add-task")
+        run_filtered_btn = ui.button("Run (filtered)", icon="play_arrow").mark("run-filtered")
+        add_task_btn = ui.button(icon="add").mark("add-task")
+        with add_task_btn:
+            ui.tooltip("Add task")
         ui.space()
 
         table = ui.table(columns=COLUMNS, rows=rows).classes("w-full")
@@ -392,16 +424,30 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
         add_task_btn.on("click", on_add_task)
 
         async def on_row_action(e) -> None:
-            """Row action buttons (D3.2/D3.3): Run now / Stop / Edit /
-            Open session, routed from the body-slot buttons through the
+            """Row action buttons (D3.2/D3.3): Run/Pause / Stop / Edit /
+            View run, routed from the body-slot icon buttons through the
             ``rowaction`` CustomEvent (see ROW_BODY). Run now works for
-            disabled tasks too (manual one-off, schedule unchanged); Stop
-            only reaches a live runner. The claim inside start_run stays
-            the authoritative double-start guard. Edit opens the D3.3
-            task dialog (cron + enabled). Open session navigates
-            same-tab to the run's session page (``/runs/<run_id>``); its
-            payload ``id`` is the row's active run id, not the task id."""
+            disabled tasks too (manual one-off, schedule unchanged);
+            Pause sends the runner the manual-pause signal (pause at the
+            next step boundary) and, like Stop, only reaches a live
+            runner. The claim inside start_run stays the authoritative
+            double-start guard. Edit opens the D3.3 task dialog (cron +
+            enabled). View run navigates same-tab to the run's session
+            page (``/runs/<run_id>``); its payload ``id`` is the row's
+            newest run id (live first, else the last finished one - the
+            run id, not the task id)."""
             detail = e.args if isinstance(e.args, dict) else {}
+            if detail.get("action") == "view-run":
+                # The navigation leaves the page, so do not refresh. The
+                # None guard covers the edge where the run row was just
+                # finalized; it self-heals on the next ~2 s poll.
+                run_id = detail.get("id")
+                if run_id is None:
+                    ui.notify(f"{detail.get('task')}: no run",
+                              type="warning")
+                    return
+                ui.navigate.to(f"/runs/{run_id}")
+                return
             task_id = detail.get("id")
             if task_id is None:
                 return
@@ -410,6 +456,11 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
                 if not started:
                     ui.notify(f"{detail.get('task', task_id)}: not started "
                               "(already running/waiting?)", type="warning")
+            elif detail.get("action") == "pause":
+                paused = orchestrator.pause_run(task_id)
+                if not paused:
+                    ui.notify(f"{detail.get('task', task_id)}: no live "
+                              "runner to pause", type="warning")
             elif detail.get("action") == "stop":
                 stopped = await orchestrator.stop_run(task_id)
                 if not stopped:
@@ -417,18 +468,6 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
                               "runner to stop", type="warning")
             elif detail.get("action") == "edit":
                 open_task_dialog(db, scheduler, refresh, task_id=task_id)
-                return
-            elif detail.get("action") == "session":
-                # The navigation leaves the page, so do not refresh. The
-                # None guard covers the edge where the status still reads
-                # active but the Run row was just finalized; it self-heals
-                # on the next ~2 s poll.
-                run_id = detail.get("id")
-                if run_id is None:
-                    ui.notify(f"{detail.get('task')}: no active run",
-                              type="warning")
-                    return
-                ui.navigate.to(f"/runs/{run_id}")
                 return
             # Refresh immediately so the button states (Run now disabled
             # while active, Stop enabled only while running) follow the

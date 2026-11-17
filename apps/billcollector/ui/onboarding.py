@@ -60,7 +60,7 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
 
         if not is_onboarding_active(db):
             ui.label("Onboarding is already complete.").mark("onb-done")
-            ui.button("Go to the dashboard",
+            ui.button("Go to the dashboard", icon="dashboard",
                       on_click=lambda: ui.navigate.to("/")).mark("onb-goto")
             return
 
@@ -101,8 +101,10 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                 refresh_warning()
 
                 with ui.row().classes("gap-2"):
-                    check_btn = ui.button("Check").mark("onb-vault-check")
-                    save_btn = ui.button("Save").mark("onb-vault-save")
+                    check_btn = ui.button("Check", icon="link") \
+                        .mark("onb-vault-check")
+                    save_btn = ui.button("Save", icon="save") \
+                        .mark("onb-vault-save")
 
                 def on_check(_e=None) -> None:
                     """DNS vetting + status check of the entered values.
@@ -159,8 +161,9 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                 save_btn.on("click", on_vault_save)
 
                 with ui.stepper_navigation().classes("items-center"):
-                    continue_btn = ui.button("Continue").mark(
-                        "onb-continue-vault")
+                    continue_btn = ui.button("Continue",
+                                             icon="arrow_forward") \
+                        .mark("onb-continue-vault")
 
                 def on_continue_vault(_e=None) -> None:
                     """Move to the tasks step (the vault is optional)."""
@@ -224,8 +227,9 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
 
                 render_tasks()
 
-                import_btn = ui.button("Import from INI").mark(
-                    "onb-import-ini")
+                import_btn = ui.button("Import from INI",
+                                       icon="upload_file") \
+                    .mark("onb-import-ini")
 
                 def on_import(_e=None) -> None:
                     """Re-import the INI: only pairs missing from the Task
@@ -251,7 +255,8 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                             .classes("w-40").mark("onb-task-cron")
                         enabled_switch = ui.switch("Enabled") \
                             .mark("onb-task-enabled")
-                        add_btn = ui.button("Add task").mark("onb-add-task")
+                        add_btn = ui.button("Add task", icon="add") \
+                            .mark("onb-add-task")
 
                 def on_add_task(_e=None) -> None:
                     service = str(service_input.value or "").strip()
@@ -292,10 +297,11 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                 add_btn.on("click", on_add_task)
 
                 with ui.stepper_navigation().classes("items-center"):
-                    back_btn = ui.button("Back").props("flat").mark(
-                        "onb-back-tasks")
-                    continue_btn = ui.button("Continue").mark(
-                        "onb-continue-tasks")
+                    back_btn = ui.button("Back", icon="arrow_back") \
+                        .props("flat").mark("onb-back-tasks")
+                    continue_btn = ui.button("Continue",
+                                             icon="arrow_forward") \
+                        .mark("onb-continue-tasks")
 
                 def on_back_tasks(_e=None) -> None:
                     stepper.value = "Vault"
@@ -330,10 +336,11 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                     "enabled)."
                 ).classes("text-grey-6 text-sm")
                 with ui.stepper_navigation().classes("items-center"):
-                    back_btn = ui.button("Back").props("flat").mark(
-                        "onb-back-finish")
-                    finish_btn = ui.button("Finish onboarding").mark(
-                        "onb-finish")
+                    back_btn = ui.button("Back", icon="arrow_back") \
+                        .props("flat").mark("onb-back-finish")
+                    finish_btn = ui.button("Finish onboarding",
+                                           icon="done") \
+                        .mark("onb-finish")
 
                 def on_back_finish(_e=None) -> None:
                     stepper.value = "Tasks"

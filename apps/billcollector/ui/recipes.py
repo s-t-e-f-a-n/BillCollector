@@ -157,7 +157,7 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
         redirect = require_auth(request)
         if redirect is not None:
             return redirect
-        build_layout()
+        build_layout(active="Recipes")
 
         path = config.recipe_path_for(service)
         # UI edits are written to the overlay save path (a save of a built-in
@@ -267,8 +267,10 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
                             f"{cand['n']} · {cand['role']} · "
                             f"{cand['name']} ({cand['locator_type']})"
                         ).classes("text-sm").mark("recipe-candidate")
-                        use_btn = ui.button("Use").props("no-caps dense") \
+                        use_btn = ui.button(icon="check").props("no-caps dense") \
                             .mark(f"recipe-use-{cand['n']}")
+                        with use_btn:
+                            ui.tooltip("Use this candidate's locator")
                         if repair_hint is None:
                             use_btn.on("click",
                                        lambda _e, c=cand: on_use(c))
@@ -284,10 +286,16 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
                     value=text or "", language="YAML"
                 ).classes("w-full h-[480px]").mark("recipe-editor")
                 result_label = ui.label().mark("recipe-result")
+                # Icon actions (hover tooltips carry the action text).
                 with ui.row().classes("gap-2"):
-                    validate_btn = ui.button("Validate").mark("recipe-validate")
-                    save_btn = ui.button("Save").mark("recipe-save").props(
-                        "color=primary")
+                    validate_btn = ui.button(icon="check_circle") \
+                        .mark("recipe-validate")
+                    with validate_btn:
+                        ui.tooltip("Validate recipe")
+                    save_btn = ui.button(icon="save").mark("recipe-save") \
+                        .props("color=primary")
+                    with save_btn:
+                        ui.tooltip("Save (validates first)")
                 run_section = ui.column().classes("w-full")
 
         def render_tree() -> None:
@@ -318,8 +326,9 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
             set_result("Valid." if ok else error, ok)
 
         def build_run_section() -> None:
-            """After a successful save: one Run now button per task of
-            the service (the D3 action, one click away)."""
+            """After a successful save: one run button per task of the
+            service (the D3 action, one click away): a play icon plus the
+            username as the label (data, not a verb)."""
             run_section.clear()
             current = [t for t in db.list_tasks() if t["service"] == service]
             if not current:
@@ -328,8 +337,8 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
                 ui.label("Run now:").classes("text-subtitle1")
                 with ui.row().classes("gap-2"):
                     for task in current:
-                        btn = ui.button(
-                            f"{task['user'] or '—'}: Run now").mark("recipe-run-now")
+                        btn = ui.button(task["user"] or "—",
+                                        icon="play_arrow").mark("recipe-run-now")
 
                         async def on_run(_e=None, tid=task["id"],
                                          label=task["user"] or "—") -> None:

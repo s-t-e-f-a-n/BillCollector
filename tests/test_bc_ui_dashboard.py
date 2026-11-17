@@ -21,6 +21,14 @@ page: the tests pin the row's ``active_run_id`` (the newest
 result-IS-NULL run per task, ``None`` for idle rows) and the
 rowaction-to-``/runs/<run_id>`` navigation.
 
+The morphing row button's **Resume** state (waiting after a manual
+pause) is covered too: the dispatch carries the run id (the row's
+``active_run_id``) and the action lands on the run's control socket
+through the session module's ``control_client`` factory (stubbed, the
+D3.2 shared-module pattern) - with no orchestrator start/stop/pause in
+between; a waiting row whose pause is no longer live degrades to a
+notify instead.
+
 D3.3 adds the task management dialogs: the toolbar **Add task** button
 (create: service/user/cron/enabled, the derived recipe file shown
 read-only with a missing-file warning, duplicate and invalid-cron
@@ -47,6 +55,7 @@ from billcollector.db import Database  # noqa: E402
 from billcollector.orchestrator import Orchestrator  # noqa: E402
 from billcollector.scheduler import TaskScheduler  # noqa: E402
 from billcollector.ui import auth  # noqa: E402
+from billcollector.ui import session as ui_session  # noqa: E402
 from billcollector.ui.dashboard import next_run  # noqa: E402
 
 GOOD_PASSWORD = "ui-test-pass-1"
@@ -390,6 +399,75 @@ async def test_pause_calls_pause_run(user, testdb, tmp_path, monkeypatch):
     assert paused == [seed["running"]]
     assert started == []
     assert stopped == []
+
+
+class _StubControlClient:
+    """A recording stand-in for ``ControlClient``: the session module's
+    ``control_client`` factory is patched to return this instance, so
+    the row's Resume hits it instead of a real socket (the D3.2
+    shared-module pattern; ``send_action`` resolves ``control_client``
+    in the session module at call time)."""
+
+    def __init__(self, calls: list):
+        self.calls = calls
+
+    def request(self, action, **args):
+        self.calls.append((action, args))
+        return {}
+
+
+async def test_resume_row_action_sends_resume_via_the_control_socket(
+        user, testdb, tmp_path, monkeypatch):
+    """The morphing row button (waiting state) dispatches action
+    'resume' with the run id (the row's ``active_run_id``) and the
+    action lands on the run's control socket - the session page's own
+    path - with no orchestrator start/stop/pause in between."""
+    seed = _seed(testdb, tmp_path)
+    waiting_run = next(r["id"] for r in testdb.list_active_runs()
+                       if r["task_id"] == seed["waiting"])
+    sock_path = tmp_path / f"run-{waiting_run}.sock"
+    sock_path.touch()  # presence is what control_sock_alive checks
+    testdb.update_run(waiting_run, control_sock=str(sock_path))
+
+    started, stopped, paused = [], [], []
+    _stub_orchestrator(monkeypatch, started, stopped, paused)
+    calls: list = []
+    monkeypatch.setattr(ui_session, "control_client",
+                        lambda path: _StubControlClient(calls))
+    await _login(user, testdb)
+    await user.open("/")
+
+    row = next(r for r in _table_rows(user) if r["id"] == seed["waiting"])
+    user.find(kind=ui.table).trigger(
+        "rowaction", {"action": "resume", "id": row["active_run_id"],
+                      "task": "svc-a / user2"})
+    await _wait(lambda: ("resume", {}) in calls,
+                "Resume did not reach the run's control socket")
+    assert started == []
+    assert stopped == []
+    assert paused == []
+
+
+async def test_resume_row_action_degrades_without_a_live_pause(
+        user, testdb, tmp_path, monkeypatch):
+    """A waiting row whose pause is no longer live (the seed run has no
+    control socket) degrades to a notify: no socket call, no
+    orchestrator action."""
+    seed = _seed(testdb, tmp_path)
+    started, stopped, paused = [], [], []
+    _stub_orchestrator(monkeypatch, started, stopped, paused)
+    await _login(user, testdb)
+    await user.open("/")
+
+    row = next(r for r in _table_rows(user) if r["id"] == seed["waiting"])
+    user.find(kind=ui.table).trigger(
+        "rowaction", {"action": "resume", "id": row["active_run_id"],
+                      "task": "svc-a / user2"})
+    await _wait(lambda: user.notify.contains("no active pause to resume"),
+                "Resume did not degrade to a notify")
+    assert started == []
+    assert stopped == []
+    assert paused == []
 
 
 async def test_row_carries_the_active_and_latest_run_ids(user, testdb,

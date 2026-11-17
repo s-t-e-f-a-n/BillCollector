@@ -10,7 +10,11 @@ session temp dir, see ``tests/conftest.py``), so the step screenshots
 and the pause screenshot get their ``/runfiles`` URLs from a real
 directory. The run actions route through the stubbed orchestrator
 (D3.2 pattern), the profile reset through the confirmation dialog
-(D3.4).
+(D3.4). The morphed Run button's waiting state (a manual pause) is
+covered too: the click sends the paused run's control socket the
+protocol ``resume`` through the session module's ``control_client``
+factory (stubbed, the D3.2 shared-module pattern), with no
+orchestrator start/stop/pause in between.
 """
 
 import asyncio
@@ -30,6 +34,7 @@ from billcollector import config  # noqa: E402
 from billcollector.db import Database  # noqa: E402
 from billcollector.orchestrator import Orchestrator  # noqa: E402
 from billcollector.ui import auth  # noqa: E402
+from billcollector.ui import session as ui_session  # noqa: E402
 from billcollector.ui.downloads import build_download_rows  # noqa: E402
 
 GOOD_PASSWORD = "ui-test-pass-1"
@@ -186,8 +191,8 @@ async def test_run_history_header_appends_the_collection_outcome(
 
 async def test_action_buttons_follow_the_task_status(user, testdb, tmp_path):
     """While the task is running: the Run button morphs into the Pause
-    button and stays enabled (N5: it only disables while waiting or
-    login-blocked), Stop is enabled, Reset profile is disabled."""
+    button and stays enabled (N5: it only disables while login-blocked),
+    Stop is enabled, Reset profile is disabled."""
     task = testdb.create_task("svc-r", "user1", enabled=True)
     testdb.create_run(task)
     testdb.set_task_status(task, "running")
@@ -245,6 +250,79 @@ async def test_detail_run_while_running_routes_to_pause_run(user, testdb,
     assert paused == [task]
     assert started == []
     assert stopped == []
+
+
+class _StubControlClient:
+    """A recording stand-in for ``ControlClient``: the session module's
+    ``control_client`` factory is patched to return this instance, so
+    the morphed Resume hits it instead of a real socket (the D3.2
+    shared-module pattern; ``send_action`` resolves ``control_client``
+    in the session module at call time)."""
+
+    def __init__(self, calls: list):
+        self.calls = calls
+
+    def request(self, action, **args):
+        self.calls.append((action, args))
+        return {}
+
+
+async def test_action_buttons_follow_the_waiting_status(user, testdb,
+                                                        tmp_path):
+    """While the task is waiting (a manual pause): the Run button shows
+    the play icon and stays enabled (the morphed Resume), Stop is
+    enabled (the runner is still alive), Reset profile is disabled."""
+    task = testdb.create_task("svc-ws", "user1", enabled=True)
+    run = testdb.create_run(task)
+    sock_path = tmp_path / f"run-{run}.sock"
+    sock_path.touch()  # presence is what control_sock_alive checks
+    testdb.update_run(run, pause_reason="manual",
+                      control_sock=str(sock_path))
+    testdb.set_task_status(task, "waiting")
+    await _login(user, testdb)
+    await user.open(f"/tasks/{task}")
+
+    (badge,) = user.find(marker="detail-status").elements
+    assert badge.text == "waiting"
+    (run_btn,) = user.find(marker="detail-run").elements
+    (stop_btn,) = user.find(marker="detail-stop").elements
+    (reset_btn,) = user.find(marker="detail-reset").elements
+    assert run_btn.enabled is True
+    assert run_btn.icon == "play_arrow"
+    assert stop_btn.enabled is True
+    assert reset_btn.enabled is False
+
+
+async def test_detail_run_while_waiting_routes_to_resume(user, testdb,
+                                                         tmp_path,
+                                                         monkeypatch):
+    """The morphed Run/Pause/Resume button: while the task is waiting
+    (a manual pause) the click sends the paused run's control socket
+    the protocol ``resume`` (the session page's own path) and never
+    starts, pauses, or stops a run (N5)."""
+    task = testdb.create_task("svc-wr", "user1", enabled=True)
+    run = testdb.create_run(task)
+    sock_path = tmp_path / f"run-{run}.sock"
+    sock_path.touch()
+    testdb.update_run(run, pause_reason="manual",
+                      control_sock=str(sock_path))
+    testdb.set_task_status(task, "waiting")
+    started, stopped, paused = [], [], []
+    _stub_orchestrator(monkeypatch, started, stopped, paused)
+    calls: list = []
+    monkeypatch.setattr(ui_session, "control_client",
+                        lambda path: _StubControlClient(calls))
+    await _login(user, testdb)
+    await user.open(f"/tasks/{task}")
+
+    (run_btn,) = user.find(marker="detail-run").elements
+    assert run_btn.enabled is True
+    user.find(marker="detail-run").click()
+    await _wait(lambda: ("resume", {}) in calls,
+                "detail Run (waiting) did not reach the control socket")
+    assert started == []
+    assert stopped == []
+    assert paused == []
 
 
 async def test_run_history_renders_a_view_run_link_per_run(user, testdb,

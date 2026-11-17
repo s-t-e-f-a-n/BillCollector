@@ -371,12 +371,41 @@ def _clear_stale_history(profile_dir):
             f"{', '.join(removed)}")
 
 
+def _clear_stale_singleton(profile_dir):
+    """Remove stale Chromium profile singletons before launch.
+
+    ``SingletonLock`` / ``SingletonCookie`` / ``SingletonSocket`` are transient
+    per-process lock files (broken symlinks pointing at a hostname-pid or a
+    ``/tmp`` socket). When the container is recreated with a new hostname but
+    the persistent profile volume survives, a lock written under the previous
+    hostname is read as "in use by another computer": Chromium refuses to
+    reclaim it, cannot show the profile-in-use dialog (no zenity/kdialog/xmessage
+    in the image), and exits. Playwright then surfaces that as a
+    ``TargetClosedError`` at ``launch_persistent_context``. The runner runs at
+    most one browser per profile and the orchestrator reaps orphans, so these
+    files are always safe to drop before a launch. No-op when absent."""
+    removed = []
+    for name in ("SingletonLock", "SingletonCookie", "SingletonSocket"):
+        path = profile_dir / name
+        if path.is_symlink() or path.exists():
+            try:
+                path.unlink()
+                removed.append(name)
+            except OSError as e:
+                logger.warning(f"Could not remove stale singleton {path}: {e}")
+    if removed:
+        logger.info(
+            f"Cleared stale profile singletons before launch: "
+            f"{', '.join(removed)}")
+
+
 def _launch_browser(ctx, p):
     """Launch the persistent per-task browser context (headful on the run's
     allocated display, C6) and open the run's page."""
     profile_dir = config.profile_dir_for(ctx.task["service"], ctx.task["user"])
     _ensure_pdf_preference(profile_dir)
     _clear_stale_history(profile_dir)
+    _clear_stale_singleton(profile_dir)
     ctx.context = p.chromium.launch_persistent_context(
         user_data_dir=str(profile_dir),
         headless=False,

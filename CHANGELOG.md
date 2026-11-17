@@ -9,6 +9,55 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Web UI navigation: the left drawer lists five pages (Dashboard,
+  Tasks, Recipes, Downloads, Settings) as icon + label rows with
+  highlighting on the matching detail pages.
+- New `/tasks` index page: one row per task with a status badge
+  (running / waiting / idle), the enabled flag, the cron, the last run
+  (timestamp + result badge) and the next scheduled fire; a row click
+  opens the task detail. Run actions stay on the dashboard and the task
+  detail.
+- New `/recipes` index page: one row per recipe file with the task
+  count, an overlay badge for user-overlay files, a valid/invalid badge
+  (the tooltip carries the first error line) and a Last evidence badge
+  - the service's newest conclusive run (`success` / `failure` /
+  `needs_attention`) as verified or failing with the run date, linked to
+  the run's session page, or unverified when no conclusive run exists;
+  a service with tasks but no recipe file gets a flagged row.
+- Manual pause: while a run is active, the dashboard row's Run button
+  and the task detail's Run button morph into a Pause button. It signals
+  the runner (SIGUSR1 to the runner process only) to pause at the next
+  step boundary; the run then turns amber `waiting` and is resumed or
+  cancelled from the session page exactly like a portal-triggered pause
+  (the ntfy deep link is included). A pause requested after the last
+  step completes the run normally.
+- Run review: the dashboard row's Open session action becomes **View
+  run** - it opens the task's newest run, live or ended - and the
+  task-detail run history gains a per-run **View run** link, so the
+  session page's ended view (result, last pause context, Repair recipe
+  link) is reachable from the UI.
+
+### Changed
+
+- Web UI icon actions: row and toolbar action buttons are icon buttons
+  with hover tooltips (the dashboard row actions, downloads Retry
+  delivery, the recipe editor's Validate/Save and failure-panel Use,
+  the session page's element actions and Resume/Cancel, the task
+  detail's Run/Pause, Stop, Reset profile and Clear login block); the
+  onboarding wizard keeps icon + label, and "Run (filtered)" keeps its
+  functional label.
+- Settings page restructure: the fields are grouped into cards
+  (Security / Notifications / Runs / Storage & session / Vault / Git)
+  and the per-key Save buttons are replaced by one Save button that
+  validates every field all-or-nothing and writes all daemon settings
+  on success; the UI password keeps its own Change password action.
+- Table convention across all Web UI tables: numeric columns and the
+  Actions column are right-aligned, the service/user pair column is
+  labelled "Task", and technical cells (timestamps, cron, SHA,
+  filenames, run ids) render in a monospace font.
+
 ## [v0.6] - 2026-11-16
 
 ### Added

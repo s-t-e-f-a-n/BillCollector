@@ -312,13 +312,20 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
         pause_sig = {"sig": None}
         pause_state = {"deadline": None}
 
-        def render_pause() -> None:
-            """While the task's run is ``waiting``: the pause prompt,
-            reason, deadline countdown (updated every poll), and the
-            last pause screenshot (from ``Run.pause_context``)."""
-            runs = [r for r in db.list_active_runs()
-                    if r["task_id"] == task_id and r["pause_reason"]]
-            run = runs[-1] if runs else None
+        def render_pause(status: str) -> None:
+            """While the task is ``waiting`` (an open pause): the pause
+            prompt, reason, deadline countdown (updated every poll), and
+            the last pause screenshot (from ``Run.pause_context``). The
+            task status is the live signal - the Run's pause columns
+            survive the resume (the ended view still shows the last
+            pause context), so they alone would keep this section on
+            screen while the resumed run executes."""
+            if status != "waiting":
+                run = None
+            else:
+                runs = [r for r in db.list_active_runs()
+                        if r["task_id"] == task_id and r["pause_reason"]]
+                run = runs[-1] if runs else None
             sig = run["id"] if run is not None else None
             if sig != pause_sig["sig"]:
                 pause_sig["sig"] = sig
@@ -353,7 +360,8 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
                 pause_state["deadline"].set_text(
                     deadline_text(run["pause_deadline_at"]))
 
-        render_pause()
+        first_task = db.get_task(task_id)
+        render_pause(first_task["status"] if first_task else "idle")
 
         # ---- Run history -------------------------------------------------
         ui.label("Run history").classes("text-h6")
@@ -538,7 +546,7 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
             # paused (waiting).
             stop_btn.set_enabled(status in ("running", "waiting"))
             reset_btn.set_enabled(status == "idle")
-            render_pause()
+            render_pause(status)
             render_history()
             render_downloads()
             refresh_log()

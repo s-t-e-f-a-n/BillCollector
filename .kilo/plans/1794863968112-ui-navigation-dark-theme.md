@@ -3,9 +3,13 @@
 > The file name predates the 2026-11-16 split: the dark-theme half moved to the
 > companion plan `.kilo/plans/1794866943286-ui-dark-theme.md` (ships later).
 > Refined 2026-11-17: settings single-Save restructure (N9 rewritten, the
-> per-key Saves are gone), the table-column convention (N17), and
+> per-key Saves are gone), the table-column convention (N17),
 > run-review reachability (N4/N5 — the session page's ended view was the
-> one truly hidden page in the route inventory).
+> one truly hidden page in the route inventory), and the waiting-state
+> **Resume**/enabled-**Stop** (N4/N5 — after NAS validation, the user
+> asked for the paused run to be resumable and stoppable directly from
+> the row/detail buttons, superseding the locked "waiting → disabled"
+> decision).
 
 ## Goal
 
@@ -66,6 +70,15 @@ All UI text stays English.
   (#3/#4, a separate "Pause" button) are superseded by the morphing
   Run/Pause icon buttons below; the plan is marked CONSUMED and archived to
   `completed/` when this plan is implemented.
+- **Waiting-state Resume + enabled Stop** (user decision, 2026-11-17, after
+  NAS validation): a manually paused run (task `waiting`) can be resumed or
+  stopped directly from the dashboard row and the task detail — the morphing
+  button morphs back to **Resume** (play_arrow, tooltip "Resume run", enabled)
+  and sends the paused run's control socket the protocol `resume` (the
+  session page's own path, M3 decision 4); **Stop** is enabled while the run
+  is running **or** waiting (the runner process stays alive while paused).
+  Supersedes the original N4/N5 spec ("waiting → disabled; resume via the
+  session page").
 - **Settings single Save** (user decision, 2026-11-17): the settings page
   is restructured into grouped cards (Security / Notifications / Runs /
   Storage & session / Vault / Git); one Save button covers all daemon
@@ -188,16 +201,19 @@ All UI text stays English.
 
 - `ROW_BODY` slot template: the four text `q-btn`s become icon-only `q-btn`s
   with a `<q-tooltip>` child each:
-  - **Run/Pause (morphing, one button)**:
+  - **Run/Pause/Resume (morphing, one button)**:
     `:icon="props.row.status === 'running' ? 'pause' : 'play_arrow'"`;
-    dispatches `action: 'pause'` while running, else `'run'` (same CustomEvent
-    pattern, `.stop` kept); disable: running → enabled (pause), idle → enabled
-    unless `login_blocked`, waiting → disabled (a paused run is resumed on the
-    session page); color stays `primary`; tooltip: "Pause at next step
-    boundary" / "Run now" / "Run now (login blocked)" / "Paused — resume via
-    the session page".
+    dispatches `action: 'pause'` while running, `action: 'resume'` while
+    waiting (with `id: props.row.active_run_id` — the run id, not the task
+    id, because the resume goes to that run's control socket), else `'run'`
+    (with the task id) — same CustomEvent pattern, `.stop` kept; disable:
+    running → enabled (pause), idle → enabled unless `login_blocked`,
+    waiting → enabled (the paused run is resumed from the row); color stays
+    `primary`; tooltip: "Pause at next step boundary" / "Run now" /
+    "Run now (login blocked)" / "Resume run".
   - **Stop**: `icon="stop"`, `color="negative"`, tooltip "Stop run",
-    enabled only while running (unchanged).
+    enabled while running **or waiting** (the runner process is still alive
+    while paused; SIGTERM ends the run as `interrupted`).
   - **Edit**: `icon="edit"`, tooltip "Edit task (cron, enabled)".
   - **View run** (was Open session — run-review reachability, 2026-11-17):
     `icon="open_in_browser"`, tooltip "View run"; enabled whenever the task
@@ -214,7 +230,14 @@ All UI text stays English.
   **Add task** → `icon="add"` icon-only + tooltip "Add task".
 - `on_row_action` gains the `pause` branch: `orchestrator.pause_run(task_id)`;
   on False → `ui.notify("no live runner", warning)`; then `refresh()` (same
-  immediate-refresh path as Stop). The `session` action becomes `view-run`
+  immediate-refresh path as Stop). It also gains the `resume` branch: the
+  payload `id` is the run id; `db.get_run(id)` + `control_sock_alive(run)`
+  (from `ui.session`) — a dead/missing socket degrades to
+  `ui.notify("no active pause to resume", warning)`; otherwise
+  `asyncio.to_thread(send_action, run["control_sock"], "resume")` (the
+  session page's own path, M3 decision 4) with a `ControlError` catch that
+  degrades to a notify ("the run ended while resuming"); then `refresh()`.
+  The `session` action becomes `view-run`
   (the row payload key `active_run_id` stays; `latest_run_id` is added).
 - Update the module docstring, the `ROW_BODY` comment, and the row-action
   comment block in `app.py` (they enumerate the row actions).
@@ -222,13 +245,19 @@ All UI text stays English.
 ### N5 — Task-detail icon actions (task_detail.py)
 
 - **Run now → morphing icon button** (`mark("detail-run")`, `color=primary`):
-  icon `play_arrow` idle / `pause` while running, updated in the ~2 s refresh;
-  the click handler branches on the freshly fetched task status (idle →
-  `orchestrator.start_run`, running → `orchestrator.pause_run`); tooltip
-  element (child) text updated in the refresh; disabled while waiting or
+  icon `play_arrow` idle/waiting / `pause` while running, updated in the ~2 s
+  refresh; the click handler branches on the freshly fetched task status
+  (idle → `orchestrator.start_run`, running → `orchestrator.pause_run`,
+  waiting → the task's active paused run found via `db.list_active_runs()`,
+  `control_sock_alive` + `asyncio.to_thread(send_action, run["control_sock"],
+  "resume")` — the session page's own path, with the same dead-socket and
+  `ControlError` degrade notifies as N4); tooltip element (child) text
+  updated in the refresh ("Pause at next step boundary" / "Resume run" /
+  "Run now" / "Run now (login blocked)"); enabled while running **and**
+  waiting (the morphed states dispatch pause/resume), disabled only while
   `login_blocked`.
 - **Stop** → `icon="stop"`, `color="negative"`, tooltip "Stop run"
-  (`mark("detail-stop")`).
+  (`mark("detail-stop")`), enabled while running **or waiting**.
 - **Reset profile** → `icon="restart_alt"`, tooltip "Reset profile"
   (`mark("detail-reset")`); the confirmation dialog keeps its text
   ("Reset" — R3 destructive; Cancel → `close` icon-only + tooltip).
@@ -245,8 +274,9 @@ All UI text stays English.
   after it finishes), `mark("detail-view-run-{run_id}")`. Rendered in
   `render_history` where the expansion is built; no separate refresh logic
   (the history rebuild already tracks the run set).
-- Include the morphing button in the enabled/disabled state logic (~line 441);
-  update the module docstring.
+- Include the morphing button in the enabled/disabled state logic (~line 441)
+  — `run_btn` enabled except while login-blocked, `stop_btn` enabled while
+  running or waiting; update the module docstring.
 
 ### N6 — Recipe-editor icon actions (recipes.py)
 
@@ -383,11 +413,20 @@ marker, and `set-save-password` are kept.
   `view-run` action navigates to `/runs/<id>` (mirror the existing
   session-navigation test, renamed); `build_rows` carries `latest_run_id`
   (a task whose only run is finished; a never-run task carries `None`) —
-  the existing `active_run_id` row assertions are the pattern.
+  the existing `active_run_id` row assertions are the pattern. Rowaction
+  `resume` (waiting state) lands on the run's control socket: seed the
+  waiting run with a `control_sock` (a touched file — `control_sock_alive`
+  only checks existence), stub `ui.session.control_client` (the D3.2
+  shared-module pattern from `test_bc_ui_session.py`), trigger
+  `{"action": "resume", "id": <run id>}` and assert `("resume", {})` was
+  recorded with no orchestrator start/stop/pause; the dead-socket variant
+  (no `control_sock`) degrades to a notify.
 - `tests/test_bc_ui_task_detail.py`: the detail Run button routes to
-  `pause_run` while running (mirror the detail-Stop test); each seeded run
-  renders its `detail-view-run-{run_id}` link (absent for a task with no
-  runs).
+  `pause_run` while running (mirror the detail-Stop test); the waiting
+  state mirrors it — button states (play icon, Run enabled, Stop enabled,
+  Reset disabled) and a click that sends `("resume", {})` to the stubbed
+  control socket with no orchestrator action; each seeded run renders its
+  `detail-view-run-{run_id}` link (absent for a task with no runs).
 - `tests/test_bc_ui_settings.py`: rewrite the save paths for the single
   Save (marker `set-save`; the `set-save-{key}` markers are gone):
   - set one field, click `set-save` → written + "Settings saved";
@@ -444,9 +483,13 @@ marker, and `set-save-password` are kept.
 - Row icons: hover tooltips on every state; start a run → the Run icon
   becomes the pause icon → click → row turns amber `waiting`; with
   `ntfy_topic` + `ui_base_url` set, the ntfy push arrives with the deep link;
-  session page → Resume → icon back to play; also Stop (filled rectangle) →
-  run ends; Edit dialog; Open session navigates.
-- Task detail: morphing Run button, Stop, Reset profile (confirm dialog),
+  **while waiting: the row's icon is play again (tooltip "Resume run") and
+  Stop is enabled — click Resume on the row → the run continues without
+  opening the session page; Stop while waiting → the run ends
+  (`interrupted`)**; also session page → Resume → icon back to play; Stop
+  (filled rectangle) → run ends; Edit dialog; View run navigates.
+- Task detail: morphing Run button (including the waiting-state Resume and
+  the enabled Stop while paused), Stop, Reset profile (confirm dialog),
   Clear login block (dialog), Recipe link.
 - Recipe editor: Validate/Save icons, per-task run buttons, failure-panel Use
   icons (open via a `?run=<id>` from a step_failed run).

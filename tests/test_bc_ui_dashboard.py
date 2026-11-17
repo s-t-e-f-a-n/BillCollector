@@ -204,14 +204,15 @@ async def test_one_row_per_task_sorted_and_populated(user, testdb, tmp_path):
     await user.open("/")
 
     rows = _table_rows(user)
-    # running/waiting first (service/user order), then the idle task.
+    # Rows keep their service/user position: running/waiting tasks do
+    # not jump to the top of the table.
     assert [r["task"] for r in rows] == [
-        "svc-a / user2", "svc-b / user1", "svc-a / user1"]
-    assert [r["status"] for r in rows] == ["waiting", "running", "idle"]
+        "svc-a / user1", "svc-a / user2", "svc-b / user1"]
+    assert [r["status"] for r in rows] == ["idle", "waiting", "running"]
     # No live job for any seeded task (the scheduler started empty).
     assert all(r["next_run"] == "—" for r in rows)
 
-    waiting_row, running_row, idle_row = rows
+    idle_row, waiting_row, running_row = rows
     assert "profile missing" in waiting_row["session"]
     # The active run has no result yet: the last-run cell says running.
     assert running_row["last_run"].endswith("· running")
@@ -249,7 +250,9 @@ async def test_service_filter_narrows_the_rows(user, testdb, tmp_path):
 
     _set_filter(user, "service-filter", "svc-a")
     rows = _table_rows(user)
-    assert [r["task"] for r in rows] == ["svc-a / user2", "svc-a / user1"]
+    # The filtered rows keep their service/user position (the waiting
+    # task does not jump to the top).
+    assert [r["task"] for r in rows] == ["svc-a / user1", "svc-a / user2"]
     # The waiting row survives the filter: the badge stays at one.
     await user.should_see("1 waiting")
     assert all(r["service"] == "svc-a" for r in rows)

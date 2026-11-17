@@ -283,6 +283,11 @@ def pause_loop(ctx, reason, prompt, step_action_json, error, step_number=None):
         while True:
             server.poll(PAUSE_POLL_SECONDS)
             if server.resume_requested:
+                # The resume continues the run from this step boundary:
+                # restore the task status persist_pause flipped to
+                # "waiting" (cancel/timeout end the run instead; the
+                # finalization releases the task either way).
+                db.set_task_status(ctx.task["id"], "running")
                 return "resume"
             if server.cancel_requested:
                 return "cancel"

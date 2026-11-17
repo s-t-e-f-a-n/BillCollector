@@ -62,6 +62,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   labelled "Task", and technical cells (timestamps, cron, SHA,
   filenames, run ids) render in a monospace font.
 
+### Fixed
+
+- Resuming a paused run (from the session page, the dashboard row, or
+  the task detail) returns the task to `running`: the dashboard row
+  leaves its amber `waiting` highlight as soon as the pause resolves,
+  instead of only when the run finishes.
+
 ## [v0.6] - 2026-11-16
 
 ### Added

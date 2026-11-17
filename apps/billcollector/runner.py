@@ -1255,10 +1255,10 @@ def _run_task(task_id: int, debug: bool = False, *, date_from=None) -> int:
                                       all_items_known=all_items_known),
                                   date_from=dates.date_from.isoformat())
                     settle_attempt(db, task_id, run_id)
-                    # A finished run releases the task: the 'waiting' status
-                    # set by a pause is terminal here (resume, cancel and
-                    # timeout all end the run), so the task goes back to idle
-                    # and the scheduler's row lock can claim it again.
+                    # A finished run releases the task: a resumed run ends
+                    # "running", a cancel or deadline timeout ends
+                    # "waiting"; either way the task goes back to idle and
+                    # the scheduler's row lock can claim it again.
                     db.release_task_run(task_id)
         finally:
             # The claim is released with the run, so a finished (or

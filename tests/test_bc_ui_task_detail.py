@@ -325,6 +325,33 @@ async def test_detail_run_while_waiting_routes_to_resume(user, testdb,
     assert paused == []
 
 
+async def test_resume_clears_the_pause_section(user, testdb, tmp_path,
+                                               monkeypatch):
+    """The pause section is keyed on the task status, not the run's
+    pause columns: while the task is waiting (a manual pause) the
+    section renders; after the resume flips the task back to running
+    the ~2 s poll clears it even though the run's pause columns survive
+    (the ended view still needs them, so the columns alone would keep
+    the section on screen while the resumed run executes)."""
+    task = testdb.create_task("svc-pu", "user1", enabled=True)
+    run = testdb.create_run(task)
+    sock_path = tmp_path / f"run-{run}.sock"
+    sock_path.touch()
+    testdb.update_run(run, pause_reason="manual",
+                      control_sock=str(sock_path))
+    testdb.set_task_status(task, "waiting")
+    _stub_orchestrator(monkeypatch, [], [], [])
+    await _login(user, testdb)
+    await user.open(f"/tasks/{task}")
+
+    await user.should_see(marker="detail-pause")
+    # The resume flips the task back to running (pause_loop's job,
+    # stubbed out here) while the run's pause columns survive; the
+    # ~2 s poll re-reads the status and clears the section.
+    testdb.set_task_status(task, "running")
+    await user.should_not_see(marker="detail-pause", retries=100)
+
+
 async def test_run_history_renders_a_view_run_link_per_run(user, testdb,
                                                            tmp_path):
     """Every history run expansion carries its View run link to the

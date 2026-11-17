@@ -334,6 +334,7 @@ class WaitingLoopTests(PauseTestBase):
         self.assertEqual(len(client.request("elements")["elements"]), 4)
         self.assertEqual(client.request("context")["context"]["reason"],
                          "step_failed")
+        self.assertEqual(self.db.get_task(1)["status"], "waiting")
         client.request("resume")
         thread.join(timeout=10)
         self.assertFalse(thread.is_alive())
@@ -346,7 +347,10 @@ class WaitingLoopTests(PauseTestBase):
         self.assertEqual(json.loads(run["pause_context"])["step_number"], 3)
         self.assertEqual(run["control_sock"], str(sock_path))
         self.assertFalse(sock_path.exists())
-        self.assertEqual(self.db.get_task(1)["status"], "waiting")
+        # The resume continues the run: the task is back to "running"
+        # (persist_pause flipped it to "waiting"), not left waiting until
+        # the run finishes.
+        self.assertEqual(self.db.get_task(1)["status"], "running")
 
     def test_cancel_aborts_the_pause(self):
         thread, outcome = self._run_pause(

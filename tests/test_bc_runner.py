@@ -37,6 +37,37 @@ from billcollector.runner import (  # noqa: E402
 )
 
 
+class StaleSingletonTests(unittest.TestCase):
+    """Pre-launch cleanup of stale Chromium profile singletons - the
+    post-redeploy "in use by another computer" launch blocker."""
+
+    def _profile_with_singletons(self, base, names):
+        profile = base / "buhl"
+        profile.mkdir(parents=True)
+        for name in names:
+            # A real SingletonLock/Cookie/Socket is a broken symlink (to a
+            # hostname-pid or a /tmp socket that no longer exists).
+            target = "stalehost-42" if name == "SingletonLock" else "1234567890"
+            (profile / name).symlink_to(target)
+        return profile
+
+    def test_removes_stale_singletons(self):
+        with tempfile.TemporaryDirectory() as td:
+            profile = self._profile_with_singletons(
+                Path(td), ("SingletonLock", "SingletonCookie", "SingletonSocket"))
+            runner._clear_stale_singleton(profile)
+            for name in ("SingletonLock", "SingletonCookie", "SingletonSocket"):
+                self.assertFalse((profile / name).exists())
+                self.assertFalse((profile / name).is_symlink())
+
+    def test_no_op_when_absent(self):
+        with tempfile.TemporaryDirectory() as td:
+            profile = Path(td) / "empty"
+            profile.mkdir()
+            runner._clear_stale_singleton(profile)  # must not raise
+            self.assertEqual(list(profile.iterdir()), [])
+
+
 class RetryDecisionTests(unittest.TestCase):
     def test_graceful_steps_are_single_attempt(self):
         self.assertEqual(step_attempts(True), 1)

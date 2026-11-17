@@ -113,6 +113,29 @@ def load_recipe(path, *, check_methods=True) -> tuple:
     return True, None, text, data
 
 
+def list_recipe_files() -> list[tuple[str, Path, bool]]:
+    """The recipe files on disk, one entry per service key.
+
+    Globs ``RECIPE_PREFIX + '*.yaml'`` in ``config.RECIPE_DIR`` (and in
+    ``config.RECIPE_EXTRA_DIR`` when set - an overlay file shadows the
+    built-in file of the same key, mirroring ``recipe_path_for``).
+    Returns ``(service_key, path, overlay)`` tuples sorted by service
+    key: ``service_key`` is the filename minus the prefix and the
+    ``.yaml`` suffix, ``overlay`` marks files that come from the extra
+    dir."""
+    entries: dict[str, tuple[Path, bool]] = {}
+    suffix = ".yaml"
+    for path in sorted(config.RECIPE_DIR.glob(config.RECIPE_PREFIX + "*.yaml")):
+        key = path.name[len(config.RECIPE_PREFIX):-len(suffix)]
+        entries[key] = (path, False)
+    extra = config.RECIPE_EXTRA_DIR
+    if extra is not None:
+        for path in sorted(extra.glob(config.RECIPE_PREFIX + "*.yaml")):
+            key = path.name[len(config.RECIPE_PREFIX):-len(suffix)]
+            entries[key] = (path, True)
+    return [(key, entries[key][0], entries[key][1]) for key in sorted(entries)]
+
+
 def _method_text(method) -> str:
     """One method entry as ``name(k=v, ...)`` for the step-tree sidebar."""
     if not isinstance(method, dict):

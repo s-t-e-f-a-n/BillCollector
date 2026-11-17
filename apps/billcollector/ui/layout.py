@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 """Shared layout for the daemon UI (M2 chunk D2).
 
-A header with the app name and a left menu (Dashboard, Downloads,
-Settings) that highlights the page currently open. Every protected page
-calls :func:`build_layout` first, so all pages share one frame (locked
-decision 14). The Downloads and Settings entries are registered from D2
-even though the pages themselves land in D6 (register the menu items
-now; do not hide the disabled ones).
+A header with the app name and a left menu (Dashboard, Tasks, Recipes,
+Downloads, Settings — each with a Material icon) that highlights the
+page currently open. Every protected page calls :func:`build_layout`
+first, so all pages share one frame (locked decision 14).
 """
 
 from nicegui import ui
 
 MENU_ITEMS = (
-    ("Dashboard", "/"),
-    ("Downloads", "/downloads"),
-    ("Settings", "/settings"),
+    ("Dashboard", "/", "dashboard"),
+    ("Tasks", "/tasks", "list"),
+    ("Recipes", "/recipes", "code"),
+    ("Downloads", "/downloads", "download"),
+    ("Settings", "/settings", "settings"),
 )
 
 
@@ -27,10 +27,11 @@ def build_layout(active: str = "") -> None:
         ui.label("BillCollector").classes("text-lg font-bold")
     with ui.left_drawer(value=True).props("bordered").classes("bg-slate-100").mark("left-menu"):
         with ui.list().props("dense").classes("w-full"):
-            for name, path in MENU_ITEMS:
+            for name, path, icon in MENU_ITEMS:
                 item = ui.item()
                 if name == active:
                     item.classes("bg-blue-200")
                 with item:
-                    ui.link(name, path).classes("w-full text-inherit no-underline")
+                    with ui.link(name, path).classes("w-full items-center gap-2 text-inherit no-underline"):
+                        ui.icon(icon).classes("text-xl")
                 item.mark(f"menu-{name.lower()}")

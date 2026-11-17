@@ -47,11 +47,13 @@ from .dashboard import register_dashboard
 from .downloads import register_downloads
 from .login import register_login_page
 from .onboarding import register_onboarding
+from .recipe_list import register_recipe_index
 from .recipes import register_recipe_editor
 from .runfiles import register_runfiles
 from .session import register_session
 from .settings import register_settings
 from .task_detail import register_task_detail
+from .task_list import register_task_index
 
 logger = logging.getLogger("billcollector.ui.app")
 
@@ -171,8 +173,10 @@ def build_app(db: Database, orchestrator: Orchestrator,
     register_login_page(db)
     register_onboarding(db, scheduler)
     register_dashboard(db, orchestrator, scheduler)
+    register_task_index(db, scheduler)
     register_task_detail(db, orchestrator)
     register_session(db)
+    register_recipe_index(db)
     register_recipe_editor(db, orchestrator)
     register_downloads(db, orchestrator)
     register_settings(db)

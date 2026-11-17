@@ -29,10 +29,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Manual pause: while a run is active, the dashboard row's Run button
   and the task detail's Run button morph into a Pause button. It signals
   the runner (SIGUSR1 to the runner process only) to pause at the next
-  step boundary; the run then turns amber `waiting` and is resumed or
-  cancelled from the session page exactly like a portal-triggered pause
-  (the ntfy deep link is included). A pause requested after the last
-  step completes the run normally.
+  step boundary; the run then turns amber `waiting`. While paused, the
+  same button morphs back into **Resume** and **Stop** stays enabled, so
+  a manually paused run can be resumed or stopped directly from the
+  dashboard row or the task detail (the resume uses the run's control
+  socket, the session page's own path) without opening the session page,
+  where a paused run is also resumed or cancelled exactly like a
+  portal-triggered pause (the ntfy deep link is included). A pause
+  requested after the last step completes the run normally.
 - Run review: the dashboard row's Open session action becomes **View
   run** - it opens the task's newest run, live or ended - and the
   task-detail run history gains a per-run **View run** link, so the

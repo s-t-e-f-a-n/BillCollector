@@ -3,9 +3,11 @@
 
 The operator's per-task page (``/tasks/<task_id>``; replaces the D2
 placeholder): the header (service/user, status, enabled/cron, recipe
-file), the icon run actions - the morphing **Run/Pause** button
-(play_arrow idle, pause while running; a hover tooltip carries the
-action text), **Stop**, **Reset profile** with a confirmation dialog
+file), the icon run actions - the morphing **Run/Pause/Resume** button
+(play_arrow idle, pause while running, play_arrow while waiting - the
+paused run is resumed from the button via its control socket; a hover
+tooltip carries the action text), **Stop** (enabled while the run is
+running or paused), **Reset profile** with a confirmation dialog
 (locked decision 8 / D3.4), **Clear login block**, and the **Recipe**
 link -> the D5 page - the pause section while a run is ``waiting``
 (D4.1c; M3 S1.1 adds the **Open session** link to the intervention
@@ -22,6 +24,7 @@ badge, the action button states (icon, tooltip, enabled), the pause
 section, and the history/downloads sections.
 """
 
+import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +33,7 @@ from fastapi import Request
 from nicegui import ui
 
 from .. import config
+from ..control import ControlError
 from ..db import Database
 from ..orchestrator import Orchestrator
 from .auth import require_auth
@@ -41,6 +45,7 @@ from .format import deadline_text, table_column
 from .layout import build_layout
 from .logpane import LogPane
 from .runfiles import runfile_url
+from .session import control_sock_alive, send_action
 
 # The badge colors of the task statuses (the dashboard's own mapping,
 # rendered through its body slot).
@@ -202,14 +207,31 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
         ).mark("detail-date-from")
 
         async def on_run_now(_e) -> None:
-            """The morphing Run/Pause button: the click re-reads the task
-            status (the icon state can be a poll behind, so a stale icon
-            can never dispatch the wrong action) - running sends the
-            manual-pause signal (pause at the next step boundary), idle
+            """The morphing Run/Pause/Resume button: the click re-reads
+            the task status (the icon state can be a poll behind, so a
+            stale icon can never dispatch the wrong action) - running
+            sends the manual-pause signal (pause at the next step
+            boundary), waiting sends the paused run's control socket the
+            protocol ``resume`` (the session page's own path), idle
             starts a manual one-off (works for disabled tasks, the
             schedule is untouched)."""
             task = db.get_task(task_id)
             if task is None:
+                return
+            if task["status"] == "waiting":
+                run = next((r for r in db.list_active_runs()
+                            if r["task_id"] == task_id and r["pause_reason"]),
+                           None)
+                if run is None or not control_sock_alive(run):
+                    ui.notify("No active pause to resume", type="warning")
+                else:
+                    try:
+                        await asyncio.to_thread(
+                            send_action, run["control_sock"], "resume")
+                    except ControlError:
+                        ui.notify("The run ended while resuming",
+                                  type="warning")
+                refresh()
                 return
             if task["status"] == "running":
                 paused = orchestrator.pause_run(task_id)
@@ -480,10 +502,10 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
         # ---- Refresh ----------------------------------------------------
         def refresh() -> None:
             """DB poll (~2 s): the status badge and the action button
-            states (the morphing Run/Pause icon, tooltip and enabled
-            state self-heal here; Stop enabled only while running,
-            Reset profile only while idle), plus the history rebuild
-            when the run set changed."""
+            states (the morphing Run/Pause/Resume icon, tooltip and
+            enabled state self-heal here; Stop enabled while running or
+            waiting, Reset profile only while idle), plus the history
+            rebuild when the run set changed."""
             task = db.get_task(task_id)
             if task is None:
                 return
@@ -501,17 +523,20 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
             if status == "running":
                 run_btn_tooltip.set_text("Pause at next step boundary")
             elif status == "waiting":
-                run_btn_tooltip.set_text("Paused — resume via the session page")
+                run_btn_tooltip.set_text("Resume run")
             elif blocked:
                 run_btn_tooltip.set_text("Run now (login blocked)")
             else:
                 run_btn_tooltip.set_text("Run now")
-            # Enabled while running: the morphed Pause button sends the
-            # manual-pause signal. Disabled while waiting (a paused run
-            # resumes on the session page) or login-blocked.
-            run_btn.set_enabled(status != "waiting" and not blocked)
+            # Enabled while running (the morphed Pause sends the
+            # manual-pause signal) and while waiting (the morphed Resume
+            # resumes the paused run via its control socket); disabled
+            # only while login-blocked.
+            run_btn.set_enabled(not blocked)
             clear_login_btn.set_enabled(status == "idle" and bool(task["login_locked"]))
-            stop_btn.set_enabled(status == "running")
+            # Stop reaches the live runner while the run is running or
+            # paused (waiting).
+            stop_btn.set_enabled(status in ("running", "waiting"))
             reset_btn.set_enabled(status == "idle")
             render_pause()
             render_history()

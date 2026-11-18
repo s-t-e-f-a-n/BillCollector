@@ -614,6 +614,10 @@ green.
 - N15 done: CHANGELOG + README (`55fc9ff`), the waiting-state Resume/Stop
   docs (`626f08b`).
 - N16 in progress on the NAS dev deployment (user-driven): dashboard run /
-  pause / row position exercised; remaining: the ntfy push deep link, the
-  index-page details, the settings all-or-nothing walk, and the
-  phone-on-LAN smoke.
+  pause / row position exercised; full suite re-green on dev 2026-11-18
+  (880 passed / 11 skipped, 142 subtests); the new routes verified live on
+  the deployment (`/tasks`, `/recipes`, `/downloads`, `/settings`,
+  `/tasks/<id>` auth-gated 307 → login, `/_alive` 200). Remaining
+  (browser-side): the index-page details, the settings all-or-nothing walk,
+  the ntfy push deep link (a manual pause already fires the push — no portal
+  failure needed), and the phone-on-LAN smoke.

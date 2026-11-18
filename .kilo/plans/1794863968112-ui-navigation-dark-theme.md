@@ -98,6 +98,12 @@ All UI text stays English.
   a generic **View run** (the task's newest run, active or ended) and the
   task-detail run history gains a per-run View run link. No new page: the
   global Runs page ("Verlauf") was reconsidered and stays rejected.
+- **Dashboard row position** (user decision, 2026-11-17, during N16): a
+  task keeps its service/user row position while it runs — the M2
+  dashboard spec's "running/waiting rows sort first" is dropped because
+  the jump to the top disturbed the operator; the status badge and the
+  waiting-row highlight carry the state in place. `build_rows` sorts by
+  service/user only.
 - **Scope** (refined 2026-11-17): the session state machine and the recipe
   editor flow are unchanged. The dashboard table keeps its 8 columns and
   its row shape (only the 4th row button's semantics change: Open session
@@ -487,7 +493,9 @@ marker, and `set-save-password` are kept.
   Stop is enabled — click Resume on the row → the run continues without
   opening the session page; Stop while waiting → the run ends
   (`interrupted`)**; also session page → Resume → icon back to play; Stop
-  (filled rectangle) → run ends; Edit dialog; View run navigates.
+  (filled rectangle) → run ends; Edit dialog; View run navigates. Starting
+  or resuming a run does NOT move the row to the top (stable service/user
+  position, the 2026-11-17 decision).
 - Task detail: morphing Run button (including the waiting-state Resume and
   the enabled Stop while paused), Stop, Reset profile (confirm dialog),
   Clear login block (dialog), Recipe link.
@@ -593,4 +601,19 @@ green.
 - Archive `.kilo/plans/1794763657924-manual-pause-button.md` to `completed/`
   (consumed by this plan; its status line is already updated here) and update
   `.kilo/plans/README.md` (this plan, the dark-theme follow-up, the pause-plan
-  entry).
+  entry). Done 2026-11-17 (`2cf2503`).
+
+## Status
+
+- N1–N14 + N17 implemented; targeted suites green 2026-11-17.
+- Pushed to Gitea `origin/dev`: the navigation pass
+  (`cee453b`..`2cf2503`, 2026-11-17), the waiting-state Resume/Stop
+  follow-up (`08e46db`..`78002cf`), the stale-profile pre-launch cleanup
+  (`a5df1d8`..`dfc3fbe`), and the dashboard row-position fix
+  (`e9f6671`..`e77ecab`, 2026-11-18, the N16 finding).
+- N15 done: CHANGELOG + README (`55fc9ff`), the waiting-state Resume/Stop
+  docs (`626f08b`).
+- N16 in progress on the NAS dev deployment (user-driven): dashboard run /
+  pause / row position exercised; remaining: the ntfy push deep link, the
+  index-page details, the settings all-or-nothing walk, and the
+  phone-on-LAN smoke.

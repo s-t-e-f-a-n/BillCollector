@@ -617,7 +617,19 @@ green.
   pause / row position exercised; full suite re-green on dev 2026-11-18
   (880 passed / 11 skipped, 142 subtests); the new routes verified live on
   the deployment (`/tasks`, `/recipes`, `/downloads`, `/settings`,
-  `/tasks/<id>` auth-gated 307 → login, `/_alive` 200). Remaining
-  (browser-side): the index-page details, the settings all-or-nothing walk,
-  the ntfy push deep link (a manual pause already fires the push — no portal
-  failure needed), and the phone-on-LAN smoke.
+  `/tasks/<id>` auth-gated 307 → login, `/_alive` 200).
+- N16 finding (2026-11-19): a `/tasks` row click did not navigate — Quasar
+  q-table emits `rowClick` only on the *default* body rendering, so with the
+  custom body slot (dashboard, `/tasks`) the `table.on("rowclick")` binding
+  was dead in the browser (the browserless `User` tests fire the Python
+  listener directly and stayed green). Fixed: the `<q-tr>` in both ROW_BODY
+  templates dispatches the same bubbling DOM CustomEvent pattern as
+  `rowaction`/`dlretry` (name `rowclick`, bare-`detail` js_handler, the
+  buttons' `.stop` keeps action clicks from triggering it); the two row-click
+  tests now trigger the bare `{id}` payload. Full suite re-green
+  (880 passed / 11 skipped, 142 subtests) 2026-11-19.
+- N16 remaining (browser-side, on the deployment): re-check the row click on
+  `/tasks` and the dashboard, the `/recipes` index details (evidence badges,
+  overlay badge, no-recipe-file row, polling), the settings all-or-nothing
+  walk, the ntfy push deep link (a manual pause already fires the push — no
+  portal failure needed), and the phone-on-LAN smoke.

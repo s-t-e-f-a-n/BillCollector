@@ -52,8 +52,16 @@ COLUMNS = [
 # as the component prop ``props``. The result badge's color is resolved on
 # the Python side (``last_run_result_color``) because the runtime-compiled
 # template has no module scope to look colors up in.
+#
+# Row click: Quasar's q-table only emits its own rowClick event on the
+# default body rendering - with a custom body slot the row never gets the
+# click binding - so the tr dispatches a bubbling DOM ``rowclick``
+# CustomEvent (``detail`` = the row's task id) that the page binds on the
+# table root with the same bare-``detail`` js_handler as the dashboard's
+# rowaction.
 ROW_BODY = """
-<q-tr :props="props">
+<q-tr :props="props" class="cursor-pointer"
+      @click="$event.currentTarget.dispatchEvent(new CustomEvent('rowclick', {detail: {id: props.row.id}, bubbles: true}))">
   <q-td v-for="col in props.cols" :key="col.name" :props="{ ...props, col: col }">
     <q-badge v-if="col.name === 'status'"
              :color="props.row.status === 'running' ? 'blue' : (props.row.status === 'waiting' ? 'orange' : 'grey')"
@@ -133,11 +141,15 @@ def register_task_index(db: Database, scheduler: TaskScheduler) -> None:
         ui.timer(REFRESH_INTERVAL, refresh)
 
         def on_row_click(e) -> None:
-            """Row click -> task detail (the same pattern as the
-            dashboard)."""
-            args = e.args
-            row = args.get("row") if isinstance(args, dict) else args
-            if isinstance(row, dict) and "id" in row:
-                ui.navigate.to(f"/tasks/{row['id']}")
+            """Row click -> task detail (the tr dispatches the bubbling
+            rowclick CustomEvent; see ROW_BODY)."""
+            detail = e.args if isinstance(e.args, dict) else {}
+            task_id = detail.get("id")
+            if task_id is not None:
+                ui.navigate.to(f"/tasks/{task_id}")
 
-        table.on("rowclick", on_row_click)
+        # The js_handler emits the CustomEvent's bare ``detail`` payload
+        # (the dashboard's rowaction contract; the User simulation's
+        # ``trigger("rowclick", ...)`` delivers the same bare payload).
+        table.on("rowclick", on_row_click,
+                 js_handler="(event) => emit(event.detail)")

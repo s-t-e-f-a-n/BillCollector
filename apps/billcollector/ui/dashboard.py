@@ -117,8 +117,17 @@ COLUMNS = [
 # **View run** button dispatches ``action: 'view-run'`` with
 # ``id: active_run_id || latest_run_id`` (the run id, not the task id)
 # and is enabled whenever the task has any run.
+#
+# Row click: Quasar's q-table only emits its own rowClick event on the
+# default body rendering - with this custom body slot the row never gets
+# the click binding - so the tr dispatches a bubbling DOM ``rowclick``
+# CustomEvent (``detail`` = the row's task id), bound below with the same
+# bare-``detail`` js_handler; the buttons' ``.stop`` keeps their clicks
+# from also triggering it.
 ROW_BODY = """
-<q-tr :props="props" :class="props.row.status === 'waiting' ? 'bg-amber-100' : ''">
+<q-tr :props="props"
+      :class="[props.row.status === 'waiting' ? 'bg-amber-100' : '', 'cursor-pointer']"
+      @click="$event.currentTarget.dispatchEvent(new CustomEvent('rowclick', {detail: {id: props.row.id}, bubbles: true}))">
   <q-td v-for="col in props.cols" :key="col.name" :props="{ ...props, col: col }">
     <q-badge v-if="col.name === 'status'"
              :color="props.row.status === 'running' ? 'blue' : (props.row.status === 'waiting' ? 'orange' : 'grey')"
@@ -385,13 +394,18 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
         ui.timer(REFRESH_INTERVAL, refresh)
 
         def on_row_click(e) -> None:
-            """Row click -> task detail (the full page lands in D4)."""
-            args = e.args
-            row = args.get("row") if isinstance(args, dict) else args
-            if isinstance(row, dict) and "id" in row:
-                ui.navigate.to(f"/tasks/{row['id']}")
+            """Row click -> task detail (the tr dispatches the bubbling
+            rowclick CustomEvent; see ROW_BODY)."""
+            detail = e.args if isinstance(e.args, dict) else {}
+            task_id = detail.get("id")
+            if task_id is not None:
+                ui.navigate.to(f"/tasks/{task_id}")
 
-        table.on("rowclick", on_row_click)
+        # The js_handler emits the CustomEvent's bare ``detail`` payload
+        # (the rowaction contract; the User simulation's
+        # ``trigger("rowclick", ...)`` delivers the same bare payload).
+        table.on("rowclick", on_row_click,
+                 js_handler="(event) => emit(event.detail)")
 
         def on_run_filtered(_e) -> None:
             """Toolbar Run (filtered): enqueue every *enabled* task in the

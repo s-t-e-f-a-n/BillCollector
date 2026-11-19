@@ -276,7 +276,9 @@ async def test_row_click_navigates_to_the_task_detail(user, testdb, tmp_path):
     await user.open("/")
 
     row = next(r for r in _table_rows(user) if r["id"] == seed["running"])
-    user.find(kind=ui.table).trigger("rowclick", {"row": row})
+    # The bare ``detail`` payload (the tr's rowclick CustomEvent contract,
+    # see the page's ROW_BODY note).
+    user.find(kind=ui.table).trigger("rowclick", {"id": row["id"]})
     # The navigation is a background page load: allow a few extra retries.
     await user.should_see(f"Task {seed['running']}: svc-b / user1", retries=10)
 

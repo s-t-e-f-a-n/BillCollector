@@ -51,7 +51,7 @@ ROW_BODY = """
   <q-td v-for="col in props.cols" :key="col.name" :props="{ ...props, col: col }">
     <template v-if="col.name === 'recipe'">
       <q-link v-if="props.row.link" :href="'/recipes/' + props.row.link"
-              class="no-underline text-blue-700">{{ props.row.name }}</q-link>
+              class="no-underline text-sky-400">{{ props.row.name }}</q-link>
       <span v-else class="inline-flex items-center gap-1">
         {{ props.row.name }}
         <q-badge color="red" outline>no recipe file</q-badge>
@@ -77,7 +77,7 @@ ROW_BODY = """
       <q-badge v-else color="grey" outline>unverified</q-badge>
     </template>
     <span v-else-if="col.name === 'tasks' && props.row.tasks === 0"
-          :class="col.mono ? 'font-mono' : ''" class="text-grey-6">0</span>
+          :class="col.mono ? 'font-mono' : ''" class="text-slate-400">0</span>
     <span v-else :class="col.mono ? 'font-mono' : ''">{{ props.row[col.name] }}</span>
   </q-td>
 </q-tr>

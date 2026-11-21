@@ -272,7 +272,7 @@ def register_session(db: Database) -> None:
         build_layout()
         run = db.get_run(run_id)
         if run is None:
-            ui.label(f"Unknown run id: {run_id} (404)").classes("text-red-600")
+            ui.label(f"Unknown run id: {run_id} (404)").classes("text-rose-400")
             return
 
         # ---- Header -----------------------------------------------------
@@ -462,7 +462,7 @@ def register_session(db: Database) -> None:
             port = run["novnc_port"]
             if port is None:
                 ui.label("noVNC is not available for this run.") \
-                    .classes("text-grey-7").mark("session-novnc-unavailable")
+                    .classes("text-slate-400").mark("session-novnc-unavailable")
             else:
                 ui.html(novnc_iframe_html(port), sanitize=False) \
                     .mark("session-novnc")
@@ -488,7 +488,7 @@ def register_session(db: Database) -> None:
             refs["shot_box"] = ui.column().classes("w-full") \
                 .mark("session-shot-box")
             refs["hint"] = ui.label(EMPTY_ELEMENTS_HINT) \
-                .classes("text-grey-7").mark("session-novnc-hint")
+                .classes("text-slate-400").mark("session-novnc-hint")
             refs["hint"].set_visibility(False)
             refs["elem_select"] = ui.select(
                 options={}, value=None, label="Element") \
@@ -649,7 +649,7 @@ def register_session(db: Database) -> None:
                         run, db.get_task(run["task_id"]))
                     if repair_url:
                         with ui.link("Repair recipe", repair_url) \
-                                .props("no-caps").classes("text-blue-700") \
+                                .props("no-caps").classes("text-sky-400") \
                                 .mark("session-repair"):
                             ui.icon("build").classes("text-lg")
                 with ui.tabs().classes("w-full") as tabs:
@@ -685,7 +685,7 @@ def register_session(db: Database) -> None:
             with box:
                 if not shots:
                     ui.label("No step screenshots yet.").classes(
-                        "text-grey-6").mark("session-no-steps")
+                        "text-slate-400").mark("session-no-steps")
                     return
                 ui.label("Steps").classes("text-h6") \
                     .mark("session-steps-label")
@@ -700,7 +700,7 @@ def register_session(db: Database) -> None:
                             ui.label(
                                 str(step_no if step_no is not None
                                     else "—")
-                            ).classes("text-xs text-grey-6")
+                            ).classes("text-xs text-slate-400")
 
         def render_running(box, run, refs) -> None:
             """The running view (M3 decision 3, S1.3): read-only
@@ -746,15 +746,16 @@ def register_session(db: Database) -> None:
                     run, db.get_task(run["task_id"]))
                 if repair_url:
                     with ui.link("Repair recipe", repair_url) \
-                            .props("no-caps").classes("text-blue-700") \
+                            .props("no-caps").classes("text-sky-400") \
                             .mark("session-repair"):
                         ui.icon("build").classes("text-lg")
                 if run["notes"]:
                     ui.label(f"Notes: {run['notes']}") \
-                        .classes("text-grey-6").mark("session-notes")
+                        .classes("text-slate-400").mark("session-notes")
                 summary = pause_context_summary(run)
                 if summary is not None:
-                    with ui.card().classes("w-full bg-slate-50") \
+                    with ui.card().classes(
+                            "w-full border border-slate-800 bg-slate-900") \
                             .mark("session-last-pause"):
                         ui.label("Last pause (read-only)").classes("text-h6") \
                             .mark("session-last-pause-title")
@@ -770,10 +771,10 @@ def register_session(db: Database) -> None:
                                 .mark("session-last-pause-shot")
                         if summary["elements"]:
                             ui.label("Elements at pause time:") \
-                                .classes("text-grey-6 mt-2") \
+                                .classes("text-slate-400 mt-2") \
                                 .mark("session-last-pause-elements-label")
                             for line in summary["elements"]:
-                                ui.label(line).classes("text-sm text-grey-7") \
+                                ui.label(line).classes("text-sm text-slate-400") \
                                     .mark("session-last-pause-element")
 
         # ---- State machine (M3 decision 3, the ~2 s poll) ---------------

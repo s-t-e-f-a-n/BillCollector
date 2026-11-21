@@ -131,7 +131,7 @@ def register_settings(db: Database) -> None:
                             value=db.get_setting(key) or "") \
                             .classes("w-72").mark(f"set-{key}")
                     if hint:
-                        ui.label(hint).classes("text-xs text-grey-6")
+                        ui.label(hint).classes("text-xs text-slate-400")
             return control
 
         with ui.column().classes("w-full gap-6"):
@@ -141,7 +141,7 @@ def register_settings(db: Database) -> None:
                 ui.label(
                     f"Change the login password (minimum "
                     f"{MIN_PASSWORD_LENGTH} characters).").classes(
-                    "text-grey-6 text-sm mb-2")
+                    "text-slate-400 text-sm mb-2")
                 with ui.row().classes("items-end gap-2"):
                     password_input = ui.input(
                         label="New password").props("type=password") \
@@ -235,7 +235,7 @@ def register_settings(db: Database) -> None:
                             in ("1", "true", "yes", "on")) \
                             .mark("set-git_commit_enabled")
                         ui.label("Auto-commit recipe edits saved in the "
-                                 "UI.").classes("text-xs text-grey-6")
+                                 "UI.").classes("text-xs text-slate-400")
 
             # ---- One Save (all-or-nothing) ---------------------------------
             with ui.row().classes("w-full justify-end"):

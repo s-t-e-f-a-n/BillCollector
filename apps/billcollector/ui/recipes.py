@@ -141,10 +141,10 @@ def _render_step(container, entry) -> None:
     if entry["graceful"]:
         title += " (graceful)"
     with container:
-        ui.label(indent + title).classes("text-grey-9")
+        ui.label(indent + title).classes("text-slate-300")
         for method in entry["methods"]:
             ui.label(indent + "  " + method).classes(
-                "text-grey-6 text-xs font-mono")
+                "text-slate-400 text-xs font-mono")
     for child in entry["children"]:
         _render_step(container, child)
 
@@ -169,13 +169,13 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
 
         with ui.row().classes("w-full items-center gap-3"):
             ui.label(f"Recipe: {service}").classes("text-h6")
-            ui.label(f"{path.name}{state}").classes("text-grey-6")
+            ui.label(f"{path.name}{state}").classes("text-slate-400")
         ui.label("The recipe is shared by all tasks of this service."
-                 ).classes("text-grey-6")
+                 ).classes("text-slate-400")
         if tasks:
             task_list = ", ".join(
                 f"{t['service']} / {t['user'] or '—'}" for t in tasks)
-            ui.label(f"Tasks: {task_list}").classes("text-grey-7") \
+            ui.label(f"Tasks: {task_list}").classes("text-slate-400") \
                 .mark("recipe-tasks")
 
         # ---- Failure panel (?run=<run_id>, M3 S2.3, decision 7) ----------
@@ -239,26 +239,27 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
             step_label = f"Step {step_no if step_no is not None else '?'}"
             if panel["step"] is not None and panel["step"].get("description"):
                 step_label += f": {panel['step']['description']}"
-            with ui.card().classes("w-full bg-red-50") \
+            with ui.card().classes(
+                    "w-full border border-slate-800 bg-rose-500/10") \
                     .mark("recipe-failure"):
                 ui.label(f"Failure (run {repair_run['id']})") \
-                    .classes("text-red-900 text-h6") \
+                    .classes("text-rose-300 text-h6") \
                     .mark("recipe-failure-title")
                 if panel["shot_url"]:
                     ui.image(panel["shot_url"]).classes("max-h-[24rem]") \
                         .mark("recipe-failure-shot")
                 if panel["step"] is not None:
-                    ui.label(step_label).classes("text-red-900") \
+                    ui.label(step_label).classes("text-rose-300") \
                         .mark("recipe-failure-step")
                     for loc in panel["step"].get("locators") or []:
                         ui.label(_locator_text(loc)).classes(
-                            "text-sm font-mono text-grey-8") \
+                            "text-sm font-mono text-slate-300") \
                             .mark("recipe-failure-locator")
                 if panel["error"]:
                     ui.label(f"Error: {panel['error']}").classes(
-                        "text-red-800").mark("recipe-failure-error")
+                        "text-rose-400").mark("recipe-failure-error")
                 if repair_hint:
-                    ui.label(repair_hint).classes("text-grey-7") \
+                    ui.label(repair_hint).classes("text-slate-400") \
                         .mark("recipe-repair-hint")
                 for cand in panel["candidates"]:
                     with ui.row().classes("items-center gap-2") \
@@ -285,6 +286,7 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
                 editor = ui.codemirror(
                     value=text or "", language="YAML"
                 ).classes("w-full h-[480px]").mark("recipe-editor")
+                editor.set_theme("oneDark")
                 result_label = ui.label().mark("recipe-result")
                 # Icon actions (hover tooltips carry the action text).
                 with ui.row().classes("gap-2"):
@@ -307,11 +309,11 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
                     doc = yaml.safe_load(editor.value)
                 except yaml.YAMLError as e:
                     ui.label(f"(YAML parse error: {str(e).strip()})").classes(
-                        "text-red-600").mark("recipe-tree-error")
+                        "text-rose-400").mark("recipe-tree-error")
                     return
                 steps = parse_steps(doc)
                 if not steps:
-                    ui.label("(no steps)").classes("text-grey-6")
+                    ui.label("(no steps)").classes("text-slate-400")
                     return
                 for step in steps:
                     _render_step(tree_body, step)
@@ -319,7 +321,7 @@ def register_recipe_editor(db: Database, orchestrator: Orchestrator) -> None:
         def set_result(message: str, ok: bool) -> None:
             result_label.text = message
             result_label.classes(
-                replace="text-green-700" if ok else "text-red-600")
+                replace="text-emerald-400" if ok else "text-rose-400")
 
         def on_validate(_e=None) -> None:
             ok, error, _data = validate_recipe(editor.value)

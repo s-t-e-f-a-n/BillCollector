@@ -55,7 +55,7 @@ def open_task_dialog(db: Database, scheduler: TaskScheduler, refresh,
         if task is None:
             ui.label("New task").classes("text-h6")
             ui.label("The recipe is shared by all tasks of a service "
-                     "(per-service recipe file).").classes("text-grey-6")
+                     "(per-service recipe file).").classes("text-slate-400")
             service_input = ui.input(label="Service").classes("w-full") \
                 .mark("task-service")
             user_input = ui.input(label="User").classes("w-full") \
@@ -63,7 +63,7 @@ def open_task_dialog(db: Database, scheduler: TaskScheduler, refresh,
             cron_input = ui.input(label="Cron", value=DEFAULT_CRON) \
                 .classes("w-full").mark("task-cron")
             enabled_switch = ui.switch("Enabled").mark("task-enabled")
-            recipe_label = ui.label().classes("w-full text-grey-6") \
+            recipe_label = ui.label().classes("w-full text-slate-400") \
                 .mark("task-recipe")
 
             def update_recipe_label(_e=None) -> None:
@@ -91,7 +91,7 @@ def open_task_dialog(db: Database, scheduler: TaskScheduler, refresh,
             recipe = config.recipe_path_for(task["service"])
             state = "" if recipe.exists() else " (missing)"
             ui.label(f"Recipe (shared, read-only): {recipe.name}{state}"
-                     ).classes("text-grey-6").mark("task-recipe")
+                     ).classes("text-slate-400").mark("task-recipe")
 
         window_input = ui.number(
             "Date window (inclusive days)",

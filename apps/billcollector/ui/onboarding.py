@@ -54,7 +54,7 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
         redirect = require_auth(request)
         if redirect is not None:
             return redirect
-        build_layout(active="")
+        build_layout(active="", daemon_running=scheduler.scheduler.running)
 
         ui.label("Onboarding").classes("text-h6")
 
@@ -67,7 +67,7 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
         ui.label(
             "Set up BillCollector: the vault, your tasks, and a final "
             "check. You can skip a step and fix it later in Settings."
-        ).classes("text-grey-6")
+        ).classes("text-slate-400")
 
         effective_url, effective_host = config.vault_settings(db)
 
@@ -80,7 +80,7 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                 ui.label(
                     "The local vault API the runs read their portal "
                     "credentials from (must be a local http:// URL)."
-                ).classes("text-grey-6")
+                ).classes("text-slate-400")
                 vault_url_input = ui.input(
                     label="Vault API URL", value=effective_url) \
                     .classes("w-96").mark("onb-vault-url")
@@ -178,7 +178,7 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                     "Import the tasks from your INI file or create one "
                     "manually, then enable the tasks the daemon should "
                     "run on schedule."
-                ).classes("text-grey-6")
+                ).classes("text-slate-400")
                 tasks_box = ui.column().classes("w-full gap-1")
 
                 def render_tasks() -> None:
@@ -189,7 +189,7 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                             ui.label(
                                 "No tasks yet: import from INI or add one "
                                 "below."
-                            ).classes("text-grey-6").mark("onb-no-tasks")
+                            ).classes("text-slate-400").mark("onb-no-tasks")
                         for task in tasks:
                             with ui.row().classes("w-full items-center gap-3"):
                                 ui.label(
@@ -197,14 +197,14 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                                     f"{task['user'] or '—'}"
                                 ).classes("w-56")
                                 ui.label(task["cron"] or "—") \
-                                    .classes("w-32 text-grey-6")
+                                    .classes("w-32 text-slate-400")
                                 recipe = config.recipe_path_for(
                                     task["service"])
                                 ui.label(
                                     recipe.name
                                     + ("" if recipe.exists()
                                        else " (missing)")
-                                ).classes("w-64 text-grey-6")
+                                ).classes("w-64 text-slate-400")
                                 toggle = ui.switch(
                                     value=bool(task["enabled"])) \
                                     .mark(f"onb-toggle-{task['id']}")
@@ -334,7 +334,7 @@ def register_onboarding(db: Database, scheduler: TaskScheduler) -> None:
                     "Settings (the ntfy topic, the deep-link base URL, the "
                     "vault API) and on the dashboard (per-task cron and "
                     "enabled)."
-                ).classes("text-grey-6 text-sm")
+                ).classes("text-slate-400 text-sm")
                 with ui.stepper_navigation().classes("items-center"):
                     back_btn = ui.button("Back", icon="arrow_back") \
                         .props("flat").mark("onb-back-finish")

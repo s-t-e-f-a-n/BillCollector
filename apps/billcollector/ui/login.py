@@ -24,6 +24,7 @@ from nicegui import app as nicegui_app
 from nicegui import ui
 
 from . import auth
+from .theme import apply_theme
 
 logger = logging.getLogger("billcollector.ui.login")
 
@@ -34,16 +35,25 @@ _ERRORS = {
     "wrong_password": "Wrong password.",
 }
 
+# Token-based dark login styling (the public /login page is themed
+# directly, not via build_layout): a centered surface card (slate-900 on
+# the slate-950 page, 1px slate-800 border), slate-800 input borders, an
+# emerald submit button.
 _FORM_CSS = """
+.bc-login-card {
+    max-width: 24rem; margin: 2rem auto; padding: 1.5rem 2rem;
+    background: #0f172a; border: 1px solid #1e293b; border-radius: 0.5rem;
+}
 .bc-login-input {
     width: 100%; margin: 0.5rem 0; padding: 0.5rem 0.75rem;
-    border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;
+    border: 1px solid #1e293b; border-radius: 4px; font-size: 1rem;
+    background: #090d16; color: #f1f5f9;
 }
 .bc-login-button {
     padding: 0.5rem 1.5rem; border: none; border-radius: 4px;
-    background: #1976d2; color: white; font-size: 1rem; cursor: pointer;
+    background: #10b981; color: #090d16; font-size: 1rem; cursor: pointer;
 }
-.bc-login-button:hover { background: #1565c0; }
+.bc-login-button:hover { background: #059669; }
 """
 
 
@@ -52,28 +62,33 @@ def register_login_page(db) -> None:
 
     @ui.page("/login", title="BillCollector")
     def login_page(request: Request) -> None:
+        apply_theme()
         error = _ERRORS.get(request.query_params.get("error") or "")
         set_mode = auth.get_password_hash(db) is None
         ui.add_head_html(f"<style>{_FORM_CSS}</style>")
-        ui.label("BillCollector").classes("text-h4 font-bold")
-        if set_mode:
-            ui.label("First start: set the password for the UI login.")
-        else:
-            ui.label("Sign in to the BillCollector dashboard.")
-        if error:
-            ui.label(error).classes("text-red-600").mark("login-error")
+        with ui.column().classes("bc-login-card items-center gap-2"):
+            ui.label("BillCollector").classes("text-h4 font-bold")
+            if set_mode:
+                ui.label("First start: set the password for the UI login.")
+            else:
+                ui.label("Sign in to the BillCollector dashboard.")
+            if error:
+                ui.label(error).classes("text-rose-400").mark("login-error")
 
-        confirm_input = ('<input type="password" name="password_confirm" '
-                         'class="bc-login-input" placeholder="Repeat password">') \
-            if set_mode else ""
-        submit = "Set password" if set_mode else "Sign in"
-        ui.html(
-            '<form method="post" action="/login">'
-            '<input type="password" name="password" '
-            'class="bc-login-input" placeholder="Password" autofocus>'
-            f"{confirm_input}"
-            f'<br><button type="submit" class="bc-login-button">{submit}</button>'
-            "</form>")
+            confirm_input = ('<input type="password" '
+                             'name="password_confirm" '
+                             'class="bc-login-input" '
+                             'placeholder="Repeat password">') \
+                if set_mode else ""
+            submit = "Set password" if set_mode else "Sign in"
+            ui.html(
+                '<form method="post" action="/login" class="w-full">'
+                '<input type="password" name="password" '
+                'class="bc-login-input" placeholder="Password" autofocus>'
+                f"{confirm_input}"
+                f'<br><button type="submit" '
+                f'class="bc-login-button">{submit}</button>'
+                "</form>")
 
     @nicegui_app.post("/login")
     async def login_post(request: Request):

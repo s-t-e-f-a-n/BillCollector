@@ -74,7 +74,7 @@ ROW_BODY = """
       </template>
       <span v-else :class="col.mono ? 'font-mono' : ''">—</span>
     </span>
-    <span v-else-if="col.name === 'enabled'" class="text-grey-6">{{ props.row[col.name] }}</span>
+    <span v-else-if="col.name === 'enabled'" class="text-slate-400">{{ props.row[col.name] }}</span>
     <span v-else :class="col.mono ? 'font-mono' : ''">{{ props.row[col.name] }}</span>
   </q-td>
 </q-tr>
@@ -116,7 +116,7 @@ def register_task_index(db: Database, scheduler: TaskScheduler) -> None:
         redirect = require_auth(request)
         if redirect is not None:
             return redirect
-        build_layout(active="Tasks")
+        build_layout(active="Tasks", daemon_running=scheduler.scheduler.running)
 
         ui.label("Tasks").classes("text-h5 font-bold")
 
@@ -127,9 +127,9 @@ def register_task_index(db: Database, scheduler: TaskScheduler) -> None:
         empty = ui.column().classes("gap-1")
         empty.visible = not rows
         with empty:
-            ui.label("No tasks yet.").classes("text-grey-7")
+            ui.label("No tasks yet.").classes("text-slate-400")
             with ui.link("Open the dashboard to add the first task", "/") \
-                    .classes("text-blue-700"):
+                    .classes("text-sky-400"):
                 ui.icon("dashboard").classes("text-xl")
 
         def refresh() -> None:

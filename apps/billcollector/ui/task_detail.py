@@ -162,7 +162,7 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
         build_layout(active="Tasks")
         task = db.get_task(task_id)
         if task is None:
-            ui.label(f"Unknown task id: {task_id} (404)").classes("text-red-600")
+            ui.label(f"Unknown task id: {task_id} (404)").classes("text-rose-400")
             return
 
         # ---- Header -----------------------------------------------------
@@ -401,7 +401,7 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
                                 ui.icon("open_in_browser").classes("text-lg")
                         if run["notes"]:
                             ui.label(f"Notes: {_tail(run['notes'], NOTES_TAIL)}"
-                                     ).classes("text-grey-6").mark("detail-notes")
+                                     ).classes("text-slate-400").mark("detail-notes")
                         steps = _step_rows(db, run["id"])
                         if steps:
                             table = ui.table(columns=STEP_COLUMNS,
@@ -426,7 +426,7 @@ def register_task_detail(db: Database, orchestrator: Orchestrator) -> None:
                                      js_handler="(event) => emit(event.detail)")
                         else:
                             ui.label("No step rows recorded.").classes(
-                                "text-grey-6")
+                                "text-slate-400")
 
         render_history()
 

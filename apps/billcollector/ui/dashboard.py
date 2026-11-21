@@ -40,6 +40,7 @@ same thumbnails live in the task detail's run expansion (D4.1b).
 """
 
 import asyncio
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import Request
@@ -57,6 +58,7 @@ from .logpane import LogPane
 from .runfiles import runfile_url
 from .session import control_sock_alive, send_action
 from .tasks import open_task_dialog
+from .theme import kpi_card, set_kpi
 
 # The task statuses a row can carry (Run results are a separate axis).
 STATUSES = ("idle", "running", "waiting")
@@ -126,7 +128,7 @@ COLUMNS = [
 # from also triggering it.
 ROW_BODY = """
 <q-tr :props="props"
-      :class="[props.row.status === 'waiting' ? 'bg-amber-100' : '', 'cursor-pointer']"
+      :class="[props.row.status === 'waiting' ? 'bg-amber-500/10' : '', 'cursor-pointer']"
       @click="$event.currentTarget.dispatchEvent(new CustomEvent('rowclick', {detail: {id: props.row.id}, bubbles: true}))">
   <q-td v-for="col in props.cols" :key="col.name" :props="{ ...props, col: col }">
     <q-badge v-if="col.name === 'status'"
@@ -177,6 +179,83 @@ def next_run(scheduler: TaskScheduler, task_id: int) -> str:
     if job is None or job.next_run_time is None:
         return "—"
     return job.next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+# One-line hover tooltips for the three KPI cards (locked decision: every
+# new chrome element carries mouse-over text).
+KPI_TASKS_TIP = "Enabled/total tasks; running and waiting right now."
+KPI_DOWNLOADS_TIP = "Files collected in the last 30 days (all states)."
+KPI_NEXT_RUN_TIP = "Time to the next scheduled cron fire (enabled tasks)."
+
+
+def next_run_countdown(scheduler: TaskScheduler, db: Database):
+    """The earliest upcoming cron fire as ``(datetime, task)``.
+
+    Mirrors :func:`next_run`'s jobstore pattern (job id ``task-<id>``)
+    but returns the raw datetimes, so the KPI strip can take the min over
+    enabled tasks and render a live countdown. ``(None, None)`` when no
+    enabled task has a scheduled job (or the scheduler is stopped)."""
+    if not scheduler.scheduler.running:
+        return None, None
+    best_dt = None
+    best_task = None
+    for task in db.list_tasks():
+        if not task["enabled"]:
+            continue
+        job = scheduler.scheduler.get_job(job_id_for(task["id"]))
+        if job is None or job.next_run_time is None:
+            continue
+        if best_dt is None or job.next_run_time < best_dt:
+            best_dt = job.next_run_time
+            best_task = task
+    return best_dt, best_task
+
+
+def _countdown(dt) -> str:
+    """Format a future datetime as ``in HH:MM:SS`` (floored at zero)."""
+    total = int((dt - datetime.now(dt.tzinfo)).total_seconds())
+    if total < 0:
+        total = 0
+    h, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    return f"in {h:02d}:{m:02d}:{s:02d}"
+
+
+def kpi_data(db: Database, scheduler: TaskScheduler) -> dict:
+    """The KPI strip's three ``(value, sub)`` pairs, recomputed per poll.
+
+    Kept separate from the render so it is unit-testable without a
+    browser: task counts by status, the downloads inside the 30-day
+    window (all delivery states), and the next cron fire's countdown +
+    its task's ``service/user``.
+    """
+    tasks = db.list_tasks()
+    total = len(tasks)
+    enabled = sum(1 for t in tasks if t["enabled"])
+    running = sum(1 for t in tasks if t["status"] == "running")
+    waiting = sum(1 for t in tasks if t["status"] == "waiting")
+    task_sub = (f"{running} running · {waiting} waiting"
+                if (running or waiting) else "all idle")
+
+    cutoff = (datetime.now() - timedelta(days=30)).strftime(
+        "%Y-%m-%d %H:%M:%S")
+    window = [d for d in db.list_downloads()
+              if (d["created_at"] or "") >= cutoff]
+    newest = max((d["created_at"] for d in window if d["created_at"]),
+                 default="")
+
+    dt, task = next_run_countdown(scheduler, db)
+    if dt is None:
+        next_value, next_sub = "—", ""
+    else:
+        next_value = _countdown(dt)
+        next_sub = f"{task['service']} / {task['user'] or '—'}"
+
+    return {
+        "tasks": (f"{enabled}/{total}", task_sub),
+        "downloads": (str(len(window)), newest[:10] or "—"),
+        "next_run": (next_value, next_sub),
+    }
 
 
 def _last_run_cell(run) -> str:
@@ -288,7 +367,28 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
         redirect = require_auth(request)
         if redirect is not None:
             return redirect
-        build_layout(active="Dashboard")
+        build_layout(active="Dashboard",
+                     daemon_running=scheduler.scheduler.running)
+
+        # ---- KPI strip (above the toolbar) --------------------------------
+        # Three cards: task counts, downloads in the last 30 days, and the
+        # next cron fire's live countdown. The value/sub labels are updated
+        # in place on each poll (set_kpi) rather than rebuilt.
+        data = kpi_data(db, scheduler)
+        with ui.grid(columns=3).classes("w-full gap-3").mark("kpi-strip"):
+            kpi_tasks = kpi_card("Tasks", data["tasks"][0],
+                                 data["tasks"][1],
+                                 tooltip=KPI_TASKS_TIP).mark("kpi-tasks")
+            kpi_downloads = kpi_card(
+                "Downloads (30 days)", data["downloads"][0],
+                data["downloads"][1],
+                tooltip=KPI_DOWNLOADS_TIP).mark("kpi-downloads")
+            kpi_next = kpi_card("Next run", data["next_run"][0],
+                                data["next_run"][1],
+                                tooltip=KPI_NEXT_RUN_TIP).mark("kpi-next")
+        kpi_tasks.kpi_value.mark("kpi-tasks-value")
+        kpi_downloads.kpi_value.mark("kpi-downloads-value")
+        kpi_next.kpi_value.mark("kpi-next-value")
 
         services = sorted({t["service"] for t in db.list_tasks()})
         service_select = ui.select(["All"] + services, value="All",
@@ -370,7 +470,7 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
                                 .on("click", lambda _e, u=url: open_shot(u))
                             ui.label(
                                 str(step_no if step_no is not None else "—")
-                            ).classes("text-xs text-grey-6")
+                            ).classes("text-xs text-slate-400")
 
         render_steps()
 
@@ -386,6 +486,10 @@ def register_dashboard(db: Database, orchestrator: Orchestrator,
             waiting_badge.set_text(f"{waiting} waiting")
             waiting_badge.props(
                 f"color={'orange' if waiting else 'grey'}")
+            data = kpi_data(db, scheduler)
+            set_kpi(kpi_tasks, *data["tasks"])
+            set_kpi(kpi_downloads, *data["downloads"])
+            set_kpi(kpi_next, *data["next_run"])
             refresh_log()
             render_steps()
 

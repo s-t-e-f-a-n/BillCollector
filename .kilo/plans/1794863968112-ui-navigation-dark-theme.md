@@ -1,7 +1,8 @@
 # UI Navigation, Icon Actions & Manual Pause
 
 > The file name predates the 2026-11-16 split: the dark-theme half moved to the
-> companion plan `.kilo/plans/1794866943286-ui-dark-theme.md` (ships later).
+> companion plan `.kilo/plans/completed/1794866943286-ui-dark-theme.md`
+> (delivered 2026-11-21, its D7 manual verification user-gated).
 > Refined 2026-11-17: settings single-Save restructure (N9 rewritten, the
 > per-key Saves are gone), the table-column convention (N17),
 > run-review reachability (N4/N5 — the session page's ended view was the
@@ -588,7 +589,7 @@ green.
 ## Out of scope (companion plan / later)
 
 - The entire dark-theme layer: see
-  `.kilo/plans/1794866943286-ui-dark-theme.md` (design tokens, theme.py,
+  `.kilo/plans/completed/1794866943286-ui-dark-theme.md` (design tokens, theme.py,
   `ui.dark_mode`, header/drawer reskin, dashboard KPI strip, dark-readability
   fixes, CodeMirror theme, login restyle).
 - Dark-mode toggle; the wireframe's "Verlauf / Vaultwarden / Logs" pages; a

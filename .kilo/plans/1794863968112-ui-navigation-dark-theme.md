@@ -627,8 +627,23 @@ green.
   templates dispatches the same bubbling DOM CustomEvent pattern as
   `rowaction`/`dlretry` (name `rowclick`, bare-`detail` js_handler, the
   buttons' `.stop` keeps action clicks from triggering it); the two row-click
-  tests now trigger the bare `{id}` payload. Full suite re-green
-  (880 passed / 11 skipped, 142 subtests) 2026-11-19.
+   tests now trigger the bare `{id}` payload. Full suite re-green
+   (880 passed / 11 skipped, 142 subtests) 2026-11-19.
+- N16 finding (2026-11-21, user-reported on the NAS dev deployment): the
+  `/recipes` row links (service name → editor, evidence badge/date → run
+  page) rendered but were **not clickable** — no link behavior, no hover
+  affordance. Root cause: NiceGUI's bundled Quasar UMD build does not
+  export `QLink`, so a `q-link` in the runtime-compiled QTable body slot
+  rendered as an inert custom element in the browser. The browserless `User`
+  tests never compile the client template, so they stayed green. Confirmed
+  by a headless-Chromium repro against a temp daemon (the DOM carried a
+  literal `<q-link href=...>`). Fix: `ROW_BODY` now uses native `<a>`
+  anchors for both links (name → `/recipes/<service>`, evidence →
+  `/runs/<run_id>`); a regression test asserts the body slot carries no
+  `q-link` and both anchors. Headless re-check: both anchors render as
+  `<a href>` and clicking each navigates (→ `/recipes/<service>` and
+  → `/runs/<id>`). Full suite re-green (884 passed / 11 skipped, 142
+  subtests) 2026-11-21. Fix `782a3e6`, regression test `471cb49`.
 - N16 remaining (browser-side, on the deployment): re-check the row click on
   `/tasks` and the dashboard, the `/recipes` index details (evidence badges,
   overlay badge, no-recipe-file row, polling), the settings all-or-nothing

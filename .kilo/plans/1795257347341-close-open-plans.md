@@ -90,6 +90,18 @@ Commit via the dev-commits skill (user confirms each item), push `origin/dev`.
 3. Defect found → fix on `dev` (dev-commits cycle), full suite, redeploy,
    re-walk the affected area only.
 
+   Defect-loop log:
+   - 2026-11-21 (during the `/recipes` N16 walk): the `/recipes` row links
+     (service name → editor, evidence badge/date → run page) were inert —
+     `q-link` is absent from NiceGUI's bundled Quasar UMD, so it rendered as
+     an unregistered custom element in the browser. Fixed in
+     `recipe_list.py` (`ROW_BODY` → native `<a>` anchors) + regression test.
+     Full suite green (884 passed / 11 skipped, 142 subtests). Headless
+     re-check confirms both anchors render and navigate. Fix `782a3e6`,
+     regression test `471cb49`. **Remaining**: push `origin/dev`, redeploy
+     the NAS dev deployment, then re-walk the `/recipes` index only (the
+     rest of the combined walk is unaffected).
+
 ## Phase 3 — Close the two UI plans
 
 1. Update both plan files' Status sections (nav plan: "N16 complete, date,

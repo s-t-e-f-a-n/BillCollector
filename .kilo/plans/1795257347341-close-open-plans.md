@@ -97,10 +97,12 @@ Commit via the dev-commits skill (user confirms each item), push `origin/dev`.
      an unregistered custom element in the browser. Fixed in
      `recipe_list.py` (`ROW_BODY` → native `<a>` anchors) + regression test.
      Full suite green (884 passed / 11 skipped, 142 subtests). Headless
-     re-check confirms both anchors render and navigate. Fix `782a3e6`,
-     regression test `471cb49`. **Remaining**: push `origin/dev`, redeploy
-     the NAS dev deployment, then re-walk the `/recipes` index only (the
-     rest of the combined walk is unaffected).
+      re-check confirms both anchors render and navigate. Fix `782a3e6`,
+      regression test `471cb49`, doc `884972c`; pushed to `origin/dev`.
+      NAS dev deployment redeployed and the `/recipes` index re-walked on
+      2026-11-21 — both link types verified live (service name → editor,
+      evidence badge/date → run page). **Defect loop closed.** The rest of
+      the combined walk is unaffected.
 
 ## Phase 3 — Close the two UI plans
 

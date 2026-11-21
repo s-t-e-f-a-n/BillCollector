@@ -644,8 +644,10 @@ green.
   `<a href>` and clicking each navigates (→ `/recipes/<service>` and
   → `/runs/<id>`). Full suite re-green (884 passed / 11 skipped, 142
   subtests) 2026-11-21. Fix `782a3e6`, regression test `471cb49`.
+  Verified live on the NAS dev deployment after redeploy (2026-11-21): the
+  `/recipes` index re-walk confirmed both link types work (service name →
+  editor, evidence badge/date → run page).
 - N16 remaining (browser-side, on the deployment): re-check the row click on
-  `/tasks` and the dashboard, the `/recipes` index details (evidence badges,
-  overlay badge, no-recipe-file row, polling), the settings all-or-nothing
-  walk, the ntfy push deep link (a manual pause already fires the push — no
-  portal failure needed), and the phone-on-LAN smoke.
+  `/tasks` and the dashboard, the settings all-or-nothing walk, the ntfy push
+  deep link (a manual pause already fires the push — no portal failure
+  needed), and the phone-on-LAN smoke.

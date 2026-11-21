@@ -16,7 +16,8 @@ from playwright.sync_api import Page
 from .collection import CollectionError
 
 _RESERVED = frozenset({'login', 'wait_user', 'expect_download',
-                       'click_until_absent', 'download_all', 'replacement_calendar'})
+                       'click_until_absent', 'download_all', 'replacement_calendar',
+                       'bourse_direct'})
 _UNTIL = (('role', 'get_by_role'), ('test_id', 'get_by_test_id'),
           ('placeholder', 'get_by_placeholder'), ('label', 'get_by_label'),
           ('text', 'get_by_text'), ('selector', 'locator'))
@@ -148,6 +149,39 @@ def locator_arguments(until):
 
 def validate_method_recipe(recipe):
     """Shared UI/run-start gate; diagnostics never contain argument values."""
+    from .bourse_direct_boundary import prepare
+
+    try:
+        prepare(recipe)
+    except ValueError as error:
+        def locate(service, step):
+            if any(entry.get('method') == 'bourse_direct'
+                   for entry in step.get('methods', [])):
+                return service, step
+            for child in step.get('steps', []):
+                found = locate(service, child)
+                if found:
+                    return found
+            if step.get('submit'):
+                found = locate(service, step['submit'])
+                if found:
+                    return found
+            for phase in step.get('phases', []):
+                found = locate(service, phase)
+                if found:
+                    return found
+            return None
+
+        for service in recipe.get('services', []):
+            for step in service.get('steps', []):
+                found = locate(service, step)
+                if found:
+                    owner, action = found
+                    raise ValueError(
+                        f"service {owner.get('serviceName')}, step {action.get('step')}, "
+                        f"method bourse_direct: {error}") from None
+        raise
+
     def visit(step, service):
         owners = {Page}
         for entry in step.get('methods', []):

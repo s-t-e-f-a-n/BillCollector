@@ -285,7 +285,7 @@ def perform_actions(bcs):
                             if isinstance(entry, dict)
                         }
                         if nested and methods & {
-                            "click_until_absent", "download_all", "replacement_calendar"
+                            "click_until_absent", "download_all", "replacement_calendar", "bourse_direct"
                         }:
                             raise StepAbortError(
                                 "bounded collection actions cannot be nested "
@@ -492,7 +492,7 @@ def process_step(bcs, step, collection_actions=None):
                     "error": [failure_record("expect_download", category="download")]
                 })
             break
-        elif method_name in {"click_until_absent", "download_all", "replacement_calendar"}:
+        elif method_name in {"click_until_absent", "download_all", "replacement_calendar", "bourse_direct"}:
             try:
                 collection.validate_terminal_action(
                     methods, method_index, method_name

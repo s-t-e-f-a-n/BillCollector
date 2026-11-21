@@ -25,7 +25,7 @@ COLLECTION_LOCATOR_METHODS = frozenset({
     "get_by_title", "get_by_placeholder", "get_by_test_id",
 })
 COLLECTION_ACTION_METHODS = frozenset({
-    "click_until_absent", "download_all", "replacement_calendar",
+    "click_until_absent", "download_all", "replacement_calendar", "bourse_direct",
 })
 
 logger = logging.getLogger(__name__)
@@ -55,6 +55,10 @@ class PaginationResult:
 
 def validate_terminal_action(methods, index, name):
     """Require exactly one page locator followed by one collection action."""
+    if name == 'bourse_direct':
+        if len(methods) != 1 or index != 0:
+            raise CollectionError('bourse_direct requires one standalone method')
+        return
     if len(methods) != 2 or index != 1:
         raise CollectionError(
             f"{name} requires exactly one locator method followed by the action"

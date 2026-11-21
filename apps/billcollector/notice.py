@@ -218,7 +218,7 @@ def validate_notice_recipe(recipe):
         if "notice_identity" in step:
             validate_identity(step["notice_identity"])
             names = {entry.get("method") for entry in step.get("methods", [])}
-            if not names & {"expect_download", "download_all", "replacement_calendar"}:
+            if not names & {"expect_download", "download_all", "replacement_calendar", "bourse_direct"}:
                 raise ValueError("notice_identity requires a download step")
         for nested in step.get("steps", []):
             visit(nested)

@@ -224,5 +224,23 @@ async def test_unauthenticated_request_redirects_to_login(user):
     assert response.headers["location"] == "/login"
 
 
+def test_row_links_use_native_anchors():
+    """The row body's links must be native <a> elements, not q-link.
+
+    The browserless User simulation never compiles the client template, so
+    it cannot catch an unresolved Quasar component: NiceGUI's bundled
+    Quasar UMD does not export QLink, and a q-link in the runtime-compiled
+    body slot rendered as an inert custom element in the browser (no link
+    behavior, no hover affordance).
+    """
+    from billcollector.ui.recipe_list import ROW_BODY
+
+    assert "<q-link" not in ROW_BODY
+    # The service-name link (editor) and the evidence link (run page).
+    assert ROW_BODY.count("<a v-if=") == 2
+    assert "'/recipes/' + props.row.link" in ROW_BODY
+    assert "'/runs/' + props.row.evidence_run_id" in ROW_BODY
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

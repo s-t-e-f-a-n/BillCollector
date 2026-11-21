@@ -46,12 +46,16 @@ COLUMNS = [
 # render through the QTable body slot (the same runtime-compiler
 # constraints as the dashboard's ROW_BODY: no <template v-slot> wrapper,
 # no module scope - colors and labels are resolved on the Python side).
+# The links are native <a> elements, NOT q-link: NiceGUI's bundled Quasar
+# UMD build does not export QLink, so a q-link in a runtime-compiled
+# template renders as an inert custom element (no link behavior, no
+# hover affordance).
 ROW_BODY = """
 <q-tr :props="props">
   <q-td v-for="col in props.cols" :key="col.name" :props="{ ...props, col: col }">
     <template v-if="col.name === 'recipe'">
-      <q-link v-if="props.row.link" :href="'/recipes/' + props.row.link"
-              class="no-underline text-sky-400">{{ props.row.name }}</q-link>
+      <a v-if="props.row.link" :href="'/recipes/' + props.row.link"
+         class="no-underline text-sky-400">{{ props.row.name }}</a>
       <span v-else class="inline-flex items-center gap-1">
         {{ props.row.name }}
         <q-badge color="red" outline>no recipe file</q-badge>
@@ -68,12 +72,12 @@ ROW_BODY = """
       </q-badge>
     </template>
     <template v-else-if="col.name === 'evidence'">
-      <q-link v-if="props.row.evidence_run_id"
-              :href="'/runs/' + props.row.evidence_run_id"
-              class="no-underline items-center gap-1">
+      <a v-if="props.row.evidence_run_id"
+         :href="'/runs/' + props.row.evidence_run_id"
+         class="no-underline inline-flex items-center gap-1">
         <q-badge :color="props.row.evidence_color" outline>{{ props.row.evidence }}</q-badge>
         <span class="text-xs font-mono">{{ props.row.evidence_date }}</span>
-      </q-link>
+      </a>
       <q-badge v-else color="grey" outline>unverified</q-badge>
     </template>
     <span v-else-if="col.name === 'tasks' && props.row.tasks === 0"

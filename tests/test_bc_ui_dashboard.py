@@ -34,14 +34,19 @@ D3.3 adds the task management dialogs: the toolbar **Add task** button
 read-only with a missing-file warning, duplicate and invalid-cron
 rejections) and the row **Edit** button (cron + the enabled toggle;
 enabling flips the row's next-run cell from — to the live job's fire
-time via ``scheduler.sync_task``)."""
+time via ``scheduler.sync_task``).
+
+The KPI strip (the dark-theme plan's D3) pins ``kpi_data`` (task
+counts, the 30-day download window, the next cron fire's countdown)
+against a real jobstore, the ``_countdown`` zero floor, and the
+strip's render of the seed state."""
 
 import asyncio
 import os
 import sys
 import tempfile
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -56,7 +61,8 @@ from billcollector.orchestrator import Orchestrator  # noqa: E402
 from billcollector.scheduler import TaskScheduler  # noqa: E402
 from billcollector.ui import auth  # noqa: E402
 from billcollector.ui import session as ui_session  # noqa: E402
-from billcollector.ui.dashboard import next_run  # noqa: E402
+from billcollector.ui.dashboard import (  # noqa: E402
+    _countdown, kpi_data, next_run, next_run_countdown)
 
 GOOD_PASSWORD = "ui-test-pass-1"
 
@@ -196,6 +202,104 @@ def test_next_run_reads_the_live_jobstore():
         assert off == "—"
     finally:
         tmp.cleanup()
+
+
+def test_countdown_formats_and_floors_at_zero():
+    """``_countdown`` renders ``in HH:MM:SS`` and never goes negative (a
+    fire time in the past - between jobstore read and poll - reads
+    zero)."""
+    assert _countdown(datetime.now() - timedelta(minutes=5)) == \
+        "in 00:00:00"
+    future = datetime.now() + timedelta(hours=2, minutes=3, seconds=4)
+    # The clock moves between the two now() calls, so the seconds field
+    # can drop by one.
+    assert _countdown(future) in ("in 02:03:03", "in 02:03:02")
+
+
+def test_kpi_data_counts_tasks_windowed_downloads_and_next_run():
+    """``kpi_data`` (the dark-theme plan's D3): enabled/total with the
+    running/waiting breakdown, only the downloads inside the 30-day
+    window (the older row is backdated out of it via raw SQL, since
+    ``insert_download`` always stamps ``now()``), and the next cron
+    fire's countdown + task from the live jobstore; ``(None, None)``
+    while the scheduler is not running."""
+    tmp = tempfile.TemporaryDirectory()
+    try:
+        db = Database(Path(tmp.name) / "bc.db")
+        t_running = db.create_task("svc", "u1", enabled=True,
+                                   cron="* * * * *")
+        t_waiting = db.create_task("svc", "u2", enabled=True,
+                                   cron="* * * * *")
+        db.create_task("svc", "u3", enabled=False, cron="* * * * *")
+        db.set_task_status(t_running, "running")
+        db.set_task_status(t_waiting, "waiting")
+
+        # One in-window download and one backdated 45 days (outside the
+        # 30-day window).
+        dl_new = db.insert_download(db.create_run(t_running), t_running,
+                                    "http://dl.example/a.pdf",
+                                    "invoice-a.pdf", 1234, "sha-a",
+                                    "/tmp/invoice-a.pdf")
+        dl_old = db.insert_download(db.create_run(t_waiting), t_waiting,
+                                    "http://dl.example/b.pdf",
+                                    "invoice-b.pdf", 2345, "sha-b",
+                                    "/tmp/invoice-b.pdf")
+        old = (datetime.now() - timedelta(days=45)).strftime(
+            "%Y-%m-%d %H:%M:%S")
+        with db._lock:
+            db.conn.execute("UPDATE Download SET created_at=? WHERE id=?",
+                            (old, dl_old))
+            db.conn.commit()
+        dl_new_date = db.get_download(dl_new)["created_at"][:10]
+
+        async def run_stub(task_id):
+            pass
+
+        sched = TaskScheduler(db, run_stub)
+        try:
+            # No live jobs while the scheduler is not running.
+            assert next_run_countdown(sched, db) == (None, None)
+
+            async def cycle():
+                sched.start()
+                try:
+                    return kpi_data(db, sched)
+                finally:
+                    sched.stop()
+            data = asyncio.run(cycle())
+        finally:
+            sched_mod._run_callback = None
+            db.close()
+
+        assert data["tasks"] == ("2/3", "1 running · 1 waiting")
+        assert data["downloads"][0] == "1"
+        assert data["downloads"][1] == dl_new_date
+        assert data["next_run"][0].startswith("in ")
+        assert data["next_run"][1] in ("svc / u1", "svc / u2")
+    finally:
+        tmp.cleanup()
+
+
+async def test_kpi_strip_renders_the_seed_state(user, testdb, tmp_path):
+    """The KPI strip renders the seed state (the dark-theme plan's D3):
+    2/3 tasks with the running/waiting breakdown, the single in-window
+    download with its date, and no countdown (the scheduler started
+    before any task existed, so no live job). The marked value labels
+    are what the ~2 s poll updates in place."""
+    _seed(testdb, tmp_path)
+    await _login(user, testdb)
+    await user.open("/")
+
+    (kpi_tasks,) = user.find(marker="kpi-tasks").elements
+    (kpi_downloads,) = user.find(marker="kpi-downloads").elements
+    (kpi_next,) = user.find(marker="kpi-next").elements
+    assert kpi_tasks.kpi_value.text == "2/3"
+    assert kpi_tasks.kpi_sub.text == "1 running · 1 waiting"
+    (dl,) = testdb.list_downloads()
+    assert kpi_downloads.kpi_value.text == "1"
+    assert kpi_downloads.kpi_sub.text == dl["created_at"][:10]
+    assert kpi_next.kpi_value.text == "—"
+    assert kpi_next.kpi_sub.text == ""
 
 
 async def test_one_row_per_task_sorted_and_populated(user, testdb, tmp_path):

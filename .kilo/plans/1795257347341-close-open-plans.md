@@ -104,6 +104,10 @@ Commit via the dev-commits skill (user confirms each item), push `origin/dev`.
       evidence badge/date → run page). **Defect loop closed.** The rest of
       the combined walk is unaffected.
 
+    **Done 2026-11-21**: deployment at the dev tip, the combined walk ran,
+    the `/recipes` defect loop closed, and the user confirmed the full N16
+    remainder + D7 lists passed ("all tested and fine").
+
 ## Phase 3 — Close the two UI plans
 
 1. Update both plan files' Status sections (nav plan: "N16 complete, date,
@@ -116,6 +120,11 @@ Commit via the dev-commits skill (user confirms each item), push `origin/dev`.
 4. **Optional user gate (deploy skill)**: release cycle for the UI work
    (promote `dev` → Gitea `main`, GitHub mirror, optional tag v0.7, optional
    NAS production deploy). The user decides; the drive continues either way.
+
+Status 2026-11-21: steps 1–2 done (nav plan Status updated + moved to
+`completed/`; dark plan D7 marked verified; README active row dropped; the
+two completed-plan cross-references gained the `completed/` prefix); step 3
+is this doc commit; step 4 awaits the user's decision.
 
 ## Phase 4 — Portal batch: doctor remainder + C7 (plans `1792819039884` +
 `1792861675256`)

@@ -1,7 +1,7 @@
 # Manual pause — "Pause" row action (dashboard + task detail)
 
 > Status: CONSUMED (2026-11-17) — implemented on `dev` as part of the UI
-> navigation pass `.kilo/plans/1794863968112-ui-navigation-dark-theme.md`
+> navigation pass `.kilo/plans/completed/1794863968112-ui-navigation-dark-theme.md`
 > (N11 machinery + the morphing Run/Pause icon buttons N4/N5, which
 > supersede this plan's separate "Pause" button tasks #3/#4). Tests green;
 > manual verification (N16 of that plan) and the commit are pending.

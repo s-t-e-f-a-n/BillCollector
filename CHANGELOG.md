@@ -39,9 +39,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   requested after the last step completes the run normally.
 - Run review: the dashboard row's Open session action becomes **View
   run** - it opens the task's newest run, live or ended - and the
-  task-detail run history gains a per-run **View run** link, so the
-  session page's ended view (result, last pause context, Repair recipe
-  link) is reachable from the UI.
+   task-detail run history gains a per-run **View run** link, so the
+   session page's ended view (result, last pause context, Repair recipe
+   link) is reachable from the UI.
+- Dark theme: the Web UI is dark-only ("fintech precision": near-black
+  slate surfaces, 1px borders, no shadows, emerald primary), applied
+  from a single `theme.py` token set on every page. The header gains a
+  BillCollector icon, a mono version chip, and a live "Daemon active /
+  stopped" pill reflecting the scheduler state, and the dashboard gains
+  a KPI strip above the toolbar: enabled/total tasks with the
+  running/waiting breakdown, files collected in the last 30 days (with
+  the newest date), and a live countdown to the next scheduled cron
+  fire (with the task it belongs to).
 
 ### Changed
 
@@ -61,6 +70,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Actions column are right-aligned, the service/user pair column is
   labelled "Task", and technical cells (timestamps, cron, SHA,
   filenames, run ids) render in a monospace font.
+- Web UI readability pass (dark theme): the page chrome (header,
+  drawer, cards, tables), the recipe editor (CodeMirror `oneDark`), the
+  login page, and the status/error accents are restyled onto the dark
+  token set, so every page renders on the slate surface without
+  light-mode remnants.
 
 ### Fixed
 

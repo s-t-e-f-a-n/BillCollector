@@ -1,0 +1,93 @@
+# Copyright (c) 2026 flowcool and contributors
+# SPDX-License-Identifier: MIT
+# See LICENSE in the repository root.
+
+services:
+- serviceName: cc_genevois
+  steps:
+  - description: Open the public account page.
+    methods:
+    - method: goto
+      arguments:
+      - url: https://abonnes.cc-genevois.fr
+    step: 1
+  - description: Dismiss the optional cookie notice.
+    methods:
+    - method: locator
+      arguments:
+      - selector: .cb__container__button button
+    - method: click
+      arguments:
+      - timeout: 3000
+    graceful: true
+    step: 2
+  - description: Open account login.
+    methods:
+    - method: locator
+      arguments:
+      - selector: a[href='/public/connexion']
+    - method: click
+      arguments:
+      - timeout: 30000
+    step: 3
+  - description: Enter the account credential.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#_email'
+    - method: fill
+      arguments:
+      - value: '{{USERNAME}}'
+    step: 4
+  - description: Enter the account credential.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#_password'
+    - method: fill
+      arguments:
+      - value: '{{PASSWORD}}'
+    step: 5
+  - description: Submit account login.
+    methods:
+    - method: locator
+      arguments:
+      - selector: button[type='submit']
+    - method: click
+      arguments:
+      - timeout: 30000
+    step: 6
+  - description: Open invoice history.
+    methods:
+    - method: locator
+      arguments:
+      - selector: a[href='/factures']:text-is('Factures')
+    - method: click
+      arguments:
+      - timeout: 30000
+    step: 7
+  - description: Bind every download control to its invoice number.
+    methods:
+    - method: evaluate
+      arguments:
+      - expression: () => { const bind = () => { const controls = [...document.querySelectorAll('div.svg-link__block[title="Télécharger"]')];
+          for (const el of controls) { const row = el.closest('tr'); const key = row?.cells[1]?.textContent.trim();
+          if (!key) throw new Error('Missing invoice number'); if (el.getAttribute('data-bc-invoice-key')
+          !== key) el.setAttribute('data-bc-invoice-key', key); } }; if (!document.querySelector('div.svg-link__block[title="Télécharger"]'))
+          throw new Error('No invoice controls'); bind(); window.__bcInvoiceObserver?.disconnect(); window.__bcInvoiceObserver
+          = new MutationObserver(bind); window.__bcInvoiceObserver.observe(document.body, {childList:true,
+          subtree:true}); }
+    step: 8
+  - description: Download every listed invoice PDF.
+    methods:
+    - method: locator
+      arguments:
+      - selector: div.svg-link__block[title="Télécharger"]
+    - method: download_all
+      arguments:
+      - key_attribute: data-bc-invoice-key
+        max_items: 200
+        timeout_ms: 600000
+        event_window_ms: 10000
+        incremental: true
+    step: 9

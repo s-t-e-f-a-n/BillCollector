@@ -1,0 +1,128 @@
+# Copyright (c) 2026 flowcool and contributors
+# SPDX-License-Identifier: MIT
+# See LICENSE in the repository root.
+
+services:
+- serviceName: fulli
+  steps:
+  - description: Open the public account page.
+    methods:
+    - method: goto
+      arguments:
+      - url: https://www.fulli.com/customer/login
+    step: 1
+  - description: Reject optional cookies.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#onetrust-reject-all-handler'
+    - method: click
+      arguments:
+      - timeout: 3000
+    graceful: true
+    step: 2
+  - description: Open login when a stale session returns the public homepage.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '.UserAccountMenu a[href="/customer/login"]'
+    - method: click
+      arguments:
+      - timeout: 3000
+    graceful: true
+    step: 3
+  - description: Enter the account credential.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#identifier'
+    - method: fill
+      arguments:
+      - value: '{{USERNAME}}'
+    step: 4
+  - description: Continue to the password form.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#otp-submit-btn'
+    - method: click
+      arguments:
+      - timeout: 30000
+    step: 5
+  - description: Enter the account credential.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#password'
+    - method: fill
+      arguments:
+      - value: '{{PASSWORD}}'
+    step: 6
+  - description: Submit account login.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#pass-submit-btn'
+    - method: click
+      arguments:
+      - timeout: 30000
+    step: 7
+  - description: Reject optional cookies.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#onetrust-reject-all-handler'
+    - method: click
+      arguments:
+      - timeout: 3000
+    graceful: true
+    step: 8
+  - description: Open invoice history.
+    methods:
+    - method: locator
+      arguments:
+      - selector: a.Button[href='/espace-client/factures']
+    - method: click
+      arguments:
+      - timeout: 30000
+    step: 9
+  - description: Load every invoice history page.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#js--transactions-invoices-pager:not(.visually-hidden)'
+    - method: click_until_absent
+      arguments:
+      - progress_selector: '#js--transactions-list li.data-list__item:not(.visually-hidden) a[href^=''/customer-space/invoice/download/'']'
+        max_clicks: 20
+        timeout_ms: 120000
+    step: 10
+  - step: 11
+    description: Bind invoice links to their source billing period.
+    methods:
+    - method: evaluate
+      arguments:
+      - expression: '() => { const months = [''janvier'',''fevrier'',''mars'',''avril'',''mai'',''juin'',''juillet'',''aout'',''septembre'',''octobre'',''novembre'',''decembre''];
+          const seen = new Set(); const links = [...document.querySelectorAll("#js--transactions-list
+          li.data-list__item:not(.visually-hidden) a[href^=''/customer-space/invoice/download/'']")];
+          if (!links.length || document.querySelector(''#js--transactions-list li.data-list__item.visually-hidden''))
+          throw new Error(''Invoice pagination incomplete''); for (const link of links) { const field
+          = link.closest(''li'').querySelector(''.InvoiceInfo-list-item-period''); const label = [...field.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent).join(''
+          '').normalize(''NFD'').replace(/[\u0300-\u036f]/g,'''').trim().toLowerCase(); const match =
+          label.match(/^([a-z]+)\s+(\d{4})$/); const month = match ? months.indexOf(match[1]) + 1 : 0;
+          if (!month) throw new Error(''Missing invoice period''); const key = match[2] + ''-'' + String(month).padStart(2,''0'');
+          if (seen.has(key)) throw new Error(''Ambiguous invoice period''); seen.add(key); link.setAttribute(''data-bc-invoice-key'',key);
+          } }'
+  - description: Download every listed invoice PDF.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#js--transactions-list li.data-list__item:not(.visually-hidden) a[href^=''/customer-space/invoice/download/'']'
+    - method: download_all
+      arguments:
+      - key_attribute: data-bc-invoice-key
+        max_items: 200
+        timeout_ms: 600000
+        event_window_ms: 10000
+        incremental: true
+    step: 12

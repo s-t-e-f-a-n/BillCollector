@@ -1,0 +1,82 @@
+# Copyright (c) 2026 flowcool and contributors
+# SPDX-License-Identifier: MIT
+# See LICENSE in the repository root.
+
+services:
+- serviceName: free
+  steps:
+  - step: 1
+    description: Open the public login page.
+    methods:
+    - method: goto
+      arguments:
+      - url: https://subscribe.free.fr/login/
+  - step: 2
+    description: Enter the Freebox subscriber identifier.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#login_b'
+    - method: fill
+      arguments:
+      - value: '{{USERNAME}}'
+  - step: 3
+    description: Enter the Freebox subscriber password.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#pass_b'
+    - method: fill
+      arguments:
+      - value: '{{PASSWORD}}'
+  - step: 4
+    description: Submit the Freebox login form.
+    methods:
+    - method: locator
+      arguments:
+      - selector: '#ok'
+    - method: click
+      arguments:
+      - timeout: 30000
+  - step: 5
+    description: Open the complete Freebox invoice history.
+    methods:
+    - method: locator
+      arguments:
+      - selector: xpath=//a[contains(@href, 'facture_liste.pl') and @title='Voir toutes mes factures']
+    - method: click
+      arguments:
+      - timeout: 30000
+  - step: 6
+    description: Expand every invoice year without closing the other years.
+    methods:
+    - method: evaluate
+      arguments:
+      - expression: () => document.querySelectorAll('div.listblock.accordion.closed').forEach(e => e.classList.replace('closed','open'))
+  - step: 7
+    description: Bind each invoice to its source month and year.
+    methods:
+    - method: evaluate
+      arguments:
+      - expression: '() => { const months = [''janvier'',''fevrier'',''mars'',''avril'',''mai'',''juin'',''juillet'',''aout'',''septembre'',''octobre'',''novembre'',''decembre''];
+          const seen = new Set(); const links = [...document.querySelectorAll("a[href*=''facture_pdf.pl''].btn_download[title=''Télécharger
+          votre facture en PDF'']")]; if (!links.length) throw new Error(''No invoice controls''); for
+          (const link of links) { const label = link.closest(''li'')?.querySelectorAll('':scope > span.col'')[1]?.textContent.normalize(''NFD'').replace(/[\u0300-\u036f]/g,'''').trim().toLowerCase();
+          const match = label?.match(/^([a-z]+)\s+(\d{4})$/); const month = match ? months.indexOf(match[1])
+          + 1 : 0; if (!month) throw new Error(''Missing invoice period''); const key = match[2] + ''-''
+          + String(month).padStart(2,''0''); if (seen.has(key)) throw new Error(''Ambiguous invoice period'');
+          seen.add(key); link.setAttribute(''data-bc-invoice-key'',key); } }'
+  - step: 8
+    description: Download every PDF invoice in the Freebox history.
+    methods:
+    - method: locator
+      arguments:
+      - selector: xpath=//a[contains(@href, 'facture_pdf.pl') and contains(@class, 'btn_download') and
+          @title='Télécharger votre facture en PDF']
+    - method: download_all
+      arguments:
+      - key_attribute: data-bc-invoice-key
+        max_items: 200
+        timeout_ms: 600000
+        event_window_ms: 10000
+        incremental: true

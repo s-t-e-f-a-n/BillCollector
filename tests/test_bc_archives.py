@@ -88,6 +88,13 @@ class ArchiveTests(unittest.TestCase):
                     temporary = document.source
                 self.assertFalse(temporary.exists())
 
+    def test_utf8_bom_before_pdf_signature_is_preserved(self):
+        content = b"\xef\xbb\xbf" + PDF
+        with self.prepare(make_zip([("a.pdf", content)])) as document:
+            saved = self.root / "saved.pdf"
+            document.save_as(saved)
+            self.assertEqual(saved.read_bytes(), content)
+
     def test_large_member_streams_in_chunks_without_rewriting(self):
         content = PDF + b"\n" * (512 * 1024)
         for compression in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
@@ -107,6 +114,7 @@ class ArchiveTests(unittest.TestCase):
                         [("a.pdf", PDF), ("notes.txt", b"text")],
                         [("dir/", b""), ("dir/a.pdf", PDF)],
                         [("a.txt", PDF)], [("a.pdf", b"<html>error</html>")],
+                        [("a.pdf", b"\xef\xbb\xbf<html>error</html>")],
                         [("a.pdf", b"")]):
             with self.subTest(entries=[name for name, _ in entries]):
                 self.reject(make_zip(entries))

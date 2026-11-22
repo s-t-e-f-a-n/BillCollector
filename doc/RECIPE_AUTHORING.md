@@ -128,7 +128,8 @@ does not grant automatic retries or count manual submissions in the login budget
 
 For a ZIP transport, add `unpack: pdf` to the `download_all` options object.
 The archive must contain exactly one member, including directory entries. The
-member must be a regular file with a `.pdf` extension and a `%PDF-` signature.
+member must be a regular file with a `.pdf` extension. Its content must start
+with `%PDF-`, optionally preceded by a UTF-8 byte order mark.
 This checks the transport type; it does not parse or repair the PDF document.
 Absolute paths, empty/dot/parent components, backslashes, colons and control
 characters are rejected. Safe subdirectories are allowed; only the member's

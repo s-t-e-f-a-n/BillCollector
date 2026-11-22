@@ -90,8 +90,8 @@ def pdf_download(download):
             with tempfile.TemporaryDirectory(prefix="billcollector-pdf-") as directory:
                 pdf = Path(directory) / "document.pdf"
                 with archive.open(member) as stream, pdf.open("xb") as output:
-                    header = stream.read(5)
-                    if header != b"%PDF-":
+                    header = stream.read(min(8, MAX_PDF_BYTES))
+                    if not header.startswith((b"%PDF-", b"\xef\xbb\xbf%PDF-")):
                         raise ValueError("ZIP member has no PDF signature")
                     output.write(header)
                     total = len(header)
